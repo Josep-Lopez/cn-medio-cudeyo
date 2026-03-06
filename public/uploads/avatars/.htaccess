@@ -1,0 +1,3 @@
+# Seguretat: no executar PHP en la carpeta d'uploads
+php_flag engine off
+Options -Indexes

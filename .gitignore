@@ -1,0 +1,21 @@
+# Entorn i secrets
+.env
+
+# Dependències
+vendor/
+
+# Fitxers pujats pels usuaris (contingut generat, no codi)
+public/uploads/avatars/*
+!public/uploads/avatars/.htaccess
+public/uploads/noticias/*
+!public/uploads/noticias/.htaccess
+
+# Logs i temporals
+*.log
+
+# SO
+.DS_Store
+Thumbs.db
+
+# Editor / eines locals
+.claude/
