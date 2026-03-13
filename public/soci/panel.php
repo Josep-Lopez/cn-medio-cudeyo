@@ -37,7 +37,7 @@ render_header('Mi panel', 'soci-panel');
 ?>
 
 <div class="container page-content">
-  <div class="d-flex justify-between align-center mb-6">
+  <div class="panel-header mb-6">
     <div style="display:flex;align-items:center;gap:16px;">
       <?php if ($avatar_url): ?>
         <img src="<?= e($avatar_url) ?>" alt="<?= e($user['nom']) ?>"
@@ -55,9 +55,9 @@ render_header('Mi panel', 'soci-panel');
         </span>
       </div>
     </div>
-    <div class="d-flex gap-2">
+    <div class="d-flex gap-2 flex-wrap">
       <a href="/soci/perfil" class="btn btn-gray btn-sm"><i class="bi bi-person-gear"></i> Mi perfil</a>
-      <a href="/soci/ranking" class="btn btn-secondary">Ver ranking mi liga</a>
+      <a href="/soci/ranking" class="btn btn-secondary btn-sm">Ver ranking mi liga</a>
     </div>
   </div>
 

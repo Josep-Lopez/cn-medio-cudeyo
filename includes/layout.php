@@ -69,7 +69,7 @@ function render_header(string $title, string $activePage = '', string $extraHead
       </div>
 
       <button class="navbar-hamburger" onclick="toggleMenu()" aria-label="Menú">
-        <span></span><span></span><span></span>
+        <i class="bi bi-list"></i>
       </button>
     </div>
   </div>

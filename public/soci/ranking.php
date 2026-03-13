@@ -44,8 +44,8 @@ render_header('Ranking liga', 'soci-ranking');
 
   <!-- Filtros -->
   <div class="filters-bar">
-    <form method="GET" class="d-flex gap-3 align-center flex-wrap" style="width:100%;">
-      <div class="form-group" style="margin:0;min-width:150px;">
+    <form method="GET" class="filters-form">
+      <div class="form-group">
         <label class="form-label">Categoría</label>
         <select name="lliga" class="form-control">
           <option value="">Todas las ligas</option>
@@ -54,24 +54,24 @@ render_header('Ranking liga', 'soci-ranking');
           <?php endforeach; ?>
         </select>
       </div>
-      <div class="form-group" style="margin:0;min-width:160px;">
+      <div class="form-group">
         <label class="form-label">Prueba</label>
         <select name="prova" class="form-control">
           <?php render_prova_options($filterProva); ?>
         </select>
       </div>
-      <div class="form-group" style="margin:0;">
+      <div class="form-group">
         <label class="form-label">Piscina</label>
         <select name="piscina" class="form-control">
           <option value="25m" <?= $filterPiscina === '25m' ? 'selected' : '' ?>>25m</option>
           <option value="50m" <?= $filterPiscina === '50m' ? 'selected' : '' ?>>50m</option>
         </select>
       </div>
-      <div class="form-group" style="margin:0;align-self:flex-end;">
+      <div class="form-group" style="align-self:flex-end;">
         <button type="submit" class="btn btn-primary">Filtrar</button>
       </div>
       <?php if ($user['lliga']): ?>
-        <div class="form-group" style="margin:0;align-self:flex-end;">
+        <div class="form-group" style="align-self:flex-end;">
           <a href="?lliga=<?= e($user['lliga']) ?>&prova=<?= e($filterProva) ?>&piscina=<?= e($filterPiscina) ?>" class="btn btn-secondary">
             Mi liga (<?= e(format_lliga($user['lliga'])) ?>)
           </a>

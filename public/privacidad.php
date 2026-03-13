@@ -14,8 +14,8 @@ render_header('Política de Privacidad', '');
     <h2 style="font-size:18px;font-weight:700;margin:32px 0 12px;">1. Responsable del tratamiento</h2>
     <p>
       El responsable del tratamiento de los datos personales recogidos en este sitio web es:<br><br>
-      <strong>Nombre:</strong> <span style="background:#fff3cd;padding:2px 6px;border-radius:4px;">[NOM I COGNOMS DEL RESPONSABLE]</span><br>
-      <strong>Correo electrónico:</strong> <span style="background:#fff3cd;padding:2px 6px;border-radius:4px;">[EMAIL DE CONTACTE]</span><br>
+      <strong>Nombre:</strong> <span style="background:#fff3cd;padding:2px 6px;border-radius:4px;">Gabriel Martí Holgado</span><br>
+      <strong>Correo electrónico:</strong> <span style="background:#fff3cd;padding:2px 6px;border-radius:4px;">coachgabimarti@gmail.com</span><br>
       <strong>Entidad:</strong> Club de Natación Medio Cudeyo
     </p>
 
@@ -46,7 +46,7 @@ render_header('Política de Privacidad', '');
 
     <h2 style="font-size:18px;font-weight:700;margin:32px 0 12px;">7. Derechos del interesado</h2>
     <p>Puedes ejercer en cualquier momento los derechos de acceso, rectificación, supresión, oposición, limitación del tratamiento y portabilidad de datos escribiendo a
-      <span style="background:#fff3cd;padding:2px 6px;border-radius:4px;">[EMAIL DE CONTACTE]</span>,
+      <span style="background:#fff3cd;padding:2px 6px;border-radius:4px;">coachgabimarti@gmail.com</span>,
       indicando en el asunto "Protección de datos".
     </p>
     <p>También tienes derecho a presentar una reclamación ante la Agencia Española de Protección de Datos (<a href="https://www.aepd.es" target="_blank" rel="noopener">www.aepd.es</a>).</p>

@@ -1,8 +1,17 @@
 <?php
-$host   = getenv('DB_HOST') ?: 'db';
-$dbname = getenv('DB_NAME') ?: 'cn_medio_cudeyo';
-$user   = getenv('DB_USER') ?: 'cnuser';
-$pass   = getenv('DB_PASS') ?: 'cnpass123';
+$envFile = dirname(__DIR__) . '/.env';
+if (file_exists($envFile)) {
+    foreach (file($envFile, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES) as $line) {
+        if (str_starts_with(trim($line), '#') || !str_contains($line, '=')) continue;
+        [$k, $v] = explode('=', $line, 2);
+        $_ENV[trim($k)] = trim($v);
+    }
+}
+
+$host   = $_ENV['DB_HOST'] ?? getenv('DB_HOST') ?: 'localhost';
+$dbname = $_ENV['DB_NAME'] ?? getenv('DB_NAME') ?: 'cn_medio_cudeyo';
+$user   = $_ENV['DB_USER'] ?? getenv('DB_USER') ?: '';
+$pass   = $_ENV['DB_PASS'] ?? getenv('DB_PASS') ?: '';
 
 try {
     $pdo = new PDO(

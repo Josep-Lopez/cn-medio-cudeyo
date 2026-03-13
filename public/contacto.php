@@ -45,7 +45,7 @@ render_header('Contacto', 'contacto');
 </section>
 
 <div class="container page-content">
-  <div style="display:grid;grid-template-columns:1fr 1.6fr;gap:48px;align-items:start;">
+  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:32px;align-items:start;">
 
     <!-- Info de contacto -->
     <div>

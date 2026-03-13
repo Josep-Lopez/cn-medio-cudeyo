@@ -63,7 +63,7 @@ render_header('Inicio', 'inicio');
   <div class="container">
     <div class="stats-grid">
       <div class="stat-card">
-        <div class="stat-number">150</div>
+        <div class="stat-number">60</div>
         <div class="stat-label">Nadadores activos</div>
       </div>
       <div class="stat-card">
@@ -73,10 +73,6 @@ render_header('Inicio', 'inicio');
       <div class="stat-card">
         <div class="stat-number">+20</div>
         <div class="stat-label">Competiciones por temporada</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-number"><i class="bi bi-trophy-fill" style="color:var(--blue);"></i></div>
-        <div class="stat-label">Campeones regionales</div>
       </div>
     </div>
   </div>
@@ -121,7 +117,7 @@ render_header('Inicio', 'inicio');
   <div class="container">
     <h2 class="section-title">¿Dónde estamos?</h2>
     <p class="section-sub">Ven a conocernos</p>
-    <div class="services-grid" style="grid-template-columns: repeat(2, 1fr); max-width: 640px;">
+    <div class="services-grid" style="grid-template-columns: repeat(auto-fit, minmax(260px, 1fr))">
       <div class="service-card">
         <div class="service-icon"><i class="bi bi-geo-alt-fill"></i></div>
         <div class="service-title">Ubicación</div>

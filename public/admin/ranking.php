@@ -43,21 +43,21 @@ render_admin_layout('ranking', function() use ($PROVES, $ranking, $filterLliga, 
 
 <!-- Filtros -->
 <div class="filters-bar">
-  <form method="GET" class="d-flex gap-3 align-center flex-wrap" style="width:100%;">
-    <div class="form-group" style="margin:0;min-width:150px;">
+  <form method="GET" class="filters-form">
+    <div class="form-group">
       <label class="form-label">Prueba</label>
       <select name="prova" class="form-control">
         <?php render_prova_options($filterProva); ?>
       </select>
     </div>
-    <div class="form-group" style="margin:0;">
+    <div class="form-group">
       <label class="form-label">Piscina</label>
       <select name="piscina" class="form-control">
         <option value="25m" <?= $filterPiscina === '25m' ? 'selected' : '' ?>>25m</option>
         <option value="50m" <?= $filterPiscina === '50m' ? 'selected' : '' ?>>50m</option>
       </select>
     </div>
-    <div class="form-group" style="margin:0;min-width:140px;">
+    <div class="form-group">
       <label class="form-label">Categoría</label>
       <select name="lliga" class="form-control">
         <option value="">Todas</option>
@@ -66,14 +66,14 @@ render_admin_layout('ranking', function() use ($PROVES, $ranking, $filterLliga, 
         <?php endforeach; ?>
       </select>
     </div>
-    <div class="form-group" style="margin:0;">
+    <div class="form-group">
       <label class="form-label">Temporada</label>
       <select name="temporada" class="form-control">
         <option value="2025-26" <?= $filterTemporada === '2025-26' ? 'selected' : '' ?>>2025-26</option>
         <option value="2024-25" <?= $filterTemporada === '2024-25' ? 'selected' : '' ?>>2024-25</option>
       </select>
     </div>
-    <div class="form-group" style="margin:0;align-self:flex-end;">
+    <div class="form-group" style="align-self:flex-end;">
       <button type="submit" class="btn btn-primary">Filtrar</button>
     </div>
   </form>
