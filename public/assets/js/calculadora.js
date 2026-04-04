@@ -45,26 +45,36 @@ const FINA_TIMES = (typeof window.FINA_TIMES_DB !== 'undefined') ? window.FINA_T
 
 // Mínimas RFEN (temporada 2025-26)
 // Si se inyecta window.MINIMES_DB desde PHP, se usa ese valor (datos de la BD).
-// Formato: MINIMES[prueba][piscina][sexo][categoria]
+// Formato:
+//   age-based:  MINIMES[prueba][piscina][sexo][cat][age]  p.ej. ["alevin"]["12"]
+//   sin edad:   MINIMES[prueba][piscina][sexo][cat]        p.ej. ["sub20"] = float|null
 const MINIMES = (typeof window.MINIMES_DB !== 'undefined') ? window.MINIMES_DB : {
-  "50L":   { "25m": { M:{ alevin:28.10, infantil:null, junior:null, sub20:null, absoluto:23.85 }, F:{ alevin:29.30, infantil:null, junior:null, sub20:null, absoluto:26.85 } }, "50m": { M:{ alevin:null, infantil:null, junior:null, sub20:null, absoluto:null }, F:{ alevin:null, infantil:null, junior:null, sub20:null, absoluto:null } } },
-  "100L":  { "25m": { M:{ alevin:62.00, infantil:null, junior:null, sub20:null, absoluto:51.90 }, F:{ alevin:63.90, infantil:null, junior:null, sub20:null, absoluto:58.50 } }, "50m": { M:{ alevin:null, infantil:null, junior:null, sub20:null, absoluto:null }, F:{ alevin:null, infantil:null, junior:null, sub20:null, absoluto:null } } },
-  "200L":  { "25m": { M:{ alevin:136.00, infantil:null, junior:null, sub20:null, absoluto:113.75 }, F:{ alevin:140.00, infantil:null, junior:null, sub20:null, absoluto:126.95 } }, "50m": { M:{ alevin:null, infantil:null, junior:null, sub20:null, absoluto:null }, F:{ alevin:null, infantil:null, junior:null, sub20:null, absoluto:null } } },
-  "400L":  { "25m": { M:{ alevin:290.00, infantil:null, junior:null, sub20:null, absoluto:244.50 }, F:{ alevin:294.35, infantil:null, junior:null, sub20:null, absoluto:267.30 } }, "50m": { M:{ alevin:null, infantil:null, junior:null, sub20:null, absoluto:null }, F:{ alevin:null, infantil:null, junior:null, sub20:null, absoluto:null } } },
-  "800L":  { "25m": { M:{ alevin:597.00, infantil:null, junior:null, sub20:null, absoluto:508.00 }, F:{ alevin:607.00, infantil:null, junior:null, sub20:null, absoluto:545.90 } }, "50m": { M:{ alevin:null, infantil:null, junior:null, sub20:null, absoluto:null }, F:{ alevin:null, infantil:null, junior:null, sub20:null, absoluto:null } } },
-  "1500L": { "25m": { M:{ alevin:null, infantil:null, junior:null, sub20:null, absoluto:979.00 }, F:{ alevin:null, infantil:null, junior:null, sub20:null, absoluto:1050.00 } }, "50m": { M:{ alevin:null, infantil:null, junior:null, sub20:null, absoluto:null }, F:{ alevin:null, infantil:null, junior:null, sub20:null, absoluto:null } } },
-  "50E":   { "25m": { M:{ alevin:null, infantil:null, junior:null, sub20:null, absoluto:27.60  }, F:{ alevin:null, infantil:null, junior:null, sub20:null, absoluto:30.95  } }, "50m": { M:{ alevin:null, infantil:null, junior:null, sub20:null, absoluto:null }, F:{ alevin:null, infantil:null, junior:null, sub20:null, absoluto:null } } },
-  "100E":  { "25m": { M:{ alevin:null, infantil:null, junior:null, sub20:null, absoluto:58.75  }, F:{ alevin:null, infantil:null, junior:null, sub20:null, absoluto:65.75  } }, "50m": { M:{ alevin:null, infantil:null, junior:null, sub20:null, absoluto:null }, F:{ alevin:null, infantil:null, junior:null, sub20:null, absoluto:null } } },
-  "200E":  { "25m": { M:{ alevin:null, infantil:null, junior:null, sub20:null, absoluto:129.50 }, F:{ alevin:null, infantil:null, junior:null, sub20:null, absoluto:142.55 } }, "50m": { M:{ alevin:null, infantil:null, junior:null, sub20:null, absoluto:null }, F:{ alevin:null, infantil:null, junior:null, sub20:null, absoluto:null } } },
-  "50B":   { "25m": { M:{ alevin:null, infantil:null, junior:null, sub20:null, absoluto:29.80  }, F:{ alevin:null, infantil:null, junior:null, sub20:null, absoluto:33.95  } }, "50m": { M:{ alevin:null, infantil:null, junior:null, sub20:null, absoluto:null }, F:{ alevin:null, infantil:null, junior:null, sub20:null, absoluto:null } } },
-  "100B":  { "25m": { M:{ alevin:null, infantil:null, junior:null, sub20:null, absoluto:65.00  }, F:{ alevin:null, infantil:null, junior:null, sub20:null, absoluto:74.50  } }, "50m": { M:{ alevin:null, infantil:null, junior:null, sub20:null, absoluto:null }, F:{ alevin:null, infantil:null, junior:null, sub20:null, absoluto:null } } },
-  "200B":  { "25m": { M:{ alevin:null, infantil:null, junior:null, sub20:null, absoluto:144.10 }, F:{ alevin:null, infantil:null, junior:null, sub20:null, absoluto:161.50 } }, "50m": { M:{ alevin:null, infantil:null, junior:null, sub20:null, absoluto:null }, F:{ alevin:null, infantil:null, junior:null, sub20:null, absoluto:null } } },
-  "50M":   { "25m": { M:{ alevin:null, infantil:null, junior:null, sub20:null, absoluto:25.10  }, F:{ alevin:null, infantil:null, junior:null, sub20:null, absoluto:28.40  } }, "50m": { M:{ alevin:null, infantil:null, junior:null, sub20:null, absoluto:null }, F:{ alevin:null, infantil:null, junior:null, sub20:null, absoluto:null } } },
-  "100M":  { "25m": { M:{ alevin:null, infantil:null, junior:null, sub20:null, absoluto:56.00  }, F:{ alevin:null, infantil:null, junior:null, sub20:null, absoluto:63.80  } }, "50m": { M:{ alevin:null, infantil:null, junior:null, sub20:null, absoluto:null }, F:{ alevin:null, infantil:null, junior:null, sub20:null, absoluto:null } } },
-  "200M":  { "25m": { M:{ alevin:null, infantil:null, junior:null, sub20:null, absoluto:128.40 }, F:{ alevin:null, infantil:null, junior:null, sub20:null, absoluto:141.00 } }, "50m": { M:{ alevin:null, infantil:null, junior:null, sub20:null, absoluto:null }, F:{ alevin:null, infantil:null, junior:null, sub20:null, absoluto:null } } },
-  "100X":  { "25m": { M:{ alevin:null, infantil:null, junior:null, sub20:null, absoluto:null   }, F:{ alevin:null, infantil:null, junior:null, sub20:null, absoluto:null   } }, "50m": { M:{ alevin:null, infantil:null, junior:null, sub20:null, absoluto:null }, F:{ alevin:null, infantil:null, junior:null, sub20:null, absoluto:null } } },
-  "200X":  { "25m": { M:{ alevin:null, infantil:null, junior:null, sub20:null, absoluto:129.20 }, F:{ alevin:null, infantil:null, junior:null, sub20:null, absoluto:144.00 } }, "50m": { M:{ alevin:null, infantil:null, junior:null, sub20:null, absoluto:null }, F:{ alevin:null, infantil:null, junior:null, sub20:null, absoluto:null } } },
-  "400X":  { "25m": { M:{ alevin:null, infantil:null, junior:null, sub20:null, absoluto:278.90 }, F:{ alevin:null, infantil:null, junior:null, sub20:null, absoluto:303.95 } }, "50m": { M:{ alevin:null, infantil:null, junior:null, sub20:null, absoluto:null }, F:{ alevin:null, infantil:null, junior:null, sub20:null, absoluto:null } } },
+  "50L":   { "25m": { M:{ alevin:{"12":28.10,"13":28.10}, infantil:{"14":null,"15":null}, junior:{"16":null,"17":null,"18":null}, sub20:null, absoluto:23.85 }, F:{ alevin:{"12":29.30,"13":29.30}, infantil:{"14":null,"15":null}, junior:{"16":null,"17":null,"18":null}, sub20:null, absoluto:26.85 } }, "50m": { M:{ alevin:{"12":null,"13":null}, infantil:{"14":null,"15":null}, junior:{"16":null,"17":null,"18":null}, sub20:null, absoluto:null }, F:{ alevin:{"12":null,"13":null}, infantil:{"14":null,"15":null}, junior:{"16":null,"17":null,"18":null}, sub20:null, absoluto:null } } },
+  "100L":  { "25m": { M:{ alevin:{"12":62.00,"13":62.00}, infantil:{"14":null,"15":null}, junior:{"16":null,"17":null,"18":null}, sub20:null, absoluto:51.90 }, F:{ alevin:{"12":63.90,"13":63.90}, infantil:{"14":null,"15":null}, junior:{"16":null,"17":null,"18":null}, sub20:null, absoluto:58.50 } }, "50m": { M:{ alevin:{"12":null,"13":null}, infantil:{"14":null,"15":null}, junior:{"16":null,"17":null,"18":null}, sub20:null, absoluto:null }, F:{ alevin:{"12":null,"13":null}, infantil:{"14":null,"15":null}, junior:{"16":null,"17":null,"18":null}, sub20:null, absoluto:null } } },
+  "200L":  { "25m": { M:{ alevin:{"12":136.00,"13":136.00}, infantil:{"14":null,"15":null}, junior:{"16":null,"17":null,"18":null}, sub20:null, absoluto:113.75 }, F:{ alevin:{"12":140.00,"13":140.00}, infantil:{"14":null,"15":null}, junior:{"16":null,"17":null,"18":null}, sub20:null, absoluto:126.95 } }, "50m": { M:{ alevin:{"12":null,"13":null}, infantil:{"14":null,"15":null}, junior:{"16":null,"17":null,"18":null}, sub20:null, absoluto:null }, F:{ alevin:{"12":null,"13":null}, infantil:{"14":null,"15":null}, junior:{"16":null,"17":null,"18":null}, sub20:null, absoluto:null } } },
+  "400L":  { "25m": { M:{ alevin:{"12":290.00,"13":290.00}, infantil:{"14":null,"15":null}, junior:{"16":null,"17":null,"18":null}, sub20:null, absoluto:244.50 }, F:{ alevin:{"12":294.35,"13":294.35}, infantil:{"14":null,"15":null}, junior:{"16":null,"17":null,"18":null}, sub20:null, absoluto:267.30 } }, "50m": { M:{ alevin:{"12":null,"13":null}, infantil:{"14":null,"15":null}, junior:{"16":null,"17":null,"18":null}, sub20:null, absoluto:null }, F:{ alevin:{"12":null,"13":null}, infantil:{"14":null,"15":null}, junior:{"16":null,"17":null,"18":null}, sub20:null, absoluto:null } } },
+  "800L":  { "25m": { M:{ alevin:{"12":597.00,"13":597.00}, infantil:{"14":null,"15":null}, junior:{"16":null,"17":null,"18":null}, sub20:null, absoluto:508.00 }, F:{ alevin:{"12":607.00,"13":607.00}, infantil:{"14":null,"15":null}, junior:{"16":null,"17":null,"18":null}, sub20:null, absoluto:545.90 } }, "50m": { M:{ alevin:{"12":null,"13":null}, infantil:{"14":null,"15":null}, junior:{"16":null,"17":null,"18":null}, sub20:null, absoluto:null }, F:{ alevin:{"12":null,"13":null}, infantil:{"14":null,"15":null}, junior:{"16":null,"17":null,"18":null}, sub20:null, absoluto:null } } },
+  "1500L": { "25m": { M:{ alevin:{"12":null,"13":null}, infantil:{"14":null,"15":null}, junior:{"16":null,"17":null,"18":null}, sub20:null, absoluto:979.00 }, F:{ alevin:{"12":null,"13":null}, infantil:{"14":null,"15":null}, junior:{"16":null,"17":null,"18":null}, sub20:null, absoluto:1050.00 } }, "50m": { M:{ alevin:{"12":null,"13":null}, infantil:{"14":null,"15":null}, junior:{"16":null,"17":null,"18":null}, sub20:null, absoluto:null }, F:{ alevin:{"12":null,"13":null}, infantil:{"14":null,"15":null}, junior:{"16":null,"17":null,"18":null}, sub20:null, absoluto:null } } },
+  "50E":   { "25m": { M:{ alevin:{"12":null,"13":null}, infantil:{"14":null,"15":null}, junior:{"16":null,"17":null,"18":null}, sub20:null, absoluto:27.60  }, F:{ alevin:{"12":null,"13":null}, infantil:{"14":null,"15":null}, junior:{"16":null,"17":null,"18":null}, sub20:null, absoluto:30.95  } }, "50m": { M:{ alevin:{"12":null,"13":null}, infantil:{"14":null,"15":null}, junior:{"16":null,"17":null,"18":null}, sub20:null, absoluto:null }, F:{ alevin:{"12":null,"13":null}, infantil:{"14":null,"15":null}, junior:{"16":null,"17":null,"18":null}, sub20:null, absoluto:null } } },
+  "100E":  { "25m": { M:{ alevin:{"12":null,"13":null}, infantil:{"14":null,"15":null}, junior:{"16":null,"17":null,"18":null}, sub20:null, absoluto:58.75  }, F:{ alevin:{"12":null,"13":null}, infantil:{"14":null,"15":null}, junior:{"16":null,"17":null,"18":null}, sub20:null, absoluto:65.75  } }, "50m": { M:{ alevin:{"12":null,"13":null}, infantil:{"14":null,"15":null}, junior:{"16":null,"17":null,"18":null}, sub20:null, absoluto:null }, F:{ alevin:{"12":null,"13":null}, infantil:{"14":null,"15":null}, junior:{"16":null,"17":null,"18":null}, sub20:null, absoluto:null } } },
+  "200E":  { "25m": { M:{ alevin:{"12":null,"13":null}, infantil:{"14":null,"15":null}, junior:{"16":null,"17":null,"18":null}, sub20:null, absoluto:129.50 }, F:{ alevin:{"12":null,"13":null}, infantil:{"14":null,"15":null}, junior:{"16":null,"17":null,"18":null}, sub20:null, absoluto:142.55 } }, "50m": { M:{ alevin:{"12":null,"13":null}, infantil:{"14":null,"15":null}, junior:{"16":null,"17":null,"18":null}, sub20:null, absoluto:null }, F:{ alevin:{"12":null,"13":null}, infantil:{"14":null,"15":null}, junior:{"16":null,"17":null,"18":null}, sub20:null, absoluto:null } } },
+  "50B":   { "25m": { M:{ alevin:{"12":null,"13":null}, infantil:{"14":null,"15":null}, junior:{"16":null,"17":null,"18":null}, sub20:null, absoluto:29.80  }, F:{ alevin:{"12":null,"13":null}, infantil:{"14":null,"15":null}, junior:{"16":null,"17":null,"18":null}, sub20:null, absoluto:33.95  } }, "50m": { M:{ alevin:{"12":null,"13":null}, infantil:{"14":null,"15":null}, junior:{"16":null,"17":null,"18":null}, sub20:null, absoluto:null }, F:{ alevin:{"12":null,"13":null}, infantil:{"14":null,"15":null}, junior:{"16":null,"17":null,"18":null}, sub20:null, absoluto:null } } },
+  "100B":  { "25m": { M:{ alevin:{"12":null,"13":null}, infantil:{"14":null,"15":null}, junior:{"16":null,"17":null,"18":null}, sub20:null, absoluto:65.00  }, F:{ alevin:{"12":null,"13":null}, infantil:{"14":null,"15":null}, junior:{"16":null,"17":null,"18":null}, sub20:null, absoluto:74.50  } }, "50m": { M:{ alevin:{"12":null,"13":null}, infantil:{"14":null,"15":null}, junior:{"16":null,"17":null,"18":null}, sub20:null, absoluto:null }, F:{ alevin:{"12":null,"13":null}, infantil:{"14":null,"15":null}, junior:{"16":null,"17":null,"18":null}, sub20:null, absoluto:null } } },
+  "200B":  { "25m": { M:{ alevin:{"12":null,"13":null}, infantil:{"14":null,"15":null}, junior:{"16":null,"17":null,"18":null}, sub20:null, absoluto:144.10 }, F:{ alevin:{"12":null,"13":null}, infantil:{"14":null,"15":null}, junior:{"16":null,"17":null,"18":null}, sub20:null, absoluto:161.50 } }, "50m": { M:{ alevin:{"12":null,"13":null}, infantil:{"14":null,"15":null}, junior:{"16":null,"17":null,"18":null}, sub20:null, absoluto:null }, F:{ alevin:{"12":null,"13":null}, infantil:{"14":null,"15":null}, junior:{"16":null,"17":null,"18":null}, sub20:null, absoluto:null } } },
+  "50M":   { "25m": { M:{ alevin:{"12":null,"13":null}, infantil:{"14":null,"15":null}, junior:{"16":null,"17":null,"18":null}, sub20:null, absoluto:25.10  }, F:{ alevin:{"12":null,"13":null}, infantil:{"14":null,"15":null}, junior:{"16":null,"17":null,"18":null}, sub20:null, absoluto:28.40  } }, "50m": { M:{ alevin:{"12":null,"13":null}, infantil:{"14":null,"15":null}, junior:{"16":null,"17":null,"18":null}, sub20:null, absoluto:null }, F:{ alevin:{"12":null,"13":null}, infantil:{"14":null,"15":null}, junior:{"16":null,"17":null,"18":null}, sub20:null, absoluto:null } } },
+  "100M":  { "25m": { M:{ alevin:{"12":null,"13":null}, infantil:{"14":null,"15":null}, junior:{"16":null,"17":null,"18":null}, sub20:null, absoluto:56.00  }, F:{ alevin:{"12":null,"13":null}, infantil:{"14":null,"15":null}, junior:{"16":null,"17":null,"18":null}, sub20:null, absoluto:63.80  } }, "50m": { M:{ alevin:{"12":null,"13":null}, infantil:{"14":null,"15":null}, junior:{"16":null,"17":null,"18":null}, sub20:null, absoluto:null }, F:{ alevin:{"12":null,"13":null}, infantil:{"14":null,"15":null}, junior:{"16":null,"17":null,"18":null}, sub20:null, absoluto:null } } },
+  "200M":  { "25m": { M:{ alevin:{"12":null,"13":null}, infantil:{"14":null,"15":null}, junior:{"16":null,"17":null,"18":null}, sub20:null, absoluto:128.40 }, F:{ alevin:{"12":null,"13":null}, infantil:{"14":null,"15":null}, junior:{"16":null,"17":null,"18":null}, sub20:null, absoluto:141.00 } }, "50m": { M:{ alevin:{"12":null,"13":null}, infantil:{"14":null,"15":null}, junior:{"16":null,"17":null,"18":null}, sub20:null, absoluto:null }, F:{ alevin:{"12":null,"13":null}, infantil:{"14":null,"15":null}, junior:{"16":null,"17":null,"18":null}, sub20:null, absoluto:null } } },
+  "100X":  { "25m": { M:{ alevin:{"12":null,"13":null}, infantil:{"14":null,"15":null}, junior:{"16":null,"17":null,"18":null}, sub20:null, absoluto:null   }, F:{ alevin:{"12":null,"13":null}, infantil:{"14":null,"15":null}, junior:{"16":null,"17":null,"18":null}, sub20:null, absoluto:null   } }, "50m": { M:{ alevin:{"12":null,"13":null}, infantil:{"14":null,"15":null}, junior:{"16":null,"17":null,"18":null}, sub20:null, absoluto:null }, F:{ alevin:{"12":null,"13":null}, infantil:{"14":null,"15":null}, junior:{"16":null,"17":null,"18":null}, sub20:null, absoluto:null } } },
+  "200X":  { "25m": { M:{ alevin:{"12":null,"13":null}, infantil:{"14":null,"15":null}, junior:{"16":null,"17":null,"18":null}, sub20:null, absoluto:129.20 }, F:{ alevin:{"12":null,"13":null}, infantil:{"14":null,"15":null}, junior:{"16":null,"17":null,"18":null}, sub20:null, absoluto:144.00 } }, "50m": { M:{ alevin:{"12":null,"13":null}, infantil:{"14":null,"15":null}, junior:{"16":null,"17":null,"18":null}, sub20:null, absoluto:null }, F:{ alevin:{"12":null,"13":null}, infantil:{"14":null,"15":null}, junior:{"16":null,"17":null,"18":null}, sub20:null, absoluto:null } } },
+  "400X":  { "25m": { M:{ alevin:{"12":null,"13":null}, infantil:{"14":null,"15":null}, junior:{"16":null,"17":null,"18":null}, sub20:null, absoluto:278.90 }, F:{ alevin:{"12":null,"13":null}, infantil:{"14":null,"15":null}, junior:{"16":null,"17":null,"18":null}, sub20:null, absoluto:303.95 } }, "50m": { M:{ alevin:{"12":null,"13":null}, infantil:{"14":null,"15":null}, junior:{"16":null,"17":null,"18":null}, sub20:null, absoluto:null }, F:{ alevin:{"12":null,"13":null}, infantil:{"14":null,"15":null}, junior:{"16":null,"17":null,"18":null}, sub20:null, absoluto:null } } },
+};
+
+// Edats per categoria (rangs d'edat RFEN — només Alevín/Infantil/Junior)
+// Si se inyecta window.EDATS_CAT_DB desde PHP, se usa ese valor (datos de la BD).
+const EDATS_CAT = (typeof window.EDATS_CAT_DB !== 'undefined') ? window.EDATS_CAT_DB : {
+  alevin:   { min: 12, max: 13 },
+  infantil: { min: 14, max: 15 },
+  junior:   { min: 16, max: 18 }
 };
 
 // ============================================================
@@ -152,11 +162,42 @@ window.limpiarAQUA = function() {
 // ============================================================
 // Calculadora Mínimas RFEN
 // ============================================================
+window.actualizarEdatSelect = function() {
+  const cat      = document.getElementById('min-categoria').value;
+  const edatGrup = document.getElementById('min-edat-group');
+  const edatSel  = document.getElementById('min-edat');
+  const rang     = EDATS_CAT[cat];
+
+  if (!rang) {
+    // Sub-20 / Absoluto — amagar selector edat
+    edatGrup.style.display = 'none';
+    edatSel.value = '';
+    return;
+  }
+
+  edatGrup.style.display = '';
+  const prevVal = edatSel.value;
+  edatSel.innerHTML = '<option value="">— Seleccionar —</option>';
+  for (let e = rang.min; e <= rang.max; e++) {
+    const opt = document.createElement('option');
+    opt.value = String(e);
+    opt.textContent = e + ' años';
+    if (String(e) === prevVal) opt.selected = true;
+    edatSel.appendChild(opt);
+  }
+};
+
+// Inicializar al cargar
+document.addEventListener('DOMContentLoaded', function() {
+  actualizarEdatSelect();
+});
+
 window.calcularMinimas = function() {
   const prueba    = document.getElementById('min-prueba').value;
   const sexo      = document.getElementById('min-sexo').value;
   const piscina   = document.getElementById('min-piscina').value;
   const categoria = document.getElementById('min-categoria').value;
+  const edatStr   = document.getElementById('min-edat').value;
   const marcaStr  = document.getElementById('min-marca').value;
   const errorEl   = document.getElementById('min-error');
 
@@ -169,9 +210,27 @@ window.calcularMinimas = function() {
   const datos = MINIMES[prueba];
   if (!datos || !datos[piscina] || !datos[piscina][sexo]) { errorEl.textContent = 'No hay datos para esta prueba.'; return; }
 
-  const minTime = datos[piscina][sexo][categoria];
+  const catDatos = datos[piscina][sexo][categoria];
+
+  // Para Alevín/Infantil/Junior necesitamos la edad concreta
+  let minTime;
+  const isAgeCat = (categoria in EDATS_CAT);
+  if (isAgeCat) {
+    const edat = parseInt(edatStr, 10);
+    if (isNaN(edat) || edat < 1) {
+      errorEl.textContent = 'Selecciona tu edad.'; return;
+    }
+    if (typeof catDatos !== 'object' || catDatos === null) {
+      errorEl.textContent = 'No hay datos para esta categoría.'; return;
+    }
+    minTime = catDatos[String(edat)];
+  } else {
+    // Sub-20 / Absoluto — valor directo
+    minTime = catDatos;
+  }
+
   if (minTime === null || minTime === undefined) {
-    errorEl.textContent = 'No existe mínima RFEN para esta categoría y prueba.'; return;
+    errorEl.textContent = 'No existe mínima RFEN para esta combinación.'; return;
   }
 
   const percent = (minTime / marca * 100).toFixed(1);
@@ -186,23 +245,24 @@ window.calcularMinimas = function() {
 
   const diffEl = document.getElementById('min-diff');
   if (diff > 0) {
-    diffEl.textContent  = `+${diff.toFixed(2)}s por encima de la mínima`;
-    diffEl.style.color  = '#dc2626';
+    diffEl.textContent = `+${diff.toFixed(2)}s por encima de la mínima`;
+    diffEl.style.color = '#dc2626';
   } else {
-    diffEl.textContent  = `${Math.abs(diff).toFixed(2)}s por debajo de la mínima ✓`;
-    diffEl.style.color  = '#16a34a';
+    diffEl.textContent = `${Math.abs(diff).toFixed(2)}s por debajo de la mínima ✓`;
+    diffEl.style.color = '#16a34a';
   }
 
-  const catNoms = { alevin:'Alevín', infantil:'Infantil', junior:'Junior', sub20:'Sub20', absoluto:'Absoluto' };
-  const msgEl   = document.getElementById('min-msg');
+  const catNoms = { alevin:'Alevín', infantil:'Infantil', junior:'Junior', sub20:'Sub-20', absoluto:'Absoluto' };
+  const edatLabel = isAgeCat ? ` (${edatStr} años)` : '';
+  const msgEl = document.getElementById('min-msg');
   if (percent >= 100) {
     msgEl.style.background = '#f0fdf4';
     msgEl.style.color      = '#16a34a';
-    msgEl.textContent      = `✓ Superas la mínima ${catNoms[categoria]}. ¡Enhorabuena!`;
+    msgEl.textContent      = `✓ Superas la mínima ${catNoms[categoria]}${edatLabel}. ¡Enhorabuena!`;
   } else {
     msgEl.style.background = '#fff5f5';
     msgEl.style.color      = '#dc2626';
-    msgEl.textContent      = `✗ Te faltan ${Math.abs(diff).toFixed(2)}s para la mínima ${catNoms[categoria]}.`;
+    msgEl.textContent      = `✗ Te faltan ${Math.abs(diff).toFixed(2)}s para la mínima ${catNoms[categoria]}${edatLabel}.`;
   }
 
   errorEl.textContent = '';
@@ -210,8 +270,9 @@ window.calcularMinimas = function() {
 };
 
 window.limpiarMinimas = function() {
-  document.getElementById('min-prueba').value = '';
-  document.getElementById('min-marca').value  = '';
+  document.getElementById('min-prueba').value  = '';
+  document.getElementById('min-edat').value    = '';
+  document.getElementById('min-marca').value   = '';
   document.getElementById('min-error').textContent = '';
   document.getElementById('min-result').classList.remove('visible');
 };

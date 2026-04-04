@@ -19,3 +19,9 @@ Thumbs.db
 
 # Editor / eines locals
 .claude/
+.vscode/
+memory/
+.codex
+
+# Migracions locals (canvis BD, no es pugen al repo)
+migrations/

@@ -13,7 +13,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $action  = $_POST['action'] ?? '';
     $user_id = (int)($_POST['user_id'] ?? 0);
 
-    if ($action === 'crear') {
+    if ($action === 'vincular_rfen') {
+        $rfen_id  = trim($_POST['rfen_id']  ?? '');
+        $rfen_nom = trim($_POST['rfen_nom'] ?? '');
+        if ($user_id && $rfen_id && $rfen_nom) {
+            $pdo->prepare('UPDATE users SET rfen_id=?, rfen_nom=?, updated_at=NOW() WHERE id=?')
+                ->execute([$rfen_id, $rfen_nom, $user_id]);
+            flash('Usuario vinculado a RFEN.', 'success');
+        }
+    } elseif ($action === 'desvincular_rfen') {
+        if ($user_id) {
+            $pdo->prepare('UPDATE users SET rfen_id=NULL, rfen_nom=NULL, updated_at=NOW() WHERE id=?')
+                ->execute([$user_id]);
+            flash('Vinculación RFEN eliminada.', 'warning');
+        }
+    } elseif ($action === 'crear') {
         $nom    = trim($_POST['nom']   ?? '');
         $email  = trim($_POST['email'] ?? '');
         $pass   = $_POST['password']   ?? '';
@@ -108,10 +122,10 @@ $validos = ['todos','pendiente','activo','rechazado'];
 if (!in_array($filtroEstado, $validos)) $filtroEstado = 'todos';
 
 if ($filtroEstado !== 'todos') {
-    $stmt = $pdo->prepare('SELECT * FROM users WHERE estado=? ORDER BY created_at DESC');
+    $stmt = $pdo->prepare('SELECT id,nom,email,rol,estado,lliga,sexe,rfen_id,rfen_nom,created_at FROM users WHERE estado=? ORDER BY created_at DESC');
     $stmt->execute([$filtroEstado]);
 } else {
-    $stmt = $pdo->query('SELECT * FROM users ORDER BY created_at DESC');
+    $stmt = $pdo->query('SELECT id,nom,email,rol,estado,lliga,sexe,rfen_id,rfen_nom,created_at FROM users ORDER BY created_at DESC');
 }
 $users = $stmt->fetchAll();
 
@@ -156,6 +170,7 @@ render_admin_layout('usuarios', function() use ($users, $filtroEstado, $counts, 
           <th>Sexo</th>
           <th>Rol</th>
           <th>Estado</th>
+          <th>RFEN</th>
           <th>Registro</th>
           <th>Acciones</th>
         </tr>
@@ -206,6 +221,13 @@ render_admin_layout('usuarios', function() use ($users, $filtroEstado, $counts, 
             ?>
             <span class="badge badge-<?= $b ?>"><?= $l ?></span>
           </td>
+          <td>
+            <?php if ($u['rfen_id']): ?>
+              <span class="badge badge-green" title="<?= e($u['rfen_nom']) ?>"><i class="bi bi-link-45deg"></i> Vinculado</span>
+            <?php else: ?>
+              <span class="badge badge-gray">—</span>
+            <?php endif; ?>
+          </td>
           <td class="text-sm text-muted"><?= date('d/m/Y', strtotime($u['created_at'])) ?></td>
           <td>
             <div class="d-flex gap-2">
@@ -243,6 +265,20 @@ render_admin_layout('usuarios', function() use ($users, $filtroEstado, $counts, 
                 </form>
               <?php endif; ?>
               <?php if ($u['rol'] !== 'admin'): ?>
+                <?php if ($u['rfen_id']): ?>
+                  <form method="POST" style="display:inline;"
+                        onsubmit="return confirm('¿Eliminar vinculación RFEN de <?= e($u['nom']) ?>?')">
+                    <?= csrf_field() ?>
+                    <input type="hidden" name="action" value="desvincular_rfen">
+                    <input type="hidden" name="user_id" value="<?= $u['id'] ?>">
+                    <button class="btn btn-gray btn-sm" title="Desvincular RFEN"><i class="bi bi-link"></i></button>
+                  </form>
+                <?php else: ?>
+                  <button class="btn btn-secondary btn-sm" title="Vincular RFEN"
+                    onclick="abrirModalRFEN(<?= $u['id'] ?>, <?= htmlspecialchars(json_encode($u['nom']), ENT_QUOTES) ?>, '<?= e($u['sexe']) ?>')">
+                    <i class="bi bi-link-45deg"></i>
+                  </button>
+                <?php endif; ?>
                 <form method="POST" style="display:inline;"
                       onsubmit="return confirm('¿Eliminar a <?= e($u['nom']) ?>? Esta acción no se puede deshacer.')">
                   <?= csrf_field() ?>
@@ -405,7 +441,118 @@ render_admin_layout('usuarios', function() use ($users, $filtroEstado, $counts, 
   </div>
 </div>
 
+<!-- Modal: Vincular RFEN -->
+<div class="modal-overlay" id="modal-rfen" style="display:none;" onclick="cerrarModalFondo(event,'rfen')">
+  <div class="modal-box" style="max-width:560px;">
+    <div class="modal-header">
+      <h3><i class="bi bi-link-45deg"></i> Vincular a RFEN</h3>
+      <button type="button" class="modal-close" onclick="cerrarModal('rfen')">×</button>
+    </div>
+    <div class="modal-body">
+      <p class="text-muted text-sm" style="margin-bottom:16px;">
+        Busca el deportista en la intranet de la RFEN. El nombre puede diferir ligeramente del registrado en el club.
+      </p>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Nombre</label>
+          <input type="text" id="rfen-nombre" class="form-control" placeholder="Nombre">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Apellidos</label>
+          <input type="text" id="rfen-apellidos" class="form-control" placeholder="Apellidos">
+        </div>
+      </div>
+      <button type="button" class="btn btn-primary btn-sm" id="rfen-buscar-btn" onclick="buscarRFEN()">
+        <i class="bi bi-search"></i> Buscar en RFEN
+      </button>
+      <div id="rfen-resultats" style="margin-top:16px;"></div>
+      <form method="POST" id="rfen-vincular-form" style="display:none;">
+        <?= csrf_field() ?>
+        <input type="hidden" name="action"   value="vincular_rfen">
+        <input type="hidden" name="user_id"  id="rfen-user-id">
+        <input type="hidden" name="rfen_id"  id="rfen-id-val">
+        <input type="hidden" name="rfen_nom" id="rfen-nom-val">
+      </form>
+    </div>
+  </div>
+</div>
+
 <script>
+let rfenUserId = 0;
+let rfenSexe   = 'M';
+
+function abrirModalRFEN(userId, nom, sexe) {
+  rfenUserId = userId;
+  rfenSexe   = sexe;
+  // Rellenar nombre y apellidos del socio
+  const parts = nom.trim().split(/\s+/);
+  document.getElementById('rfen-nombre').value   = parts[0] || '';
+  document.getElementById('rfen-apellidos').value = parts.slice(1).join(' ') || '';
+  document.getElementById('rfen-resultats').innerHTML = '';
+  document.getElementById('rfen-vincular-form').style.display = 'none';
+  document.getElementById('modal-rfen').style.display = 'flex';
+  document.body.style.overflow = 'hidden';
+}
+
+function buscarRFEN() {
+  const nom  = document.getElementById('rfen-nombre').value.trim();
+  const cog  = document.getElementById('rfen-apellidos').value.trim();
+  const btn  = document.getElementById('rfen-buscar-btn');
+  const div  = document.getElementById('rfen-resultats');
+  if (!nom || !cog) { div.innerHTML = '<p class="text-danger text-sm">Introduce nombre y apellidos.</p>'; return; }
+  btn.disabled = true;
+  btn.innerHTML = '<i class="bi bi-hourglass-split"></i> Buscando...';
+  div.innerHTML = '';
+  fetch(`/admin/rfen_buscar?nombre=${encodeURIComponent(nom)}&apellidos=${encodeURIComponent(cog)}&sexe=${rfenSexe}`)
+    .then(r => r.json())
+    .then(data => {
+      btn.disabled = false;
+      btn.innerHTML = '<i class="bi bi-search"></i> Buscar en RFEN';
+      if (data.error) { div.innerHTML = `<p class="text-danger text-sm">${data.error}</p>`; return; }
+      if (!data.results || data.results.length === 0) {
+        div.innerHTML = '<p class="text-muted text-sm">Sin resultados. Prueba con otro nombre.</p>';
+        return;
+      }
+      let html = '<div class="table-wrapper"><table><thead><tr><th></th><th>Nombre</th><th>Apellidos</th><th>Año nac.</th></tr></thead><tbody>';
+      data.results.forEach((r, i) => {
+        html += `<tr style="cursor:pointer;" onclick="seleccionarRFEN('${escHtml(r.rfen_id)}','${escHtml(r.rfen_nom)}',${i})">
+          <td><input type="radio" name="rfen_sel" id="rfen_r${i}"></td>
+          <td>${escHtml(r.nom)}</td><td>${escHtml(r.cognoms)}</td><td>${escHtml(r.any_naix)}</td>
+        </tr>`;
+      });
+      html += '</tbody></table></div>';
+      div.innerHTML = html;
+    })
+    .catch(() => {
+      btn.disabled = false;
+      btn.innerHTML = '<i class="bi bi-search"></i> Buscar en RFEN';
+      div.innerHTML = '<p class="text-danger text-sm">Error de conexión.</p>';
+    });
+}
+
+function seleccionarRFEN(rfen_id, rfen_nom, idx) {
+  document.getElementById('rfen_r' + idx).checked = true;
+  document.getElementById('rfen-user-id').value = rfenUserId;
+  document.getElementById('rfen-id-val').value  = rfen_id;
+  document.getElementById('rfen-nom-val').value  = rfen_nom;
+  const form = document.getElementById('rfen-vincular-form');
+  form.style.display = 'block';
+  // Añadir botón de confirmación si no existe
+  if (!document.getElementById('rfen-confirm-btn')) {
+    const btn = document.createElement('button');
+    btn.id = 'rfen-confirm-btn';
+    btn.type = 'submit';
+    btn.className = 'btn btn-primary';
+    btn.innerHTML = '<i class="bi bi-check-lg"></i> Vincular este deportista';
+    btn.style.marginTop = '12px';
+    form.appendChild(btn);
+  }
+}
+
+function escHtml(str) {
+  return String(str).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+}
+
 function abrirModalCrear() {
   document.getElementById('modal-crear').style.display = 'flex';
   document.body.style.overflow = 'hidden';
@@ -432,6 +579,7 @@ document.addEventListener('keydown', function(e) {
   if (e.key === 'Escape') {
     cerrarModal('crear');
     cerrarModal('editar');
+    cerrarModal('rfen');
   }
 });
 function togglePwd(btn) {

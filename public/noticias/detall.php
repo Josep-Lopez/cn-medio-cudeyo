@@ -21,7 +21,9 @@ if (!$noticia) {
     exit;
 }
 
-render_header(e($noticia['titol']), 'noticias');
+$desc = mb_substr(strip_tags($noticia['contingut']), 0, 155);
+if (mb_strlen(strip_tags($noticia['contingut'])) > 155) $desc .= '…';
+render_header(e($noticia['titol']), 'noticias', '', $desc);
 ?>
 
 <div class="container-sm page-content">

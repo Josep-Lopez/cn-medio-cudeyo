@@ -1,15 +1,23 @@
 <?php
-function render_header(string $title, string $activePage = '', string $extraHead = ''): void
+function render_header(string $title, string $activePage = '', string $extraHead = '', string $description = ''): void
 {
     $user = current_user();
     $isAdmin = $user && $user['rol'] === 'admin';
+    $metaDesc = $description ?: 'Club de Natación Medio Cudeyo — Cantabria. Marcas personales, ranking de liga, noticias y más.';
+    $pageTitle = e($title) . ' — CN Medio Cudeyo';
     ?>
 <!DOCTYPE html>
 <html lang="es">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title><?= e($title) ?> — CN Medio Cudeyo</title>
+  <title><?= $pageTitle ?></title>
+  <meta name="description" content="<?= e($metaDesc) ?>">
+  <meta property="og:title" content="<?= $pageTitle ?>">
+  <meta property="og:description" content="<?= e($metaDesc) ?>">
+  <meta property="og:type" content="website">
+  <meta property="og:locale" content="es_ES">
+  <link rel="canonical" href="https://www.mediocudeyonatacion.es<?= strtok($_SERVER['REQUEST_URI'] ?? '/', '?') ?>">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
   <link rel="stylesheet" href="/assets/css/main.css">
@@ -110,6 +118,7 @@ function render_header(string $title, string $activePage = '', string $extraHead
 
 function render_footer(): void
 {
+    $user = current_user();
     ?>
 </main>
 <footer class="footer">
@@ -129,8 +138,10 @@ function render_footer(): void
       </div>
       <div class="footer-col">
         <h4>Socios</h4>
-        <a href="/login">Acceso socios</a>
-        <a href="/register">Registro</a>
+        <?php if (!$user): ?>
+          <a href="/login">Acceso socios</a>
+          <a href="/register">Registro</a>
+        <?php endif; ?>
         <a href="/soci/panel">Mi panel</a>
         <a href="/soci/ranking">Ranking liga</a>
       </div>

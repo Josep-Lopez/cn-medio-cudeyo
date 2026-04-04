@@ -16,7 +16,7 @@ $stmt->bindValue(2, $offset, PDO::PARAM_INT);
 $stmt->execute();
 $noticias = $stmt->fetchAll();
 
-render_header('Noticias', 'noticias');
+render_header('Noticias', 'noticias', '', 'Últimas noticias y novedades del Club de Natación Medio Cudeyo: competiciones, resultados, eventos y actividades del club.');
 ?>
 
 <div class="container page-content">

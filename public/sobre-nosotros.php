@@ -3,7 +3,7 @@ require_once dirname(__DIR__) . '/config/db.php';
 require_once dirname(__DIR__) . '/includes/auth.php';
 require_once dirname(__DIR__) . '/includes/layout.php';
 
-render_header('Sobre nosotros', 'sobre');
+render_header('Sobre nosotros', 'sobre', '', 'Conoce el Club de Natación Medio Cudeyo: historia, valores, categorías y cómo hacerte socio. Un club para todas las edades en Cantabria.');
 ?>
 
 <!-- Hero -->
@@ -51,7 +51,7 @@ render_header('Sobre nosotros', 'sobre');
       <div class="service-card">
         <div class="service-icon"><i class="bi bi-trophy-fill"></i></div>
         <div class="service-title">Infantil &amp; Junior</div>
-        <div class="service-desc">Especialización técnica y participación en competiciones regionales con mínimas RFEN.</div>
+        <div class="service-desc">Especialización técnica y participación en competiciones regionales y nacionales.</div>
       </div>
       <div class="service-card">
         <div class="service-icon"><i class="bi bi-award-fill"></i></div>
@@ -72,20 +72,16 @@ render_header('Sobre nosotros', 'sobre');
           </thead>
           <tbody>
             <tr style="border-bottom:1px solid #f0f0f0;">
-              <td style="padding:11px 14px;" class="text-muted">Lunes / Miércoles / Viernes</td>
-              <td style="padding:11px 14px;text-align:right;font-weight:600;font-family:monospace;">07:00 – 09:00</td>
+              <td style="padding:11px 14px;" class="text-muted">Lunes a Jueves</td>
+              <td style="padding:11px 14px;text-align:right;font-weight:600;font-family:monospace;">19:00 – 21:45</td>
             </tr>
             <tr style="border-bottom:1px solid #f0f0f0;">
-              <td style="padding:11px 14px;" class="text-muted">Lunes / Miércoles / Viernes</td>
-              <td style="padding:11px 14px;text-align:right;font-weight:600;font-family:monospace;">17:30 – 19:30</td>
-            </tr>
-            <tr style="border-bottom:1px solid #f0f0f0;">
-              <td style="padding:11px 14px;" class="text-muted">Martes / Jueves</td>
-              <td style="padding:11px 14px;text-align:right;font-weight:600;font-family:monospace;">17:00 – 19:00</td>
+              <td style="padding:11px 14px;" class="text-muted">Viernes</td>
+              <td style="padding:11px 14px;text-align:right;font-weight:600;font-family:monospace;">19:15 – 21:45</td>
             </tr>
             <tr>
               <td style="padding:11px 14px;" class="text-muted">Sábados</td>
-              <td style="padding:11px 14px;text-align:right;font-weight:600;font-family:monospace;">09:00 – 11:00</td>
+              <td style="padding:11px 14px;text-align:right;font-weight:600;font-family:monospace;">Competiciones</td>
             </tr>
           </tbody>
         </table>
@@ -109,7 +105,7 @@ render_header('Sobre nosotros', 'sobre');
     <div class="sobre-two-col" style="align-items:start;">
       <div>
         <div style="display:inline-flex;align-items:center;gap:12px;background:#eef2ff;padding:16px 24px;border-radius:12px;margin-bottom:20px;">
-          <span style="font-size:36px;font-weight:800;color:var(--blue);">+30</span>
+          <span style="font-size:36px;font-weight:800;color:var(--blue);">+15</span>
           <span class="text-muted" style="font-size:14px;font-weight:500;">nadadores máster</span>
         </div>
         <img src="/assets/images/fotoequipo2.jpg"
@@ -117,11 +113,11 @@ render_header('Sobre nosotros', 'sobre');
              class="sobre-photo">
       </div>
       <div class="master-features">
-        <div class="card" style="padding:20px;">
+        <!-- <div class="card" style="padding:20px;">
           <div style="font-size:28px;margin-bottom:10px;color:var(--blue);"><i class="bi bi-activity"></i></div>
           <div style="font-weight:700;margin-bottom:6px;">Entrenamiento adaptado</div>
           <div class="text-muted text-sm">Grupos de nivel, desde iniciación hasta competición</div>
-        </div>
+        </div> -->
         <div class="card" style="padding:20px;">
           <div style="font-size:28px;margin-bottom:10px;color:var(--blue);"><i class="bi bi-trophy-fill"></i></div>
           <div style="font-weight:700;margin-bottom:6px;">Competiciones máster</div>

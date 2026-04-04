@@ -8,7 +8,7 @@ $noticias = $pdo->query(
     'SELECT * FROM noticias WHERE publicat=1 ORDER BY created_at DESC LIMIT 3'
 )->fetchAll();
 
-render_header('Inicio', 'inicio');
+render_header('Inicio', 'inicio', '', 'Club de Natación Medio Cudeyo, en Cantabria. Consulta marcas personales, ranking de liga, noticias del club y más. ¡Únete a nosotros!');
 ?>
 
 <!-- Hero -->

@@ -24,7 +24,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!filter_var($data['email'], FILTER_VALIDATE_EMAIL))   $errors[] = 'El email no es válido.';
     if (strlen($data['mensaje']) < 10)                         $errors[] = 'El mensaje debe tener al menos 10 caracteres.';
 
-    if (!$errors) {
+    if (!$errors && empty($_POST['website'])) {
         $pdo->prepare('INSERT INTO contactos (nombre, email, asunto, mensaje) VALUES (?,?,?,?)')
             ->execute([$data['nombre'], $data['email'], $data['asunto'], $data['mensaje']]);
         $success = true;
@@ -32,7 +32,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
-render_header('Contacto', 'contacto');
+render_header('Contacto', 'contacto', '', 'Contacta con el Club de Natación Medio Cudeyo. Estamos en Cantabria y respondemos a todas tus consultas sobre el club y cómo hacerte socio.');
 ?>
 
 <!-- Hero compacto -->
@@ -128,6 +128,7 @@ render_header('Contacto', 'contacto');
             <textarea id="mensaje" name="mensaje" class="form-control"
                       style="min-height:150px;" required><?= e($data['mensaje']) ?></textarea>
           </div>
+          <input type="text" name="website" style="display:none;" tabindex="-1" autocomplete="off">
           <button type="submit" class="btn btn-primary w-100">Enviar mensaje</button>
         </form>
 

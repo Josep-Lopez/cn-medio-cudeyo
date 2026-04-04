@@ -12,7 +12,7 @@ $db_avatar->execute([$user['id']]);
 $avatar_url = $db_avatar->fetchColumn();
 
 // Marcas del usuario agrupadas por estilo
-$temporada = '2025-26';
+$temporada = $pdo->query("SELECT valor FROM config WHERE clau='temporada_activa' LIMIT 1")->fetchColumn() ?: '2025-26';
 $stmt = $pdo->prepare('SELECT * FROM marques WHERE user_id=? AND temporada=? ORDER BY prova, piscina');
 $stmt->execute([$user['id'], $temporada]);
 $all_marks = $stmt->fetchAll();
@@ -26,11 +26,16 @@ $grupos = [
     'Estilos'  => ['100X','200X','400X'],
 ];
 
-// Indexar marcas por prova+piscina
+// Indexar la mejor marca por prova+piscina para evitar mostrar una peor al haber historial
 $marcas = [];
 foreach ($all_marks as $m) {
     $marcas[$m['prova']] = $marcas[$m['prova']] ?? [];
-    $marcas[$m['prova']][$m['piscina']] = $m;
+    if (
+        !isset($marcas[$m['prova']][$m['piscina']]) ||
+        (float)$m['temps_seg'] < (float)$marcas[$m['prova']][$m['piscina']]['temps_seg']
+    ) {
+        $marcas[$m['prova']][$m['piscina']] = $m;
+    }
 }
 
 render_header('Mi panel', 'soci-panel');
@@ -93,7 +98,7 @@ render_header('Mi panel', 'soci-panel');
           <div class="table-wrapper">
             <table>
               <thead>
-                <tr><th>Prueba</th><th>Tiempo</th><th>Fecha</th></tr>
+                <tr><th>Prueba</th><th>Tiempo</th><th>Lugar</th><th>Fecha</th></tr>
               </thead>
               <tbody>
                 <?php foreach ($proves as $prova): ?>
@@ -102,6 +107,7 @@ render_header('Mi panel', 'soci-panel');
                   <tr>
                     <td><?= e(format_prova($prova)) ?></td>
                     <td><span class="mark-time"><?= e($m['temps']) ?></span></td>
+                    <td class="text-sm text-muted"><?= e($m['lugar'] ?? '') ?></td>
                     <td class="text-sm text-muted"><?= date('d/m/Y', strtotime($m['data_marca'])) ?></td>
                   </tr>
                 <?php endforeach; ?>
@@ -124,7 +130,7 @@ render_header('Mi panel', 'soci-panel');
           <div class="table-wrapper">
             <table>
               <thead>
-                <tr><th>Prueba</th><th>Tiempo</th><th>Fecha</th></tr>
+                <tr><th>Prueba</th><th>Tiempo</th><th>Lugar</th><th>Fecha</th></tr>
               </thead>
               <tbody>
                 <?php foreach ($proves as $prova): ?>
@@ -133,6 +139,7 @@ render_header('Mi panel', 'soci-panel');
                   <tr>
                     <td><?= e(format_prova($prova)) ?></td>
                     <td><span class="mark-time"><?= e($m['temps']) ?></span></td>
+                    <td class="text-sm text-muted"><?= e($m['lugar'] ?? '') ?></td>
                     <td class="text-sm text-muted"><?= date('d/m/Y', strtotime($m['data_marca'])) ?></td>
                   </tr>
                 <?php endforeach; ?>

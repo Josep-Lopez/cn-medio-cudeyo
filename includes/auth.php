@@ -1,13 +1,19 @@
 <?php
 if (session_status() === PHP_SESSION_NONE) {
-    session_start();
+    if (!headers_sent()) {
+        session_start();
+    } else {
+        $_SESSION = $_SESSION ?? [];
+    }
 }
 
 // HTTP Security Headers
-header('X-Frame-Options: SAMEORIGIN');
-header('X-Content-Type-Options: nosniff');
-header('X-XSS-Protection: 1; mode=block');
-header('Referrer-Policy: strict-origin-when-cross-origin');
+if (!headers_sent()) {
+    header('X-Frame-Options: SAMEORIGIN');
+    header('X-Content-Type-Options: nosniff');
+    header('X-XSS-Protection: 1; mode=block');
+    header('Referrer-Policy: strict-origin-when-cross-origin');
+}
 
 // ── CSRF ─────────────────────────────────────────────────────────────────────
 
@@ -60,8 +66,12 @@ function rate_limit_reset(string $ip): void
 function require_login(): void
 {
     if (empty($_SESSION['user'])) {
-        header('Location: /login');
-        exit;
+        if (!headers_sent()) {
+            header('Location: /login');
+            exit;
+        }
+        http_response_code(401);
+        die('Debes iniciar sesión para continuar.');
     }
 }
 
@@ -137,8 +147,12 @@ function format_lliga(string $lliga): string
 }
 
 // Genera <optgroup> para un select de pruebas
-function render_prova_options(string $selected = ''): void
+function render_prova_options(string $selected = '', bool $show_all = false): void
 {
+    if ($show_all) {
+        $sel = $selected === '' ? ' selected' : '';
+        echo '<option value=""' . $sel . '>Todas las pruebas</option>';
+    }
     $grupos = [
         '🌊 Libre'    => ['50L'=>'50 Libre','100L'=>'100 Libre','200L'=>'200 Libre','400L'=>'400 Libre','800L'=>'800 Libre','1500L'=>'1500 Libre'],
         '↩ Espalda'  => ['50E'=>'50 Espalda','100E'=>'100 Espalda','200E'=>'200 Espalda'],

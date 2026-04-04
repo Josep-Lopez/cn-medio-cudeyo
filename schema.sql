@@ -13,6 +13,8 @@ CREATE TABLE IF NOT EXISTS users (
     estado     ENUM('pendiente','activo','rechazado') NOT NULL DEFAULT 'pendiente',
     lliga      ENUM('benjamin','alevin','infantil','junior','master') DEFAULT NULL,
     sexe       ENUM('M','F') NOT NULL,
+    rfen_id    VARCHAR(100) DEFAULT NULL,
+    rfen_nom   VARCHAR(200) DEFAULT NULL,
     avatar_url VARCHAR(500)  DEFAULT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
@@ -46,11 +48,18 @@ CREATE TABLE IF NOT EXISTS marques (
     temps      VARCHAR(20) NOT NULL,
     temps_seg  FLOAT       NOT NULL,
     data_marca DATE        NOT NULL,
-    temporada  VARCHAR(10) NOT NULL DEFAULT '2025-26',
+    lugar      VARCHAR(255) NOT NULL DEFAULT '',
+    temporada  VARCHAR(10) GENERATED ALWAYS AS (
+        IF(
+            MONTH(data_marca) >= 9,
+            CONCAT(YEAR(data_marca), '-', LPAD((YEAR(data_marca) + 1) MOD 100, 2, '0')),
+            CONCAT(YEAR(data_marca) - 1, '-', LPAD(YEAR(data_marca) MOD 100, 2, '0'))
+        )
+    ) STORED,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
-    UNIQUE KEY unique_marca (user_id, prova, piscina, temporada)
+    UNIQUE KEY unique_marca (user_id, prova, piscina, temporada, data_marca, lugar)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS config (

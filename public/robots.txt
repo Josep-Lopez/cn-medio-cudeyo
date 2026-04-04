@@ -1,0 +1,8 @@
+User-agent: *
+Disallow: /admin/
+Disallow: /soci/
+Disallow: /login
+Disallow: /logout
+Disallow: /register
+
+Sitemap: https://www.mediocudeyonatacion.es/sitemap.xml

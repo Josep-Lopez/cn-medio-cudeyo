@@ -8,6 +8,7 @@ require_login();
 // Cargar config desde BD (con fallback a null si no existe)
 $finaTimesJson = $pdo->query("SELECT valor FROM config WHERE clau='fina_times' LIMIT 1")->fetchColumn() ?: null;
 $minimesJson   = $pdo->query("SELECT valor FROM config WHERE clau='minimes_rfen' LIMIT 1")->fetchColumn() ?: null;
+$edatsCatJson  = $pdo->query("SELECT valor FROM config WHERE clau='minimes_edats' LIMIT 1")->fetchColumn() ?: null;
 
 render_header('Calculadoras', 'calculadoras');
 ?>
@@ -145,14 +146,22 @@ render_header('Calculadoras', 'calculadoras');
       <div class="form-row">
         <div class="form-group">
           <label class="form-label">Categoría</label>
-          <select id="min-categoria" class="form-control">
+          <select id="min-categoria" class="form-control" onchange="actualizarEdatSelect()">
             <option value="alevin">Alevín</option>
             <option value="infantil">Infantil</option>
             <option value="junior">Junior</option>
-            <option value="sub20">Sub20</option>
+            <option value="sub20">Sub-20</option>
             <option value="absoluto" selected>Absoluto</option>
           </select>
         </div>
+        <div class="form-group" id="min-edat-group">
+          <label class="form-label">Edad</label>
+          <select id="min-edat" class="form-control">
+            <option value="">— Seleccionar —</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-row">
         <div class="form-group">
           <label class="form-label">Piscina</label>
           <select id="min-piscina" class="form-control">
@@ -160,8 +169,6 @@ render_header('Calculadoras', 'calculadoras');
             <option value="50m">50 metros (PL)</option>
           </select>
         </div>
-      </div>
-      <div class="form-row">
         <div class="form-group">
           <label class="form-label">Tu marca</label>
           <input type="text" id="min-marca" class="form-control" placeholder="Ej: 28.50 o 1:05.43">
@@ -252,10 +259,11 @@ render_header('Calculadoras', 'calculadoras');
   </div>
 </div>
 
-<?php if ($finaTimesJson || $minimesJson): ?>
+<?php if ($finaTimesJson || $minimesJson || $edatsCatJson): ?>
 <script>
 <?php if ($finaTimesJson): ?>window.FINA_TIMES_DB = <?= $finaTimesJson ?>;<?php endif; ?>
 <?php if ($minimesJson): ?>window.MINIMES_DB = <?= $minimesJson ?>;<?php endif; ?>
+<?php if ($edatsCatJson): ?>window.EDATS_CAT_DB = <?= $edatsCatJson ?>;<?php endif; ?>
 </script>
 <?php endif; ?>
 <script src="/assets/js/calculadora.js"></script>
