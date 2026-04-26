@@ -26,7 +26,7 @@ if (!in_array($filterProva, $PROVES)) $filterProva = '';
 if (!in_array($filterPiscina, ['25m','50m'])) $filterPiscina = '25m';
 if (!in_array($dir, ['asc', 'desc'], true)) $dir = 'desc';
 
-$lligues_valides = ['benjamin','alevin','infantil','junior','master'];
+$lligues_valides = ['benjamin','alevin','infantil','junior','absoluto','master'];
 if ($filterLliga !== '' && !in_array($filterLliga, $lligues_valides, true)) $filterLliga = '';
 
 $sortable = [
@@ -71,7 +71,7 @@ if ($filterMillors) {
     if ($filterProva) { $where .= ' AND m.prova=?';  $params[] = $filterProva; }
     if ($filterLliga && in_array($filterLliga, $lligues_valides)) { $where .= ' AND u.lliga=?'; $params[] = $filterLliga; }
     $sql = "
-        SELECT m.*, u.nom, u.lliga, u.sexe
+        SELECT m.*, u.nom, u.sexe, u.lliga
         FROM marques m
         JOIN users u ON u.id = m.user_id
         $where
@@ -143,7 +143,7 @@ render_admin_layout('ranking', function() use ($PROVES, $ranking, $filterLliga, 
       <label class="form-label">Categoría</label>
       <select name="lliga" class="form-control">
         <option value="">Todas</option>
-        <?php foreach (['benjamin'=>'Benjamín','alevin'=>'Alevín','infantil'=>'Infantil','junior'=>'Junior','master'=>'Master'] as $k=>$v): ?>
+        <?php foreach (['benjamin'=>'Benjamín','alevin'=>'Alevín','infantil'=>'Infantil','junior'=>'Junior','absoluto'=>'Absoluto','master'=>'Master'] as $k=>$v): ?>
           <option value="<?= $k ?>" <?= $filterLliga === $k ? 'selected' : '' ?>><?= $v ?></option>
         <?php endforeach; ?>
       </select>
