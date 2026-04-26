@@ -28,7 +28,7 @@ if (!in_array($filterProva, $PROVES)) $filterProva = '';
 if (!in_array($filterPiscina, ['25m', '50m'])) $filterPiscina = '25m';
 if (!in_array($dir, ['asc', 'desc'], true)) $dir = 'desc';
 
-$lligues_valides = ['benjamin', 'alevin', 'infantil', 'junior', 'master'];
+$lligues_valides = ['benjamin', 'alevin', 'infantil', 'junior', 'absoluto', 'master'];
 if ($filterLliga !== '' && !in_array($filterLliga, $lligues_valides, true)) {
   $filterLliga = $user['lliga'] ?? '';
 }
@@ -73,7 +73,7 @@ if ($filterMillors) {
     $order = $orderSql;
   }
   $sql = "
-        SELECT m.prova, m.temps, m.lugar, m.data_marca, m.temporada, u.nom, u.lliga, u.sexe, u.id as uid,
+        SELECT m.prova, m.temps, m.lugar, m.data_marca, m.temporada, u.lliga, u.nom, u.sexe, u.id as uid,
                MIN(m.temps_seg) AS best_seg
         FROM marques m
         JOIN users u ON u.id = m.user_id
@@ -94,7 +94,7 @@ if ($filterMillors) {
     $params[] = $filterLliga;
   }
   $sql = "
-        SELECT m.*, u.nom, u.lliga, u.sexe, u.id as uid
+        SELECT m.*, u.nom, u.sexe, u.lliga, u.id as uid
         FROM marques m
         JOIN users u ON u.id = m.user_id
         $where
@@ -164,7 +164,7 @@ render_header('Ranking liga', 'soci-ranking');
         <label class="form-label">Categoría</label>
         <select name="lliga" class="form-control">
           <option value="">Todas</option>
-          <?php foreach (['benjamin' => 'Benjamín', 'alevin' => 'Alevín', 'infantil' => 'Infantil', 'junior' => 'Junior', 'master' => 'Master'] as $k => $v): ?>
+          <?php foreach (['benjamin' => 'Benjamín', 'alevin' => 'Alevín', 'infantil' => 'Infantil', 'junior' => 'Junior', 'absoluto' => 'Absoluto', 'master' => 'Master'] as $k => $v): ?>
             <option value="<?= $k ?>" <?= $filterLliga === $k ? 'selected' : '' ?>><?= $v ?></option>
           <?php endforeach; ?>
         </select>
