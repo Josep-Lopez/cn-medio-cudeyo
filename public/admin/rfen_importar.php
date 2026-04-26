@@ -230,7 +230,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
   }
   flash("RFEN: {$procesadas} procesadas · {$insertadas} insertadas · {$actualizadas} actualizadas · {$sin_cambios} sin cambios.", 'success');
-  header('Location: /admin/marques?lliga=' . urlencode($nadador['lliga'] ?? '') . '&user_id=' . $user_id);
+  header('Location: /admin/marques?user_id=' . $user_id);
   exit;
 }
 
@@ -351,7 +351,7 @@ render_admin_layout('marques', function () use ($nadador, $user_id, $agrupats, $
 ?>
 
   <div class="d-flex align-center gap-3 mb-6" style="flex-wrap:wrap;">
-    <a href="/admin/marques?lliga=<?= e($nadador['lliga'] ?? '') ?>&user_id=<?= $user_id ?>" class="btn btn-gray btn-sm">
+    <a href="/admin/marques?user_id=<?= $user_id ?>" class="btn btn-gray btn-sm">
       <i class="bi bi-arrow-left"></i> Volver
     </a>
     <h1 style="margin:0;">Importar desde RFEN — <?= e($nadador['nom']) ?></h1>
@@ -419,7 +419,7 @@ render_admin_layout('marques', function () use ($nadador, $user_id, $agrupats, $
         <button type="submit" class="btn btn-primary">
           <i class="bi bi-cloud-download-fill"></i> Importar seleccionadas
         </button>
-        <a href="/admin/marques?lliga=<?= e($nadador['lliga'] ?? '') ?>&user_id=<?= $user_id ?>" class="btn btn-gray">
+        <a href="/admin/marques?user_id=<?= $user_id ?>" class="btn btn-gray">
           Cancelar
         </a>
       </div>
