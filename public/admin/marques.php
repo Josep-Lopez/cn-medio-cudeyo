@@ -51,7 +51,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     }
     $back = http_build_query(array_filter([
-        'lliga' => $_POST['lliga_back'] ?? '',
         'user_id' => $_POST['user_id_back'] ?? '',
         'temporada' => $_POST['temporada_back'] ?? '',
         'piscina' => $_POST['piscina_back'] ?? '',
@@ -62,7 +61,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 
 // --- Parámetros GET ---
-$selectedLliga   = $_GET['lliga']   ?? '';
 $selectedUserId  = (int)($_GET['user_id'] ?? 0);
 $selectedPiscina = $_GET['piscina'] ?? '25m';
 $selectedProva   = $_GET['prova'] ?? '';
@@ -75,13 +73,9 @@ $temporada = $_GET['temporada'] ?? $temporades_disp[0];
 if (!in_array($temporada, $temporades_disp)) $temporada = $temporades_disp[0];
 if (!in_array($selectedProva, $PROVES, true)) $selectedProva = '';
 
-// Carga nadadores de la liga seleccionada
-$nadadors = [];
-if ($selectedLliga && in_array($selectedLliga, ['benjamin','alevin','infantil','junior','master'])) {
-    $stmt = $pdo->prepare('SELECT id, nom FROM users WHERE lliga=? AND estado=\'activo\' AND rol=\'soci\' ORDER BY nom');
-    $stmt->execute([$selectedLliga]);
-    $nadadors = $stmt->fetchAll();
-}
+// Carga todos los nadadores activos
+$stmt = $pdo->query("SELECT id, nom, lliga FROM users WHERE estado='activo' AND rol='soci' ORDER BY nom");
+$nadadors = $stmt->fetchAll();
 
 // Carga marcas del nadador seleccionado
 $marcas_usuario = [];
@@ -105,40 +99,22 @@ if ($selectedUserId) {
 }
 
 render_header('Gestión de marcas', 'admin-marques');
-render_admin_layout('marques', function() use ($PROVES, $selectedLliga, $selectedUserId, $selectedPiscina, $selectedProva, $nadadors, $marcas_usuario, $selected_user, $temporada, $temporades_disp, $all_marks) {
+render_admin_layout('marques', function() use ($PROVES, $selectedUserId, $selectedPiscina, $selectedProva, $nadadors, $marcas_usuario, $selected_user, $temporada, $temporades_disp, $all_marks) {
 ?>
 
 <h1>Gestión de marcas</h1>
 <?php render_flash(); ?>
 
-<!-- Paso 1: Seleccionar liga -->
+<!-- Seleccionar nadador -->
 <div class="card mb-6">
-  <h2 style="font-size:15px;font-weight:700;margin-bottom:14px;">1. Seleccionar categoría</h2>
+  <h2 style="font-size:15px;font-weight:700;margin-bottom:14px;">Seleccionar nadador/a</h2>
   <form method="GET" class="d-flex gap-3 align-center flex-wrap">
-    <div class="form-group" style="margin:0;min-width:180px;">
-      <label class="form-label">Categoría (liga)</label>
-      <select name="lliga" class="form-control" onchange="this.form.submit()">
-        <option value="">— Seleccionar —</option>
-        <?php foreach (['benjamin'=>'Benjamín','alevin'=>'Alevín','infantil'=>'Infantil','junior'=>'Junior/Absoluto','master'=>'Master'] as $k=>$v): ?>
-          <option value="<?= $k ?>" <?= $selectedLliga === $k ? 'selected' : '' ?>><?= $v ?></option>
-        <?php endforeach; ?>
-      </select>
-    </div>
-  </form>
-</div>
-
-<!-- Paso 2: Seleccionar nadador -->
-<?php if ($selectedLliga && $nadadors): ?>
-<div class="card mb-6">
-  <h2 style="font-size:15px;font-weight:700;margin-bottom:14px;">2. Seleccionar nadador/a</h2>
-  <form method="GET" class="d-flex gap-3 align-center flex-wrap">
-    <input type="hidden" name="lliga" value="<?= e($selectedLliga) ?>">
     <div class="form-group" style="margin:0;min-width:220px;">
       <label class="form-label">Nadador/a</label>
       <select name="user_id" class="form-control" onchange="this.form.submit()">
         <option value="">— Seleccionar —</option>
         <?php foreach ($nadadors as $n): ?>
-          <option value="<?= $n['id'] ?>" <?= $selectedUserId === (int)$n['id'] ? 'selected' : '' ?>><?= e($n['nom']) ?></option>
+          <option value="<?= $n['id'] ?>" <?= $selectedUserId === (int)$n['id'] ? 'selected' : '' ?>><?= e($n['nom']) ?><?= !empty($n['lliga']) ? ' · ' . e(format_lliga($n['lliga'])) : '' ?></option>
         <?php endforeach; ?>
       </select>
     </div>
@@ -153,10 +129,7 @@ render_admin_layout('marques', function() use ($PROVES, $selectedLliga, $selecte
     <div class="form-group" style="margin:0;min-width:220px;">
       <label class="form-label">Prueba</label>
       <select name="prova" class="form-control" onchange="this.form.submit()">
-        <option value="">Todas las pruebas</option>
-        <?php foreach ($PROVES as $prova): ?>
-          <option value="<?= e($prova) ?>" <?= $selectedProva === $prova ? 'selected' : '' ?>><?= e(format_prova($prova)) ?></option>
-        <?php endforeach; ?>
+        <?php render_prova_options($selectedProva, true); ?>
       </select>
     </div>
     <div class="form-group" style="margin:0;">
@@ -168,9 +141,6 @@ render_admin_layout('marques', function() use ($PROVES, $selectedLliga, $selecte
     </div>
   </form>
 </div>
-<?php elseif ($selectedLliga): ?>
-<div class="alert alert-info">No hay nadadores activos en esta categoría.</div>
-<?php endif; ?>
 
 <style>
   @keyframes loading-spin {
@@ -204,7 +174,7 @@ render_admin_layout('marques', function() use ($PROVES, $selectedLliga, $selecte
           <i class="bi bi-cloud-download-fill"></i> Importar desde RFEN
         </a>
       <?php endif; ?>
-      <a href="/admin/ranking?lliga=<?= e($selectedLliga) ?>" class="btn btn-secondary btn-sm">Ver ranking</a>
+      <a href="/admin/ranking?lliga=<?= e($selected_user['lliga'] ?? '') ?>" class="btn btn-secondary btn-sm">Ver ranking</a>
     </div>
   </div>
 
@@ -262,7 +232,6 @@ render_admin_layout('marques', function() use ($PROVES, $selectedLliga, $selecte
                     <?= csrf_field() ?>
                     <input type="hidden" name="action" value="delete">
                     <input type="hidden" name="marca_id" value="<?= (int)$marca['id'] ?>">
-                    <input type="hidden" name="lliga_back" value="<?= e($selectedLliga) ?>">
                     <input type="hidden" name="user_id_back" value="<?= $selectedUserId ?>">
                     <input type="hidden" name="temporada_back" value="<?= e($temporada) ?>">
                     <input type="hidden" name="piscina_back" value="<?= e($selectedPiscina) ?>">
@@ -288,7 +257,6 @@ render_admin_layout('marques', function() use ($PROVES, $selectedLliga, $selecte
       <input type="hidden" name="action"      value="save">
       <input type="hidden" name="user_id"     value="<?= $selectedUserId ?>">
       <input type="hidden" name="piscina"     value="<?= e($selectedPiscina) ?>">
-      <input type="hidden" name="lliga_back"    value="<?= e($selectedLliga) ?>">
       <input type="hidden" name="user_id_back"  value="<?= $selectedUserId ?>">
       <input type="hidden" name="temporada_back" value="<?= e($temporada) ?>">
       <input type="hidden" name="piscina_back" value="<?= e($selectedPiscina) ?>">
@@ -300,10 +268,7 @@ render_admin_layout('marques', function() use ($PROVES, $selectedLliga, $selecte
         <label class="form-label">Prueba</label>
         <input type="text" id="modalProvaDisplay" class="form-control" readonly style="background:#f5f5f5;display:none;">
         <select id="modalProvaSelect" class="form-control" onchange="syncModalProva(this.value)">
-          <option value="">— Seleccionar —</option>
-          <?php foreach ($PROVES as $prova): ?>
-            <option value="<?= e($prova) ?>"><?= e(format_prova($prova)) ?></option>
-          <?php endforeach; ?>
+          <?php render_prova_options('', false); ?>
         </select>
       </div>
       <div class="form-group">
