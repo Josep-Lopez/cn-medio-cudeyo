@@ -63,7 +63,7 @@ render_header('Contacto', 'contacto', '', 'Contacta con el Club de Natación Med
             <span style="font-size:22px;color:var(--blue);"><i class="bi bi-envelope-fill"></i></span>
             <div>
               <div style="font-weight:600;font-size:14px;">Email</div>
-              <div class="text-muted text-sm">info@cnmediocudeyo.es</div>
+              <div class="text-muted text-sm">natacionmediocudeyo@gmail.es</div>
             </div>
           </div>
           <div class="d-flex gap-3 align-center">

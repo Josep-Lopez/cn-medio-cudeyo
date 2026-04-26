@@ -26,7 +26,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $errors[] = 'La contraseña debe tener al menos 8 caracteres, una mayúscula, una minúscula y un número.';
     if ($pass1 !== $pass2)                 $errors[] = 'Las contraseñas no coinciden.';
     if (!in_array($data['sexe'], ['M','F'])) $errors[] = 'Selecciona el sexo.';
-    if (!in_array($data['lliga'], ['benjamin','alevin','infantil','junior','master']))
+    if (!in_array($data['lliga'], ['benjamin','alevin','infantil','junior','absoluto','master']))
         $errors[] = 'Selecciona una categoría.';
 
     if (!$errors) {
@@ -96,7 +96,8 @@ render_header('Registro', 'registro');
             <option value="benjamin" <?= $data['lliga'] === 'benjamin' ? 'selected' : '' ?>>Benjamín</option>
             <option value="alevin"   <?= $data['lliga'] === 'alevin'   ? 'selected' : '' ?>>Alevín</option>
             <option value="infantil" <?= $data['lliga'] === 'infantil' ? 'selected' : '' ?>>Infantil</option>
-            <option value="junior"   <?= $data['lliga'] === 'junior'   ? 'selected' : '' ?>>Junior/Absoluto</option>
+            <option value="junior"   <?= $data['lliga'] === 'junior'   ? 'selected' : '' ?>>Junior</option>
+            <option value="absoluto" <?= $data['lliga'] === 'absoluto' ? 'selected' : '' ?>>Absoluto</option>
             <option value="master"   <?= $data['lliga'] === 'master'   ? 'selected' : '' ?>>Master</option>
           </select>
         </div>

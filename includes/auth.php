@@ -140,7 +140,8 @@ function format_lliga(string $lliga): string
         'benjamin' => 'Benjamín',
         'alevin'   => 'Alevín',
         'infantil' => 'Infantil',
-        'junior'   => 'Junior/Absoluto',
+        'junior'   => 'Junior',
+        'absoluto' => 'Absoluto',
         'master'   => 'Master',
     ];
     return $mapa[$lliga] ?? ucfirst($lliga);

@@ -112,6 +112,15 @@ render_header('Inicio', 'inicio', '', 'Club de Natación Medio Cudeyo, en Cantab
 </section>
 <?php endif; ?>
 
+<!-- Instagram -->
+<section class="section">
+  <div class="container">
+    <h2 class="section-title">Síguenos en Instagram</h2>
+    <p class="section-sub">Las últimas publicaciones del club</p>
+    <behold-widget feed-id="D3v6lzQGhJU2Hx815nk3"></behold-widget>
+  </div>
+</section>
+
 <!-- Contacte -->
 <section class="section section-white">
   <div class="container">
@@ -152,5 +161,12 @@ render_header('Inicio', 'inicio', '', 'Club de Natación Medio Cudeyo, en Cantab
     <?php endif; ?>
   </div>
 </section>
+
+<script>
+  (() => {
+    const d=document,s=d.createElement("script");s.type="module";
+    s.src="https://w.behold.so/widget.js";d.head.append(s);
+  })();
+</script>
 
 <?php render_footer(); ?>

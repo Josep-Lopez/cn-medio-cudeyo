@@ -5,7 +5,7 @@ require_once dirname(__DIR__, 2) . '/includes/layout.php';
 
 require_admin();
 
-$LLIGUES = ['benjamin'=>'Benjamín','alevin'=>'Alevín','infantil'=>'Infantil','junior'=>'Junior/Absoluto','master'=>'Master'];
+$LLIGUES = ['benjamin'=>'Benjamín','alevin'=>'Alevín','infantil'=>'Infantil','junior'=>'Junior','absoluto'=>'Absoluto','master'=>'Master'];
 
 // --- Acciones POST ---
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {

@@ -11,16 +11,16 @@ $filterLliga     = $_GET['lliga']    ?? '';
 $filterProva     = $_GET['prova']    ?? '';
 $filterPiscina   = $_GET['piscina']  ?? '25m';
 $filterMillors   = isset($_GET['millors']);
-$sort           = $_GET['sort']     ?? 'data';
-$dir            = strtolower($_GET['dir'] ?? 'desc');
+$sort           = $_GET['sort']     ?? 'temps';
+$dir            = strtolower($_GET['dir'] ?? 'asc');
 
 $current_year    = (int)date('n') >= 9 ? (int)date('Y') : (int)date('Y') - 1;
 $temporades_disp = [];
-for ($y = $current_year; $y >= $current_year - 3; $y--) {
+for ($y = $current_year; $y >= 2012; $y--) {
     $temporades_disp[] = $y . '-' . substr((string)($y + 1), 2);
 }
 $filterTemporada = $_GET['temporada'] ?? $temporades_disp[0];
-if (!in_array($filterTemporada, $temporades_disp, true)) $filterTemporada = $temporades_disp[0];
+if ($filterTemporada !== 'todas' && !in_array($filterTemporada, $temporades_disp, true)) $filterTemporada = $temporades_disp[0];
 
 if (!in_array($filterProva, $PROVES)) $filterProva = '';
 if (!in_array($filterPiscina, ['25m','50m'])) $filterPiscina = '25m';
@@ -34,40 +34,34 @@ $sortable = [
     'prova' => 'm.prova',
     'lliga' => 'u.lliga',
     'sexe'  => 'u.sexe',
-    'temps' => $filterMillors ? 'best_seg' : 'm.temps_seg',
+    'temps' => 'm.temps_seg',
     'lugar' => 'm.lugar',
     'data'  => 'm.data_marca',
 ];
 if ($filterMillors) {
     $sortable['temporada'] = 'm.temporada';
 }
-if (!isset($sortable[$sort])) $sort = 'data';
-$orderSql = $sortable[$sort] . ' ' . strtoupper($dir) . ', m.prova ASC, ' . ($filterMillors ? 'best_seg ASC' : 'm.temps_seg ASC') . ', u.nom ASC';
+if (!isset($sortable[$sort])) $sort = 'temps';
+$orderSql = $sortable[$sort] . ' ' . strtoupper($dir) . ', m.prova ASC, m.temps_seg ASC, u.nom ASC';
 
 if ($filterMillors) {
-    // Mejores marcas: millor temps per nedador a totes les temporades
+    // Mejores marcas: totes les marques, amb filtre opcional de temporada
     $where  = "WHERE m.piscina=? AND u.estado='activo'";
     $params = [$filterPiscina];
+    if ($filterTemporada !== 'todas') { $where .= ' AND m.temporada=?'; $params[] = $filterTemporada; }
     if ($filterProva) { $where .= ' AND m.prova=?';  $params[] = $filterProva; }
     if ($filterLliga && in_array($filterLliga, $lligues_valides)) { $where .= ' AND u.lliga=?'; $params[] = $filterLliga; }
-    // Params subquery (han d'anar al final, després de tots els WHERE params)
-    $sub_where = 'm2.user_id=m.user_id AND m2.piscina=?';
-    $params[] = $filterPiscina;
-    if ($filterProva) { $sub_where .= ' AND m2.prova=?'; $params[] = $filterProva; }
     $sql = "
-        SELECT m.temps, m.lugar, m.data_marca, m.temporada, m.prova,
-               u.nom, u.lliga, u.sexe,
-               MIN(m.temps_seg) AS best_seg
+        SELECT m.*, u.nom, u.sexe, u.lliga
         FROM marques m
         JOIN users u ON u.id = m.user_id
         $where
-        AND m.temps_seg = (SELECT MIN(m2.temps_seg) FROM marques m2 WHERE $sub_where)
-        GROUP BY u.id, u.nom, u.lliga, u.sexe, m.temps, m.lugar, m.data_marca, m.temporada, m.prova
         ORDER BY $orderSql
     ";
 } else {
-    $where  = "WHERE m.piscina=? AND m.temporada=? AND u.estado='activo'";
-    $params = [$filterPiscina, $filterTemporada];
+    $where  = "WHERE m.piscina=? AND u.estado='activo'";
+    $params = [$filterPiscina];
+    if ($filterTemporada !== 'todas') { $where .= ' AND m.temporada=?'; $params[] = $filterTemporada; }
     if ($filterProva) { $where .= ' AND m.prova=?';  $params[] = $filterProva; }
     if ($filterLliga && in_array($filterLliga, $lligues_valides)) { $where .= ' AND u.lliga=?'; $params[] = $filterLliga; }
     $sql = "
@@ -126,6 +120,9 @@ render_admin_layout('ranking', function() use ($PROVES, $ranking, $filterLliga, 
 <!-- Filtros -->
 <div class="filters-bar">
   <form method="GET" class="filters-form js-loading-form">
+    <?php if ($filterMillors): ?>
+      <input type="hidden" name="millors" value="1">
+    <?php endif; ?>
     <div class="form-group">
       <label class="form-label">Prueba</label>
       <select name="prova" class="form-control">
@@ -148,16 +145,15 @@ render_admin_layout('ranking', function() use ($PROVES, $ranking, $filterLliga, 
         <?php endforeach; ?>
       </select>
     </div>
-    <?php if (!$filterMillors): ?>
     <div class="form-group">
       <label class="form-label">Temporada</label>
       <select name="temporada" class="form-control">
+        <option value="todas" <?= $filterTemporada === 'todas' ? 'selected' : '' ?>>Todas</option>
         <?php foreach ($temporades_disp as $t): ?>
           <option value="<?= e($t) ?>" <?= $filterTemporada === $t ? 'selected' : '' ?>><?= e($t) ?></option>
         <?php endforeach; ?>
       </select>
     </div>
-    <?php endif; ?>
     <div class="form-group" style="align-self:flex-end;">
       <button type="submit" class="btn btn-primary">Filtrar</button>
     </div>

@@ -2,6 +2,7 @@
 require_once dirname(__DIR__, 2) . '/config/db.php';
 require_once dirname(__DIR__, 2) . '/includes/auth.php';
 require_once dirname(__DIR__, 2) . '/includes/layout.php';
+require_once dirname(__DIR__, 2) . '/includes/rfen.php';
 
 require_admin();
 
@@ -43,6 +44,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 flash('Formato de tiempo incorrecto. Usa mm:ss.cc o ss.cc', 'danger');
             }
         }
+    } elseif ($action === 'import_all') {
+        $uid = (int)($_POST['user_id'] ?? 0);
+        $stmtU = $pdo->prepare('SELECT rfen_id FROM users WHERE id=?');
+        $stmtU->execute([$uid]);
+        $rfen_id = $stmtU->fetchColumn();
+        if ($uid && $rfen_id) {
+            $r = rfen_import_marks($pdo, $uid, $rfen_id, null);
+            if ($r['error']) {
+                flash('Error RFEN: ' . $r['error'], 'danger');
+            } else {
+                flash("RFEN (todas): {$r['procesadas']} procesadas · {$r['insertadas']} insertadas · {$r['actualizadas']} actualizadas · {$r['sin_cambios']} sin cambios.", 'success');
+            }
+        } else {
+            flash('Este usuario no tiene vinculación RFEN.', 'danger');
+        }
     } elseif ($action === 'delete') {
         $id = (int)($_POST['marca_id'] ?? 0);
         if ($id) {
@@ -67,7 +83,7 @@ $selectedProva   = $_GET['prova'] ?? '';
 
 $current_year    = (int)date('n') >= 9 ? (int)date('Y') : (int)date('Y') - 1;
 $temporades_disp = [];
-for ($y = $current_year; $y >= $current_year - 4; $y--)
+for ($y = $current_year; $y >= 2012; $y--)
     $temporades_disp[] = $y . '-' . substr((string)($y + 1), 2);
 $temporada = $_GET['temporada'] ?? $temporades_disp[0];
 if (!in_array($temporada, $temporades_disp)) $temporada = $temporades_disp[0];
@@ -173,6 +189,9 @@ render_admin_layout('marques', function() use ($PROVES, $selectedUserId, $select
         <a href="/admin/rfen_importar?user_id=<?= $selectedUserId ?>&temporada=<?= e($temporada) ?>" class="btn btn-primary btn-sm js-loading-link">
           <i class="bi bi-cloud-download-fill"></i> Importar desde RFEN
         </a>
+        <button type="button" class="btn btn-secondary btn-sm" onclick="document.getElementById('importAllModal').style.display='flex'">
+          <i class="bi bi-cloud-download"></i> Importar todo
+        </button>
       <?php endif; ?>
       <a href="/admin/ranking?lliga=<?= e($selected_user['lliga'] ?? '') ?>" class="btn btn-secondary btn-sm">Ver ranking</a>
     </div>
@@ -375,6 +394,31 @@ document.getElementById('marcaModal').addEventListener('click', function(e) {
   if (e.target === this) closeForm();
 });
 </script>
+
+<!-- Modal: importar todo RFEN -->
+<div id="importAllModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:200;align-items:center;justify-content:center;" onclick="if(event.target===this)this.style.display='none'">
+  <div style="background:white;border-radius:12px;padding:32px;max-width:420px;width:100%;margin:20px;box-shadow:0 20px 60px rgba(0,0,0,0.2);">
+    <h3 style="margin-bottom:12px;"><i class="bi bi-cloud-download"></i> Importar todo desde RFEN</h3>
+    <p style="margin-bottom:20px;color:var(--gray);">
+      Se importarán <strong>todas las marcas históricas</strong> de <?= e($selected_user['nom']) ?> desde RFEN.
+      Las marcas existentes solo se actualizarán si el nuevo tiempo es mejor.
+    </p>
+    <form method="POST" onsubmit="showPageLoading('Importando todas las marcas de RFEN...');return true;">
+      <?= csrf_field() ?>
+      <input type="hidden" name="action" value="import_all">
+      <input type="hidden" name="user_id" value="<?= $selectedUserId ?>">
+      <input type="hidden" name="user_id_back" value="<?= $selectedUserId ?>">
+      <input type="hidden" name="temporada_back" value="<?= e($temporada) ?>">
+      <input type="hidden" name="piscina_back" value="<?= e($selectedPiscina) ?>">
+      <input type="hidden" name="prova_back" value="<?= e($selectedProva) ?>">
+      <div class="d-flex gap-2">
+        <button type="submit" class="btn btn-primary">Importar</button>
+        <button type="button" class="btn btn-gray" onclick="document.getElementById('importAllModal').style.display='none'">Cancelar</button>
+      </div>
+    </form>
+  </div>
+</div>
+
 <?php endif; ?>
 
 <?php

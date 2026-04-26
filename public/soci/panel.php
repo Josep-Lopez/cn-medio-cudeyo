@@ -174,7 +174,7 @@ render_header('Mi panel', 'soci-panel');
     </div>
     <div class="calendar-embed">
       <iframe
-        src="https://calendar.google.com/calendar/embed?src=f2cbdb814669d213dbd4b0f65ad28268882f62b21687e1009be0697343ebdae7%40group.calendar.google.com&ctz=Europe%2FMadrid&hl=es"
+        src="https://calendar.google.com/calendar/embed?src=e5aa12a1773d829adc2af7b43f0c3420350b6d0418e1159d2adcd23c69929f81%40group.calendar.google.com&ctz=Europe%2FMadrid&hl=es"
         style="border:0;width:100%;height:500px;"
         frameborder="0"
         scrolling="no">

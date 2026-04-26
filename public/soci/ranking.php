@@ -13,16 +13,16 @@ $filterLliga   = array_key_exists('lliga', $_GET) ? $_GET['lliga'] : ($user['lli
 $filterProva   = $_GET['prova']   ?? '';
 $filterPiscina = $_GET['piscina'] ?? '25m';
 $filterMillors = isset($_GET['millors']);
-$sort         = $_GET['sort']    ?? 'data';
-$dir          = strtolower($_GET['dir'] ?? 'desc');
+$sort         = $_GET['sort']    ?? 'temps';
+$dir          = strtolower($_GET['dir'] ?? 'asc');
 
 // Temporades disponibles (últimes 4), sense "Totes"
 $current_year    = (int)date('n') >= 9 ? (int)date('Y') : (int)date('Y') - 1;
 $temporades_disp = [];
-for ($y = $current_year; $y >= $current_year - 3; $y--)
+for ($y = $current_year; $y >= 2012; $y--)
   $temporades_disp[] = $y . '-' . substr((string)($y + 1), 2);
 $filterTemporada = $_GET['temporada'] ?? $temporades_disp[0];
-if (!in_array($filterTemporada, $temporades_disp)) $filterTemporada = $temporades_disp[0];
+if ($filterTemporada !== 'todas' && !in_array($filterTemporada, $temporades_disp)) $filterTemporada = $temporades_disp[0];
 
 if (!in_array($filterProva, $PROVES)) $filterProva = '';
 if (!in_array($filterPiscina, ['25m', '50m'])) $filterPiscina = '25m';
@@ -38,19 +38,21 @@ $sortable = [
   'prova' => 'm.prova',
   'lliga' => 'u.lliga',
   'sexe'  => 'u.sexe',
-  'temps' => $filterMillors ? 'best_seg' : 'm.temps_seg',
+  'temps' => 'm.temps_seg',
   'lugar' => 'm.lugar',
   'data'  => 'm.data_marca',
 ];
-if (!isset($sortable[$sort])) $sort = 'data';
-$orderSql = $sortable[$sort] . ' ' . strtoupper($dir) . ', m.prova ASC, ' . ($filterMillors ? 'best_seg ASC' : 'm.temps_seg ASC') . ', u.nom ASC';
+if ($filterMillors) {
+  $sortable['temporada'] = 'm.temporada';
+}
+if (!isset($sortable[$sort])) $sort = 'temps';
+$orderSql = $sortable[$sort] . ' ' . strtoupper($dir) . ', m.prova ASC, m.temps_seg ASC, u.nom ASC';
 
 if ($filterMillors) {
-  // Millors marques per temporada:
-  // · Sense prova → millor temps per (nedador, prova, piscina) dins la temporada
-  // · Amb prova   → millor temps per nedador per aquella prova concreta dins la temporada
-  $where  = "WHERE m.piscina=? AND m.temporada=? AND u.estado='activo'";
-  $params = [$filterPiscina, $filterTemporada];
+  // Millors marques: totes les marques, amb filtre opcional de temporada
+  $where  = "WHERE m.piscina=? AND u.estado='activo'";
+  $params = [$filterPiscina];
+  if ($filterTemporada !== 'todas') { $where .= ' AND m.temporada=?'; $params[] = $filterTemporada; }
   if ($filterProva) {
     $where .= ' AND m.prova=?';
     $params[] = $filterProva;
@@ -59,32 +61,17 @@ if ($filterMillors) {
     $where .= ' AND u.lliga=?';
     $params[] = $filterLliga;
   }
-
-  if ($filterProva) {
-    $params[] = $filterPiscina;
-    $params[] = $filterTemporada;
-    $params[] = $filterProva;
-    $sub = 'm2.user_id=m.user_id AND m2.piscina=? AND m2.temporada=? AND m2.prova=?';
-    $order = $orderSql;
-  } else {
-    $params[] = $filterPiscina;
-    $params[] = $filterTemporada;
-    $sub = 'm2.user_id=m.user_id AND m2.piscina=? AND m2.temporada=? AND m2.prova=m.prova';
-    $order = $orderSql;
-  }
   $sql = "
-        SELECT m.prova, m.temps, m.lugar, m.data_marca, m.temporada, u.lliga, u.nom, u.sexe, u.id as uid,
-               MIN(m.temps_seg) AS best_seg
+        SELECT m.*, u.nom, u.sexe, u.lliga, u.id as uid
         FROM marques m
         JOIN users u ON u.id = m.user_id
         $where
-        AND m.temps_seg = (SELECT MIN(m2.temps_seg) FROM marques m2 WHERE $sub)
-        GROUP BY u.id, u.nom, u.lliga, u.sexe, m.prova, m.temps, m.lugar, m.data_marca, m.temporada
-        ORDER BY $order
+        ORDER BY $orderSql
     ";
 } else {
-  $where  = "WHERE m.piscina=? AND m.temporada=? AND u.estado='activo'";
-  $params = [$filterPiscina, $filterTemporada];
+  $where  = "WHERE m.piscina=? AND u.estado='activo'";
+  $params = [$filterPiscina];
+  if ($filterTemporada !== 'todas') { $where .= ' AND m.temporada=?'; $params[] = $filterTemporada; }
   if ($filterProva) {
     $where .= ' AND m.prova=?';
     $params[] = $filterProva;
@@ -155,6 +142,7 @@ render_header('Ranking liga', 'soci-ranking');
       <div class="form-group">
         <label class="form-label">Temporada</label>
         <select name="temporada" class="form-control">
+          <option value="todas" <?= $filterTemporada === 'todas' ? 'selected' : '' ?>>Todas</option>
           <?php foreach ($temporades_disp as $t): ?>
             <option value="<?= e($t) ?>" <?= $filterTemporada === $t ? 'selected' : '' ?>><?= e($t) ?></option>
           <?php endforeach; ?>
@@ -246,11 +234,12 @@ render_header('Ranking liga', 'soci-ranking');
             <th><a href="<?= e($sortUrl('temps')) ?>">Tiempo<?= $sortIcon('temps') ?></a></th>
             <th><a href="<?= e($sortUrl('lugar')) ?>">Lugar<?= $sortIcon('lugar') ?></a></th>
             <th><a href="<?= e($sortUrl('data')) ?>">Fecha<?= $sortIcon('data') ?></a></th>
+            <?php if ($filterMillors): ?><th><a href="<?= e($sortUrl('temporada')) ?>">Temporada<?= $sortIcon('temporada') ?></a></th><?php endif; ?>
           </tr>
         </thead>
         <tbody>
           <?php
-          $colspan = 7 + (!$filterProva ? 1 : 0);
+          $colspan = 7 + (!$filterProva ? 1 : 0) + ($filterMillors ? 1 : 0);
           if (!$ranking): ?>
             <tr>
               <td colspan="<?= $colspan ?>" class="text-center text-muted" style="padding:40px;">
@@ -278,6 +267,9 @@ render_header('Ranking liga', 'soci-ranking');
               <td><span class="mark-time"><?= e($row['temps']) ?></span></td>
               <td class="text-sm text-muted"><?= e($row['lugar'] ?? '') ?></td>
               <td class="text-sm text-muted"><?= date('d/m/Y', strtotime($row['data_marca'])) ?></td>
+              <?php if ($filterMillors): ?>
+                <td><span class="badge badge-gray"><?= e($row['temporada']) ?></span></td>
+              <?php endif; ?>
             </tr>
           <?php endforeach; ?>
         </tbody>
