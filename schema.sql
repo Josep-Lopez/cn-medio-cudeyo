@@ -11,7 +11,7 @@ CREATE TABLE IF NOT EXISTS users (
     password   VARCHAR(255)  NOT NULL,
     rol        ENUM('soci','admin') NOT NULL DEFAULT 'soci',
     estado     ENUM('pendiente','activo','rechazado') NOT NULL DEFAULT 'pendiente',
-    lliga      ENUM('benjamin','alevin','infantil','junior','master') DEFAULT NULL,
+    lliga      ENUM('benjamin','alevin','infantil','junior','absoluto','master') DEFAULT NULL,
     sexe       ENUM('M','F') NOT NULL,
     rfen_id    VARCHAR(100) DEFAULT NULL,
     rfen_nom   VARCHAR(200) DEFAULT NULL,
