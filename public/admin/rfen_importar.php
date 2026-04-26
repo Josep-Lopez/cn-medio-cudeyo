@@ -2,144 +2,9 @@
 require_once dirname(__DIR__, 2) . '/config/db.php';
 require_once dirname(__DIR__, 2) . '/includes/auth.php';
 require_once dirname(__DIR__, 2) . '/includes/layout.php';
+require_once dirname(__DIR__, 2) . '/includes/rfen.php';
 
 require_admin();
-
-// ── Helpers ───────────────────────────────────────────────────────────────────
-
-function rfen_temps_to_local(string $t): ?string
-{
-  $t = trim($t);
-  if (!preg_match('/^(\d+):(\d{2}):(\d{2})\.(\d{2})$/', $t, $m)) return null;
-  $total_min = (int)$m[1] * 60 + (int)$m[2];
-  $sec = (int)$m[3];
-  $cs = $m[4];
-  if ($total_min > 0) return $total_min . ':' . str_pad($sec, 2, '0', STR_PAD_LEFT) . '.' . $cs;
-  return $sec . '.' . $cs;
-}
-
-function rfen_prova(string $estilo, string $distancia): ?string
-{
-  $map = ['libre' => 'L', 'crol' => 'L', 'espalda' => 'E', 'braza' => 'B', 'mariposa' => 'M', 'estilos' => 'X'];
-  $suf  = $map[strtolower(trim($estilo))] ?? null;
-  $dist = (int)preg_replace('/[^0-9]/', '', $distancia);
-  if (!$suf || !$dist) return null;
-  $valides = [
-    '50L',
-    '100L',
-    '200L',
-    '400L',
-    '800L',
-    '1500L',
-    '50E',
-    '100E',
-    '200E',
-    '50B',
-    '100B',
-    '200B',
-    '50M',
-    '100M',
-    '200M',
-    '100X',
-    '200X',
-    '400X'
-  ];
-  $prova = $dist . $suf;
-  return in_array($prova, $valides) ? $prova : null;
-}
-
-function rfen_fecha_iso(string $fecha): string
-{
-  // DD/MM/YYYY → YYYY-MM-DD
-  if (preg_match('#^(\d{2})/(\d{2})/(\d{4})#', $fecha, $m))
-    return $m[3] . '-' . $m[2] . '-' . $m[1];
-  return date('Y-m-d');
-}
-
-/** Fetch una URL de la intranet RFEN y devuelve el HTML ya en UTF-8 con entidades. */
-function rfen_fetch_html(string $url): string
-{
-  $ch = curl_init($url);
-  curl_setopt_array($ch, [
-    CURLOPT_RETURNTRANSFER => true,
-    CURLOPT_TIMEOUT        => 15,
-    CURLOPT_FOLLOWLOCATION => true,
-    CURLOPT_USERAGENT      => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-    CURLOPT_SSL_VERIFYPEER => false,
-    CURLOPT_ENCODING       => '',
-    CURLOPT_HTTPHEADER     => ['Accept-Language: es-ES,es;q=0.9'],
-  ]);
-  $html = curl_exec($ch);
-  curl_close($ch);
-  if (!$html) return '';
-  if (!mb_check_encoding($html, 'UTF-8'))
-    $html = mb_convert_encoding($html, 'UTF-8', 'ISO-8859-1');
-  return mb_encode_numericentity($html, [0x80, 0x10FFFF, 0, 0x1FFFFF], 'UTF-8');
-}
-
-/**
- * Parse las filas de datos de la tabla RFEN a partir del HTML ya cargado en un DOMDocument.
- * Devuelve array de registros crudos.
- */
-function rfen_parse_rows(DOMXPath $xpath): array
-{
-  $all_tr  = $xpath->query('//table//tr');
-  $col_idx = [];
-  $header_found = false;
-  $registres = [];
-
-  foreach ($all_tr as $tr) {
-    $cells_text = [];
-    foreach ($tr->childNodes as $node)
-      if (in_array($node->nodeName, ['th', 'td']))
-        $cells_text[] = strtoupper(trim($node->textContent));
-
-    if (!$header_found) {
-      // Detectar fila de cabecera buscando columnas clave
-      if (in_array('FECHA', $cells_text) && in_array('RESULTADO', $cells_text)) {
-        foreach ($cells_text as $ci => $name) $col_idx[$name] = $ci;
-        $header_found = true;
-      }
-      continue;
-    }
-
-    // Fila de datos
-    $cells = [];
-    foreach ($tr->childNodes as $node)
-      if ($node->nodeName === 'td') $cells[] = trim($node->textContent);
-    if (count($cells) < 5) continue;
-
-    $get = fn(string $col) => $cells[$col_idx[$col] ?? -1] ?? '';
-
-    $relevo  = $get('RELEVO');
-    $parcial = $get('PARCIAL');
-    if ($relevo !== '' && $relevo !== '-')  continue; // saltar relevos
-    if ($parcial !== '' && $parcial !== '-') continue; // saltar parciales
-
-    $prova = rfen_prova($get('ESTILO'), $get('DISTANCIA'));
-    if (!$prova) continue;
-
-    $piscina_r = $get('PISCINA') ?: $get('TIPO PISCINA');
-    $piscina   = str_starts_with(trim($piscina_r), '50') ? '50m' : '25m';
-
-    $temps_local = rfen_temps_to_local($get('RESULTADO'));
-    if (!$temps_local) continue;
-
-    $fecha    = $get('FECHA');
-    $data_iso = rfen_fecha_iso($fecha);
-
-    $registres[] = [
-      'fecha'     => $fecha,
-      'lugar'     => $get('LUGAR'),
-      'prova'     => $prova,
-      'piscina'   => $piscina,
-      'temps'     => $temps_local,
-      'temps_seg' => temps_a_segons($temps_local),
-      'data_iso'  => $data_iso,
-    ];
-  }
-  return $registres;
-}
 
 // ── Càrrega usuari ────────────────────────────────────────────────────────────
 
@@ -236,10 +101,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 // ── GET: selección de temporada y fetch paginado ──────────────────────────────
 
-// Temporadas disponibles (últimas 6 seasons)
+// Temporadas disponibles (desde 2012 hasta actual)
 $current_year  = (int)date('n') >= 9 ? (int)date('Y') : (int)date('Y') - 1;
 $temporades_disp = [];
-for ($y = $current_year; $y >= $current_year - 5; $y--) {
+for ($y = $current_year; $y >= 2012; $y--) {
   $temporades_disp[] = $y . '-' . substr((string)($y + 1), 2);
 }
 
