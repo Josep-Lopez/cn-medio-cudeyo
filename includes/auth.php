@@ -73,6 +73,34 @@ function require_login(): void
         http_response_code(401);
         die('Debes iniciar sesión para continuar.');
     }
+
+    // Primer login: forzar cambio de contraseña
+    if (!empty($_SESSION['user']['must_change_pwd'])) {
+        $current = $_SERVER['REQUEST_URI'] ?? '';
+        if (!str_starts_with($current, '/socio/cambiar-password')) {
+            header('Location: /socio/cambiar-password');
+            exit;
+        }
+    }
+
+    // Tutor legal obligatorio para menores (benjamin, alevin, infantil, junior)
+    $ligas_tutor = ['benjamin', 'alevin', 'infantil', 'junior'];
+    if (
+        empty($_SESSION['user']['must_change_pwd'])
+        && in_array($_SESSION['user']['liga'] ?? '', $ligas_tutor)
+        && empty($_SESSION['user']['tutor_email'])
+    ) {
+        $current = $_SERVER['REQUEST_URI'] ?? '';
+        if (!str_starts_with($current, '/socio/autorizacion-tutor')) {
+            header('Location: /socio/autorizacion-tutor');
+            exit;
+        }
+    }
+}
+
+function requires_tutor(string $liga): bool
+{
+    return in_array($liga, ['benjamin', 'alevin', 'infantil', 'junior']);
 }
 
 function require_admin(): void
@@ -97,19 +125,33 @@ function is_admin(): bool
     return isset($_SESSION['user']['rol']) && $_SESSION['user']['rol'] === 'admin';
 }
 
-// Convierte "mm:ss.cc" o "ss.cc" a segundos float
-function temps_a_segons(string $temps): float
+function is_nadador_activo(): bool
 {
-    $temps = trim(str_replace(',', '.', $temps));
-    if (str_contains($temps, ':')) {
-        [$min, $rest] = explode(':', $temps, 2);
+    return !empty($_SESSION['user']['nadador_activo']);
+}
+
+function require_nadador_activo(): void
+{
+    require_login();
+    if (!is_nadador_activo()) {
+        header('Location: /socio/panel');
+        exit;
+    }
+}
+
+// Convierte "mm:ss.cc" o "ss.cc" a segundos float
+function tiempo_a_segundos(string $tiempo): float
+{
+    $tiempo = trim(str_replace(',', '.', $tiempo));
+    if (str_contains($tiempo, ':')) {
+        [$min, $rest] = explode(':', $tiempo, 2);
         return (float)$min * 60 + (float)$rest;
     }
-    return (float)$temps;
+    return (float)$tiempo;
 }
 
 // Convierte segundos a "mm:ss.cc" (o "ss.cc" si < 60s)
-function segons_a_temps(float $seg): string
+function segundos_a_tiempo(float $seg): string
 {
     if ($seg >= 60) {
         $m  = (int)floor($seg / 60);
@@ -120,7 +162,7 @@ function segons_a_temps(float $seg): string
 }
 
 // Nombre legible de la prueba
-function format_prova(string $codi): string
+function format_prueba(string $codigo): string
 {
     $mapa = [
         '50L'   => '50 Libre',   '100L'  => '100 Libre',  '200L'  => '200 Libre',
@@ -130,11 +172,11 @@ function format_prova(string $codi): string
         '50M'   => '50 Mariposa','100M'  => '100 Mariposa','200M' => '200 Mariposa',
         '100X'  => '100 Estilos','200X'  => '200 Estilos','400X'  => '400 Estilos',
     ];
-    return $mapa[$codi] ?? $codi;
+    return $mapa[$codigo] ?? $codigo;
 }
 
 // Nombre legible de la liga
-function format_lliga(string $lliga): string
+function format_liga(string $liga): string
 {
     $mapa = [
         'benjamin' => 'Benjamín',
@@ -144,11 +186,11 @@ function format_lliga(string $lliga): string
         'absoluto' => 'Absoluto',
         'master'   => 'Master',
     ];
-    return $mapa[$lliga] ?? ucfirst($lliga);
+    return $mapa[$liga] ?? ucfirst($liga);
 }
 
 // Genera <optgroup> para un select de pruebas
-function render_prova_options(string $selected = '', bool $show_all = false): void
+function render_prueba_options(string $selected = '', bool $show_all = false): void
 {
     if ($show_all) {
         $sel = $selected === '' ? ' selected' : '';
@@ -161,9 +203,9 @@ function render_prova_options(string $selected = '', bool $show_all = false): vo
         '🦋 Mariposa' => ['50M'=>'50 Mariposa','100M'=>'100 Mariposa','200M'=>'200 Mariposa'],
         '⭐ Estilos'  => ['100X'=>'100 Estilos','200X'=>'200 Estilos','400X'=>'400 Estilos'],
     ];
-    foreach ($grupos as $label => $proves) {
+    foreach ($grupos as $label => $pruebas) {
         echo '<optgroup label="' . htmlspecialchars($label) . '">';
-        foreach ($proves as $val => $text) {
+        foreach ($pruebas as $val => $text) {
             $sel = $selected === $val ? ' selected' : '';
             echo '<option value="' . htmlspecialchars($val) . '"' . $sel . '>' . htmlspecialchars($text) . '</option>';
         }

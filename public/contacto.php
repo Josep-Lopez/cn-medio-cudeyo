@@ -10,7 +10,7 @@ $data    = ['nombre' => '', 'email' => '', 'asunto' => '', 'mensaje' => ''];
 // Pre-rellenar con datos del usuario si está logado
 $user = current_user();
 if ($user) {
-    $data['nombre'] = $user['nom'];
+    $data['nombre'] = $user['nombre'];
     $data['email']  = $user['email'];
 }
 
@@ -24,7 +24,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!filter_var($data['email'], FILTER_VALIDATE_EMAIL))   $errors[] = 'El email no es válido.';
     if (strlen($data['mensaje']) < 10)                         $errors[] = 'El mensaje debe tener al menos 10 caracteres.';
 
-    if (!$errors && empty($_POST['website'])) {
+    // Anti-spam: honeypot + CSRF + tiempo mínimo 3s
+    csrf_verify();
+    $form_ts = (int)($_POST['_ts'] ?? 0);
+    $too_fast = $form_ts > 0 && (time() - $form_ts) < 3;
+
+    if (!$errors && empty($_POST['website']) && !$too_fast) {
         $pdo->prepare('INSERT INTO contactos (nombre, email, asunto, mensaje) VALUES (?,?,?,?)')
             ->execute([$data['nombre'], $data['email'], $data['asunto'], $data['mensaje']]);
         $success = true;
@@ -106,6 +111,8 @@ render_header('Contacto', 'contacto', '', 'Contacta con el Club de Natación Med
         <?php endif; ?>
 
         <form method="POST" novalidate>
+          <?= csrf_field() ?>
+          <input type="hidden" name="_ts" value="<?= time() ?>">
           <div class="form-row">
             <div class="form-group">
               <label class="form-label" for="nombre">Nombre *</label>

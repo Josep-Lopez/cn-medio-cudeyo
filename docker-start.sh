@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # =============================================================================
-#  CN Medio Cudeyo — Arrancada Docker
-#  Atura contenidors obsolets i inicia l'entorn net
+#  CN Medio Cudeyo — Arranque Docker
+#  Detiene contenedores obsoletos e inicia el entorno limpio
 # =============================================================================
 set -e
 
@@ -18,50 +18,50 @@ echo -e "${BLUE}  🏊  CN Medio Cudeyo — Docker Start${RESET}"
 echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${RESET}"
 echo ""
 
-# 1. Atura i elimina contenidors del projecte (inclou orphans)
-echo -e "${YELLOW}→ Aturant i eliminant contenidors antics...${RESET}"
+# 1. Detiene y elimina contenedores del proyecto (incluye orphans)
+echo -e "${YELLOW}→ Deteniendo y eliminando contenedores antiguos...${RESET}"
 docker compose down --remove-orphans 2>/dev/null || true
 
-# 2. Elimina imatges de build anteriors del projecte (capa app)
-echo -e "${YELLOW}→ Eliminant imatges obsoletes del projecte...${RESET}"
+# 2. Elimina imágenes de build anteriores del proyecto (capa app)
+echo -e "${YELLOW}→ Eliminando imágenes obsoletas del proyecto...${RESET}"
 docker image prune -f --filter "label=com.docker.compose.project=$(basename "$SCRIPT_DIR")" 2>/dev/null || true
 
-# 3. Opcional: elimina imatges dangling sense etiqueta
-echo -e "${YELLOW}→ Netejant imatges sense etiqueta (dangling)...${RESET}"
+# 3. Opcional: elimina imágenes dangling sin etiqueta
+echo -e "${YELLOW}→ Limpiando imágenes sin etiqueta (dangling)...${RESET}"
 docker image prune -f 2>/dev/null || true
 
-# 4. Inicia els serveis
+# 4. Inicia los servicios
 echo ""
-echo -e "${YELLOW}→ Iniciant serveis (app + db + phpmyadmin)...${RESET}"
+echo -e "${YELLOW}→ Iniciando servicios (app + db + phpmyadmin)...${RESET}"
 docker compose up -d --build
 
-# 5. Mostra estat
+# 5. Muestra estado
 echo ""
-echo -e "${YELLOW}→ Estat dels contenidors:${RESET}"
+echo -e "${YELLOW}→ Estado de los contenedores:${RESET}"
 docker compose ps
 
-# 6. Espera que MySQL estigui llest (el healthcheck del compose ja ho fa, però mostrem feedback)
+# 6. Espera a que MySQL esté listo (el healthcheck del compose ya lo hace, pero mostramos feedback)
 echo ""
-echo -e "${YELLOW}→ Esperant que MySQL estigui operatiu...${RESET}"
+echo -e "${YELLOW}→ Esperando a que MySQL esté operativo...${RESET}"
 RETRIES=20
 INTERVAL=3
 for i in $(seq 1 $RETRIES); do
   STATUS=$(docker compose ps --format json db 2>/dev/null | grep -o '"Health":"[^"]*"' | cut -d'"' -f4 || echo "")
   if [ "$STATUS" = "healthy" ]; then
-    echo -e "${GREEN}   MySQL llest!${RESET}"
+    echo -e "${GREEN}   MySQL listo!${RESET}"
     break
   fi
   if [ "$i" -eq "$RETRIES" ]; then
-    echo -e "${YELLOW}   Temps d'espera esgotat — comprova els logs amb: docker compose logs db${RESET}"
+    echo -e "${YELLOW}   Tiempo de espera agotado — comprueba los logs con: docker compose logs db${RESET}"
   else
-    printf "   Esperant... (%d/%d)\r" "$i" "$RETRIES"
+    printf "   Esperando... (%d/%d)\r" "$i" "$RETRIES"
     sleep $INTERVAL
   fi
 done
 
 echo ""
 echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${RESET}"
-echo -e "${GREEN}  ✓  Entorn llest!${RESET}"
+echo -e "${GREEN}  ✓  Entorno listo!${RESET}"
 echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${RESET}"
 echo ""
 echo "  App         →  http://localhost:8080"

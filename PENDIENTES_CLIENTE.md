@@ -42,7 +42,7 @@ Documento de trabajo con mejoras y funcionalidades pendientes, ordenadas por pri
 
 ### Información pública del club
 
-- [ ] Mostrar las redes sociales del club (Instagram, Gmail). **Pendiente de recibir URLs del cliente.**
+- [x] Mostrar las redes sociales del club — RESUELTO: widget Instagram (Behold) a la homepage.
 
 ## Orden de Implementación
 

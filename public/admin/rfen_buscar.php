@@ -5,20 +5,20 @@ require_once dirname(__DIR__, 2) . '/includes/auth.php';
 require_admin();
 header('Content-Type: application/json; charset=utf-8');
 
-$nombre   = trim($_GET['nombre']   ?? '');
+$nombre    = trim($_GET['nombre']    ?? '');
 $apellidos = trim($_GET['apellidos'] ?? '');
-$sexe     = $_GET['sexe'] ?? 'M';
+$sexo      = $_GET['sexo'] ?? 'M';
 
 if (!$nombre || !$apellidos) {
     echo json_encode(['error' => 'Faltan nombre y apellidos']);
     exit;
 }
-if (!in_array($sexe, ['M', 'F'])) $sexe = 'M';
+if (!in_array($sexo, ['M', 'F'])) $sexo = 'M';
 
 $url = 'https://intranet.rfen.es/FormularioAjaxProcesar?'
      . 'x_nombre='    . urlencode($nombre)
      . '&x_apellidos=' . urlencode($apellidos)
-     . '&x_genero='   . urlencode($sexe)
+     . '&x_genero='   . urlencode($sexo)
      . '&buscar=1';
 
 $ch = curl_init($url);
@@ -34,7 +34,7 @@ $err  = curl_error($ch);
 curl_close($ch);
 
 if ($err || !$html) {
-    echo json_encode(['error' => 'No s\'ha pogut connectar amb RFEN: ' . $err]);
+    echo json_encode(['error' => 'No se ha podido conectar con RFEN: ' . $err]);
     exit;
 }
 
@@ -55,9 +55,9 @@ foreach ($rows as $row) {
     $cells = $xpath->query('.//td', $row);
     if ($cells->length < 4) continue;
 
-    $nom_cell = trim($cells->item(0)->textContent);
-    $cog_cell = trim($cells->item(1)->textContent);
-    $any_cell = trim($cells->item(2)->textContent);
+    $nombre_cell    = trim($cells->item(0)->textContent);
+    $apellidos_cell = trim($cells->item(1)->textContent);
+    $anio_nac       = trim($cells->item(2)->textContent);
 
     // Buscar link de consulta
     $links = $xpath->query('.//a', $row);
@@ -70,17 +70,17 @@ foreach ($rows as $row) {
 
     // Extraer parámetros e= y d= del href
     parse_str(parse_url($href, PHP_URL_QUERY), $params);
-    $rfen_id  = $params['e'] ?? '';
-    $rfen_nom = $params['d'] ?? ($nom_cell . '-' . $cog_cell);
+    $rfen_id     = $params['e'] ?? '';
+    $rfen_nombre = $params['d'] ?? ($nombre_cell . '-' . $apellidos_cell);
 
     if (!$rfen_id) continue;
 
     $results[] = [
-        'nom'      => $nom_cell,
-        'cognoms'  => $cog_cell,
-        'any_naix' => $any_cell,
-        'rfen_id'  => $rfen_id,
-        'rfen_nom' => $rfen_nom,
+        'nombre'         => $nombre_cell,
+        'apellidos_cell' => $apellidos_cell,
+        'anio_nac'       => $anio_nac,
+        'rfen_id'        => $rfen_id,
+        'rfen_nombre'    => $rfen_nombre,
     ];
 }
 

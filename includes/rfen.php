@@ -1,13 +1,13 @@
 <?php
 /**
- * RFEN helpers — shared across admin pages.
+ * RFEN helpers — compartidos entre páginas de admin.
  *
- * Requires: temps_a_segons() from includes/auth.php (always loaded before this file).
+ * Requiere: tiempo_a_segundos() de includes/auth.php (siempre cargado antes).
  */
 
-// ── Conversion helpers ────────────────────────────────────────────────────────
+// ── Helpers de conversión ────────────────────────────────────────────────────
 
-function rfen_temps_to_local(string $t): ?string
+function rfen_tiempo_to_local(string $t): ?string
 {
   $t = trim($t);
   if (!preg_match('/^(\d+):(\d{2}):(\d{2})\.(\d{2})$/', $t, $m)) return null;
@@ -18,13 +18,13 @@ function rfen_temps_to_local(string $t): ?string
   return $sec . '.' . $cs;
 }
 
-function rfen_prova(string $estilo, string $distancia): ?string
+function rfen_prueba(string $estilo, string $distancia): ?string
 {
   $map = ['libre' => 'L', 'crol' => 'L', 'espalda' => 'E', 'braza' => 'B', 'mariposa' => 'M', 'estilos' => 'X'];
   $suf  = $map[strtolower(trim($estilo))] ?? null;
   $dist = (int)preg_replace('/[^0-9]/', '', $distancia);
   if (!$suf || !$dist) return null;
-  $valides = [
+  $validas = [
     '50L',
     '100L',
     '200L',
@@ -44,8 +44,8 @@ function rfen_prova(string $estilo, string $distancia): ?string
     '200X',
     '400X'
   ];
-  $prova = $dist . $suf;
-  return in_array($prova, $valides) ? $prova : null;
+  $prueba = $dist . $suf;
+  return in_array($prueba, $validas) ? $prueba : null;
 }
 
 function rfen_fecha_iso(string $fecha): string
@@ -81,12 +81,15 @@ function rfen_fetch_html(string $url): string
  * Parse las filas de datos de la tabla RFEN a partir del HTML ya cargado en un DOMDocument.
  * Devuelve array de registros crudos.
  */
+/**
+ * @return array{rows: array, has_table: bool}
+ */
 function rfen_parse_rows(DOMXPath $xpath): array
 {
   $all_tr  = $xpath->query('//table//tr');
   $col_idx = [];
   $header_found = false;
-  $registres = [];
+  $registros = [];
 
   foreach ($all_tr as $tr) {
     $cells_text = [];
@@ -95,7 +98,6 @@ function rfen_parse_rows(DOMXPath $xpath): array
         $cells_text[] = strtoupper(trim($node->textContent));
 
     if (!$header_found) {
-      // Detectar fila de cabecera buscando columnas clave
       if (in_array('FECHA', $cells_text) && in_array('RESULTADO', $cells_text)) {
         foreach ($cells_text as $ci => $name) $col_idx[$name] = $ci;
         $header_found = true;
@@ -113,50 +115,54 @@ function rfen_parse_rows(DOMXPath $xpath): array
 
     $relevo  = $get('RELEVO');
     $parcial = $get('PARCIAL');
-    if ($relevo !== '' && $relevo !== '-')  continue; // saltar relevos
-    if ($parcial !== '' && $parcial !== '-') continue; // saltar parciales
+    if ($relevo !== '' && $relevo !== '-')  continue;
+    if ($parcial !== '' && $parcial !== '-') continue;
 
-    $prova = rfen_prova($get('ESTILO'), $get('DISTANCIA'));
-    if (!$prova) continue;
+    // Filtrar por club: solo marcas de CN Medio Cudeyo
+    $club = $get('CLUB') ?: '';
+    if ($club !== '' && stripos($club, 'MEDIO CUDEYO') === false) continue;
+
+    $prueba = rfen_prueba($get('ESTILO'), $get('DISTANCIA'));
+    if (!$prueba) continue;
 
     $piscina_r = $get('PISCINA') ?: $get('TIPO PISCINA');
     $piscina   = str_starts_with(trim($piscina_r), '50') ? '50m' : '25m';
 
-    $temps_local = rfen_temps_to_local($get('RESULTADO'));
-    if (!$temps_local) continue;
+    $tiempo_local = rfen_tiempo_to_local($get('RESULTADO'));
+    if (!$tiempo_local) continue;
 
     $fecha    = $get('FECHA');
-    $data_iso = rfen_fecha_iso($fecha);
+    $fecha_iso = rfen_fecha_iso($fecha);
 
-    $registres[] = [
-      'fecha'     => $fecha,
-      'lugar'     => $get('LUGAR'),
-      'prova'     => $prova,
-      'piscina'   => $piscina,
-      'temps'     => $temps_local,
-      'temps_seg' => temps_a_segons($temps_local),
-      'data_iso'  => $data_iso,
+    $registros[] = [
+      'fecha'      => $fecha,
+      'lugar'      => $get('LUGAR'),
+      'prueba'     => $prueba,
+      'piscina'    => $piscina,
+      'tiempo'     => $tiempo_local,
+      'tiempo_seg' => tiempo_a_segundos($tiempo_local),
+      'fecha_iso'  => $fecha_iso,
     ];
   }
-  return $registres;
+  return ['rows' => $registros, 'has_table' => $header_found];
 }
 
-// ── Full import workflow ──────────────────────────────────────────────────────
+// ── Flujo completo de importación ────────────────────────────────────────────
 
 /**
- * Fetch all pages from RFEN for a given nadador, deduplicate, and insert/update
- * marks in the DB.
+ * Fetch todas las páginas de RFEN para un nadador, deduplicar e insertar/actualizar
+ * marcas en la BD.
  *
- * @param PDO         $pdo        Active DB connection.
- * @param int         $user_id    Local user ID.
- * @param string      $rfen_id    Athlete ID on RFEN intranet.
- * @param string|null $temporada  Season string like '2024-25', or null/'todas' for all.
+ * @param PDO         $pdo        Conexión a BD activa.
+ * @param int         $user_id    ID del usuario local.
+ * @param string      $rfen_id    ID del deportista en la intranet RFEN.
+ * @param string|null $temporada  Cadena de temporada como '2024-25', o null/'todas' para todas.
  *
  * @return array{procesadas:int, insertadas:int, actualizadas:int, sin_cambios:int, error:?string}
  */
 function rfen_import_marks(PDO $pdo, int $user_id, string $rfen_id, ?string $temporada = null): array
 {
-  // Build date range
+  // Construir rango de fechas
   $rfen_inicio = '';
   $rfen_fin    = '';
   if ($temporada && $temporada !== 'todas' && preg_match('/^(\d{4})-(\d{2})$/', $temporada, $m)) {
@@ -174,12 +180,12 @@ function rfen_import_marks(PDO $pdo, int $user_id, string $rfen_id, ?string $tem
   $rfen_base   = 'https://intranet.rfen.es/ConsultarHistorial.dcl?' . $base_params;
 
   // Fetch paginado
-  $parse_error      = null;
-  $registres        = [];
-  $pagines_llegides = 0;
-  $current_url      = $rfen_base;
+  $parse_error     = null;
+  $registros       = [];
+  $paginas_leidas  = 0;
+  $current_url     = $rfen_base;
 
-  while ($current_url && $pagines_llegides < 50) {
+  while ($current_url && $paginas_leidas < 100) {
     $html = rfen_fetch_html($current_url);
     if (!$html) {
       $parse_error = 'No se ha podido conectar con RFEN.';
@@ -192,29 +198,41 @@ function rfen_import_marks(PDO $pdo, int $user_id, string $rfen_id, ?string $tem
     libxml_clear_errors();
     $xpath = new DOMXPath($dom);
 
-    $rows = rfen_parse_rows($xpath);
+    $result = rfen_parse_rows($xpath);
+    $rows = $result['rows'];
 
-    if (empty($rows)) {
-      if ($pagines_llegides === 0) {
-        $all_tr = $xpath->query('//table//tr');
-        if (!$all_tr || $all_tr->length === 0)
-          $parse_error = 'No se ha encontrado la tabla de marcas. La página puede haber cambiado.';
-        else
-          $parse_error = 'No hay marcas para la temporada seleccionada.';
-      }
+    if (!$result['has_table']) {
+      if ($paginas_leidas === 0)
+        $parse_error = 'No se ha encontrado la tabla de marcas. La página puede haber cambiado.';
       break;
     }
 
-    $registres = array_merge($registres, $rows);
-    $pagines_llegides++;
+    if (empty($rows) && $paginas_leidas === 0 && $registros === []) {
+      // Primera página con tabla pero sin marcas válidas — seguir paginando
+    }
+
+    $registros = array_merge($registros, $rows);
 
     parse_str(parse_url($current_url, PHP_URL_QUERY), $qp);
     $current_page = (int)($qp['page'] ?? 1);
     $next_page    = $current_page + 1;
 
+    // Detectar última página desde el select de paginación
+    $max_page = $current_page;
+    $page_options = $xpath->query('//select[@name="page"]/option');
+    if ($page_options && $page_options->length > 0) {
+      $last_option = $page_options->item($page_options->length - 1);
+      $max_page = (int)$last_option->getAttribute('value');
+    }
+
+    if ($current_page >= $max_page) {
+      $current_url = null;
+      continue;
+    }
+
     $next_url = null;
 
-    // Estrategia 1: link con page=N+1 en el href
+    // Estrategia 1: link con page=N+1 en el href (enlace "Siguiente")
     $next_links = $xpath->query('//a[contains(@href, "page=' . $next_page . '")]');
     foreach ($next_links as $link) {
       $href = $link instanceof DOMElement ? trim($link->getAttribute('href')) : '';
@@ -230,7 +248,7 @@ function rfen_import_marks(PDO $pdo, int $user_id, string $rfen_id, ?string $tem
       }
     }
 
-    // Estrategia 2: incrementar page preservando todos los params (incluido eje)
+    // Estrategia 2: incrementar page preservando todos los params
     if (!$next_url) {
       $qp['page'] = $next_page;
       $next_url = 'https://intranet.rfen.es/ConsultarHistorial.dcl?' . http_build_query($qp);
@@ -243,28 +261,28 @@ function rfen_import_marks(PDO $pdo, int $user_id, string $rfen_id, ?string $tem
     return ['procesadas' => 0, 'insertadas' => 0, 'actualizadas' => 0, 'sin_cambios' => 0, 'error' => $parse_error];
   }
 
-  if (empty($registres)) {
-    return ['procesadas' => 0, 'insertadas' => 0, 'actualizadas' => 0, 'sin_cambios' => 0, 'error' => 'No hay marcas para la temporada seleccionada.'];
+  if (empty($registros)) {
+    return ['procesadas' => 0, 'insertadas' => 0, 'actualizadas' => 0, 'sin_cambios' => 0, 'error' => 'No hay marcas de CN Medio Cudeyo para este período.'];
   }
 
-  // Deduplicar por prova+piscina+fecha+lugar (keeping best time)
-  $agrupats = [];
-  foreach ($registres as $r) {
-    $key = implode('|', [$r['prova'], $r['piscina'], $r['data_iso'], mb_strtolower(trim($r['lugar'] ?? ''))]);
-    if (!isset($agrupats[$key]) || $r['temps_seg'] < $agrupats[$key]['temps_seg']) {
-      $agrupats[$key] = $r;
+  // Deduplicar por prueba+piscina+fecha+lugar (quedarse con el mejor tiempo)
+  $agrupados = [];
+  foreach ($registros as $r) {
+    $key = implode('|', [$r['prueba'], $r['piscina'], $r['fecha_iso'], mb_strtolower(trim($r['lugar'] ?? ''))]);
+    if (!isset($agrupados[$key]) || $r['tiempo_seg'] < $agrupados[$key]['tiempo_seg']) {
+      $agrupados[$key] = $r;
     }
   }
 
   // Insert / update
   $stmtImport = $pdo->prepare('
-        INSERT INTO marques (user_id, prova, piscina, temps, temps_seg, data_marca, lugar)
+        INSERT INTO marcas (user_id, prueba, piscina, tiempo, tiempo_seg, fecha_marca, lugar)
         VALUES (?,?,?,?,?,?,?)
         ON DUPLICATE KEY UPDATE
-            temps=IF(VALUES(temps_seg)<temps_seg, VALUES(temps), temps),
-            temps_seg=IF(VALUES(temps_seg)<temps_seg, VALUES(temps_seg), temps_seg),
-            data_marca=IF(VALUES(temps_seg)<temps_seg, VALUES(data_marca), data_marca),
-            lugar=IF(VALUES(temps_seg)<temps_seg, VALUES(lugar), lugar),
+            tiempo=IF(VALUES(tiempo_seg)<tiempo_seg, VALUES(tiempo), tiempo),
+            tiempo_seg=IF(VALUES(tiempo_seg)<tiempo_seg, VALUES(tiempo_seg), tiempo_seg),
+            fecha_marca=IF(VALUES(tiempo_seg)<tiempo_seg, VALUES(fecha_marca), fecha_marca),
+            lugar=IF(VALUES(tiempo_seg)<tiempo_seg, VALUES(lugar), lugar),
             updated_at=NOW()
     ');
 
@@ -273,10 +291,10 @@ function rfen_import_marks(PDO $pdo, int $user_id, string $rfen_id, ?string $tem
   $actualizadas = 0;
   $sin_cambios  = 0;
 
-  foreach ($agrupats as $r) {
-    $secs = $r['temps_seg'];
+  foreach ($agrupados as $r) {
+    $secs = $r['tiempo_seg'];
     if ($secs <= 0) continue;
-    $stmtImport->execute([$user_id, $r['prova'], $r['piscina'], $r['temps'], $secs, $r['data_iso'], $r['lugar']]);
+    $stmtImport->execute([$user_id, $r['prueba'], $r['piscina'], $r['tiempo'], $secs, $r['fecha_iso'], $r['lugar']]);
     $procesadas++;
     $affected = $stmtImport->rowCount();
     if ($affected === 1) {

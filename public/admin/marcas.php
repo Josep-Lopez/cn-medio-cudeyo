@@ -6,7 +6,7 @@ require_once dirname(__DIR__, 2) . '/includes/rfen.php';
 
 require_admin();
 
-$PROVES = ['50L','100L','200L','400L','800L','1500L','50E','100E','200E','50B','100B','200B','50M','100M','200M','100X','200X','400X'];
+$PRUEBAS = ['50L','100L','200L','400L','800L','1500L','50E','100E','200E','50B','100B','200B','50M','100M','200M','100X','200X','400X'];
 
 // --- POST: gestión de marcas ---
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -16,28 +16,28 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($action === 'save') {
         $marca_id  = (int)($_POST['marca_id'] ?? 0);
         $user_id   = (int)($_POST['user_id'] ?? 0);
-        $prova     = $_POST['prova'] ?? '';
+        $prueba    = $_POST['prueba'] ?? '';
         $piscina   = $_POST['piscina'] ?? '25m';
-        $temps     = trim($_POST['temps'] ?? '');
+        $tiempo    = trim($_POST['tiempo'] ?? '');
         $lugar     = trim($_POST['lugar'] ?? '');
-        $data_m    = $_POST['data_marca'] ?? date('Y-m-d');
+        $fecha_m   = $_POST['fecha_marca'] ?? date('Y-m-d');
 
-        if ($user_id && in_array($prova, $PROVES) && in_array($piscina, ['25m','50m']) && $temps) {
-            $secs = temps_a_segons($temps);
+        if ($user_id && in_array($prueba, $PRUEBAS) && in_array($piscina, ['25m','50m']) && $tiempo) {
+            $secs = tiempo_a_segundos($tiempo);
             if ($secs > 0) {
                 if ($marca_id > 0) {
                     $stmt = $pdo->prepare('
-                        UPDATE marques
-                        SET prova=?, piscina=?, temps=?, temps_seg=?, data_marca=?, lugar=?, updated_at=NOW()
+                        UPDATE marcas
+                        SET prueba=?, piscina=?, tiempo=?, tiempo_seg=?, fecha_marca=?, lugar=?, updated_at=NOW()
                         WHERE id=? AND user_id=?
                     ');
-                    $stmt->execute([$prova, $piscina, $temps, $secs, $data_m, $lugar, $marca_id, $user_id]);
+                    $stmt->execute([$prueba, $piscina, $tiempo, $secs, $fecha_m, $lugar, $marca_id, $user_id]);
                 } else {
                     $stmt = $pdo->prepare('
-                        INSERT INTO marques (user_id, prova, piscina, temps, temps_seg, data_marca, lugar)
+                        INSERT INTO marcas (user_id, prueba, piscina, tiempo, tiempo_seg, fecha_marca, lugar)
                         VALUES (?,?,?,?,?,?,?)
                     ');
-                    $stmt->execute([$user_id, $prova, $piscina, $temps, $secs, $data_m, $lugar]);
+                    $stmt->execute([$user_id, $prueba, $piscina, $tiempo, $secs, $fecha_m, $lugar]);
                 }
                 flash('Marca guardada correctamente.', 'success');
             } else {
@@ -59,10 +59,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         } else {
             flash('Este usuario no tiene vinculación RFEN.', 'danger');
         }
+    } elseif ($action === 'delete_temporada') {
+        $uid = (int)($_POST['user_id'] ?? 0);
+        $temp = $_POST['temporada'] ?? '';
+        if ($uid && $temp) {
+            $stmt = $pdo->prepare('DELETE FROM marcas WHERE user_id=? AND temporada=?');
+            $stmt->execute([$uid, $temp]);
+            $deleted = $stmt->rowCount();
+            flash("Se han eliminado $deleted marca(s) de la temporada $temp.", 'warning');
+        }
     } elseif ($action === 'delete') {
         $id = (int)($_POST['marca_id'] ?? 0);
         if ($id) {
-            $pdo->prepare('DELETE FROM marques WHERE id=?')->execute([$id]);
+            $pdo->prepare('DELETE FROM marcas WHERE id=?')->execute([$id]);
             flash('Marca eliminada.', 'warning');
         }
     }
@@ -70,52 +79,52 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         'user_id' => $_POST['user_id_back'] ?? '',
         'temporada' => $_POST['temporada_back'] ?? '',
         'piscina' => $_POST['piscina_back'] ?? '',
-        'prova' => $_POST['prova_back'] ?? '',
+        'prueba' => $_POST['prueba_back'] ?? '',
     ]));
-    header('Location: /admin/marques?' . $back);
+    header('Location: /admin/marcas?' . $back);
     exit;
 }
 
 // --- Parámetros GET ---
 $selectedUserId  = (int)($_GET['user_id'] ?? 0);
 $selectedPiscina = $_GET['piscina'] ?? '25m';
-$selectedProva   = $_GET['prova'] ?? '';
+$selectedPrueba  = $_GET['prueba'] ?? '';
 
 $current_year    = (int)date('n') >= 9 ? (int)date('Y') : (int)date('Y') - 1;
-$temporades_disp = [];
+$temporadas_disp = [];
 for ($y = $current_year; $y >= 2012; $y--)
-    $temporades_disp[] = $y . '-' . substr((string)($y + 1), 2);
-$temporada = $_GET['temporada'] ?? $temporades_disp[0];
-if (!in_array($temporada, $temporades_disp)) $temporada = $temporades_disp[0];
-if (!in_array($selectedProva, $PROVES, true)) $selectedProva = '';
+    $temporadas_disp[] = $y . '-' . substr((string)($y + 1), 2);
+$temporada = $_GET['temporada'] ?? $temporadas_disp[0];
+if (!in_array($temporada, $temporadas_disp)) $temporada = $temporadas_disp[0];
+if (!in_array($selectedPrueba, $PRUEBAS, true)) $selectedPrueba = '';
 
 // Carga todos los nadadores activos
-$stmt = $pdo->query("SELECT id, nom, lliga FROM users WHERE estado='activo' AND rol='soci' ORDER BY nom");
-$nadadors = $stmt->fetchAll();
+$stmt = $pdo->query("SELECT id, nombre, liga FROM users WHERE estado='activo' AND rol='socio' ORDER BY nombre");
+$nadadores = $stmt->fetchAll();
 
 // Carga marcas del nadador seleccionado
 $marcas_usuario = [];
 $all_marks = [];
 $selected_user = null;
 if ($selectedUserId) {
-    $stmt = $pdo->prepare('SELECT nom, lliga, rfen_id FROM users WHERE id=?');
+    $stmt = $pdo->prepare('SELECT nombre, liga, rfen_id FROM users WHERE id=?');
     $stmt->execute([$selectedUserId]);
     $selected_user = $stmt->fetch();
 
-    $stmt = $pdo->prepare('SELECT * FROM marques WHERE user_id=? AND temporada=? ORDER BY prova, piscina');
+    $stmt = $pdo->prepare('SELECT * FROM marcas WHERE user_id=? AND temporada=? ORDER BY prueba, piscina');
     $stmt->execute([$selectedUserId, $temporada]);
     $all_marks = $stmt->fetchAll();
-    // Indexar por prova+piscina conservando la mejor marca para la cuadrícula
+    // Indexar por prueba+piscina conservando la mejor marca para la cuadrícula
     foreach ($all_marks as $m) {
-        $key = $m['prova'] . '_' . $m['piscina'];
-        if (!isset($marcas_usuario[$key]) || (float)$m['temps_seg'] < (float)$marcas_usuario[$key]['temps_seg']) {
+        $key = $m['prueba'] . '_' . $m['piscina'];
+        if (!isset($marcas_usuario[$key]) || (float)$m['tiempo_seg'] < (float)$marcas_usuario[$key]['tiempo_seg']) {
             $marcas_usuario[$key] = $m;
         }
     }
 }
 
-render_header('Gestión de marcas', 'admin-marques');
-render_admin_layout('marques', function() use ($PROVES, $selectedUserId, $selectedPiscina, $selectedProva, $nadadors, $marcas_usuario, $selected_user, $temporada, $temporades_disp, $all_marks) {
+render_header('Gestión de marcas', 'admin-marcas');
+render_admin_layout('marcas', function() use ($PRUEBAS, $selectedUserId, $selectedPiscina, $selectedPrueba, $nadadores, $marcas_usuario, $selected_user, $temporada, $temporadas_disp, $all_marks) {
 ?>
 
 <h1>Gestión de marcas</h1>
@@ -127,25 +136,25 @@ render_admin_layout('marques', function() use ($PROVES, $selectedUserId, $select
   <form method="GET" class="d-flex gap-3 align-center flex-wrap">
     <div class="form-group" style="margin:0;min-width:220px;">
       <label class="form-label">Nadador/a</label>
-      <select name="user_id" class="form-control" onchange="this.form.submit()">
+      <select name="user_id" class="form-control searchable" onchange="this.form.submit()">
         <option value="">— Seleccionar —</option>
-        <?php foreach ($nadadors as $n): ?>
-          <option value="<?= $n['id'] ?>" <?= $selectedUserId === (int)$n['id'] ? 'selected' : '' ?>><?= e($n['nom']) ?><?= !empty($n['lliga']) ? ' · ' . e(format_lliga($n['lliga'])) : '' ?></option>
+        <?php foreach ($nadadores as $n): ?>
+          <option value="<?= $n['id'] ?>" <?= $selectedUserId === (int)$n['id'] ? 'selected' : '' ?>><?= e($n['nombre']) ?><?= !empty($n['liga']) ? ' · ' . e(format_liga($n['liga'])) : '' ?></option>
         <?php endforeach; ?>
       </select>
     </div>
     <div class="form-group" style="margin:0;">
       <label class="form-label">Temporada</label>
       <select name="temporada" class="form-control" onchange="this.form.submit()">
-        <?php foreach ($temporades_disp as $t): ?>
+        <?php foreach ($temporadas_disp as $t): ?>
           <option value="<?= e($t) ?>" <?= $temporada === $t ? 'selected' : '' ?>><?= e($t) ?></option>
         <?php endforeach; ?>
       </select>
     </div>
     <div class="form-group" style="margin:0;min-width:220px;">
       <label class="form-label">Prueba</label>
-      <select name="prova" class="form-control" onchange="this.form.submit()">
-        <?php render_prova_options($selectedProva, true); ?>
+      <select name="prueba" class="form-control" onchange="this.form.submit()">
+        <?php render_prueba_options($selectedPrueba, true); ?>
       </select>
     </div>
     <div class="form-group" style="margin:0;">
@@ -181,8 +190,8 @@ render_admin_layout('marques', function() use ($PROVES, $selectedUserId, $select
 <div class="card">
   <div class="card-header">
     <div>
-      <h2 class="card-title"><?= e($selected_user['nom']) ?></h2>
-      <span class="text-muted text-sm"><?= e(format_lliga($selected_user['lliga'] ?? '')) ?> · Temporada <?= e($temporada) ?> · Piscina <?= e($selectedPiscina) ?></span>
+      <h2 class="card-title"><?= e($selected_user['nombre']) ?></h2>
+      <span class="text-muted text-sm"><?= e(format_liga($selected_user['liga'] ?? '')) ?> · Temporada <?= e($temporada) ?> · Piscina <?= e($selectedPiscina) ?></span>
     </div>
     <div class="d-flex gap-2">
       <?php if (!empty($selected_user['rfen_id'])): ?>
@@ -193,7 +202,7 @@ render_admin_layout('marques', function() use ($PROVES, $selectedUserId, $select
           <i class="bi bi-cloud-download"></i> Importar todo
         </button>
       <?php endif; ?>
-      <a href="/admin/ranking?lliga=<?= e($selected_user['lliga'] ?? '') ?>" class="btn btn-secondary btn-sm">Ver ranking</a>
+      <a href="/admin/ranking?liga=<?= e($selected_user['liga'] ?? '') ?>" class="btn btn-secondary btn-sm">Ver ranking</a>
     </div>
   </div>
 
@@ -202,9 +211,9 @@ render_admin_layout('marques', function() use ($PROVES, $selectedUserId, $select
     $all_marks,
     fn(array $m): bool =>
       ($m['piscina'] ?? '') === $selectedPiscina &&
-      ($selectedProva === '' || ($m['prova'] ?? '') === $selectedProva)
+      ($selectedPrueba === '' || ($m['prueba'] ?? '') === $selectedPrueba)
   ));
-  usort($marks_historial, fn($a, $b) => [$b['data_marca'], $a['temps_seg'], $a['prova'], $a['id']] <=> [$a['data_marca'], $b['temps_seg'], $b['prova'], $b['id']]);
+  usort($marks_historial, fn($a, $b) => [$b['fecha_marca'], $a['tiempo_seg'], $a['prueba'], $a['id']] <=> [$a['fecha_marca'], $b['tiempo_seg'], $b['prueba'], $b['id']]);
   ?>
 
   <div class="card" style="margin-top:24px;">
@@ -213,11 +222,18 @@ render_admin_layout('marques', function() use ($PROVES, $selectedUserId, $select
         <h3 class="card-title">Histórico completo</h3>
         <span class="text-muted text-sm"><?= count($marks_historial) ?> marca<?= count($marks_historial) !== 1 ? 's' : '' ?> en <?= e($selectedPiscina) ?> durante <?= e($temporada) ?></span>
       </div>
-      <button class="btn btn-primary btn-sm"
-              type="button"
-              onclick="openCreateForm()">
-        <i class="bi bi-plus-lg"></i> Añadir marca
-      </button>
+      <div class="d-flex gap-2">
+        <button class="btn btn-primary btn-sm"
+                type="button"
+                onclick="openCreateForm()">
+          <i class="bi bi-plus-lg"></i> Añadir marca
+        </button>
+        <button class="btn btn-danger btn-sm"
+                type="button"
+                onclick="document.getElementById('deleteTemporadaModal').style.display='flex'">
+          <i class="bi bi-trash3"></i> Borrar temporada
+        </button>
+      </div>
     </div>
 
     <?php if (!$marks_historial): ?>
@@ -237,24 +253,24 @@ render_admin_layout('marques', function() use ($PROVES, $selectedUserId, $select
           <tbody>
             <?php foreach ($marks_historial as $marca): ?>
               <tr>
-                <td><strong><?= e(format_prova($marca['prova'])) ?></strong></td>
-                <td><span class="mark-time"><?= e($marca['temps']) ?></span></td>
+                <td><strong><?= e(format_prueba($marca['prueba'])) ?></strong></td>
+                <td><span class="mark-time"><?= e($marca['tiempo']) ?></span></td>
                 <td class="text-sm text-muted"><?= e($marca['lugar'] ?? '') ?></td>
-                <td class="text-sm text-muted"><?= date('d/m/Y', strtotime($marca['data_marca'])) ?></td>
+                <td class="text-sm text-muted"><?= date('d/m/Y', strtotime($marca['fecha_marca'])) ?></td>
                 <td>
                   <button class="btn btn-secondary btn-sm"
-                          onclick="openForm('<?= e($marca['prova']) ?>', '<?= e($marca['temps']) ?>', '<?= e($marca['data_marca']) ?>', <?= (int)$marca['id'] ?>, <?= htmlspecialchars(json_encode($marca['lugar'] ?? ''), ENT_QUOTES) ?>)">
+                          onclick="openForm('<?= e($marca['prueba']) ?>', '<?= e($marca['tiempo']) ?>', '<?= e($marca['fecha_marca']) ?>', <?= (int)$marca['id'] ?>, <?= htmlspecialchars(json_encode($marca['lugar'] ?? ''), ENT_QUOTES) ?>)">
                     Editar
                   </button>
                   <form method="POST" style="display:inline;"
-                        onsubmit="return confirm('¿Eliminar esta marca?')">
+                        data-confirm="¿Eliminar esta marca?">
                     <?= csrf_field() ?>
                     <input type="hidden" name="action" value="delete">
                     <input type="hidden" name="marca_id" value="<?= (int)$marca['id'] ?>">
                     <input type="hidden" name="user_id_back" value="<?= $selectedUserId ?>">
                     <input type="hidden" name="temporada_back" value="<?= e($temporada) ?>">
                     <input type="hidden" name="piscina_back" value="<?= e($selectedPiscina) ?>">
-                    <input type="hidden" name="prova_back" value="<?= e($selectedProva) ?>">
+                    <input type="hidden" name="prueba_back" value="<?= e($selectedPrueba) ?>">
                     <button class="btn btn-danger btn-sm">🗑</button>
                   </form>
                 </td>
@@ -279,20 +295,20 @@ render_admin_layout('marques', function() use ($PROVES, $selectedUserId, $select
       <input type="hidden" name="user_id_back"  value="<?= $selectedUserId ?>">
       <input type="hidden" name="temporada_back" value="<?= e($temporada) ?>">
       <input type="hidden" name="piscina_back" value="<?= e($selectedPiscina) ?>">
-      <input type="hidden" name="prova_back" value="<?= e($selectedProva) ?>">
+      <input type="hidden" name="prueba_back" value="<?= e($selectedPrueba) ?>">
       <input type="hidden" name="marca_id" id="modalMarcaId" value="0">
-      <input type="hidden" name="prova" id="modalProva">
+      <input type="hidden" name="prueba" id="modalPrueba">
 
       <div class="form-group">
         <label class="form-label">Prueba</label>
-        <input type="text" id="modalProvaDisplay" class="form-control" readonly style="background:#f5f5f5;display:none;">
-        <select id="modalProvaSelect" class="form-control" onchange="syncModalProva(this.value)">
-          <?php render_prova_options('', false); ?>
+        <input type="text" id="modalPruebaDisplay" class="form-control" readonly style="background:#f5f5f5;display:none;">
+        <select id="modalPruebaSelect" class="form-control" onchange="syncModalPrueba(this.value)">
+          <?php render_prueba_options('', false); ?>
         </select>
       </div>
       <div class="form-group">
         <label class="form-label">Tiempo (mm:ss.cc o ss.cc)</label>
-        <input type="text" name="temps" id="modalTemps" class="form-control"
+        <input type="text" name="tiempo" id="modalTiempo" class="form-control"
                placeholder="1:23.45" required pattern="(\d+:)?\d{1,2}\.\d{2}">
         <div class="form-hint">Ejemplos: 28.50 · 1:05.43 · 4:12.09</div>
       </div>
@@ -302,7 +318,7 @@ render_admin_layout('marques', function() use ($PROVES, $selectedUserId, $select
       </div>
       <div class="form-group">
         <label class="form-label">Fecha de la marca</label>
-        <input type="date" name="data_marca" id="modalData" class="form-control" required>
+        <input type="date" name="fecha_marca" id="modalFecha" class="form-control" required>
       </div>
       <div class="d-flex gap-2" style="margin-top:8px;">
         <button type="submit" class="btn btn-primary">Guardar</button>
@@ -338,28 +354,28 @@ window.addEventListener('pageshow', () => {
   if (overlay) overlay.style.display = 'none';
 });
 
-function openForm(prova, temps, data, marcaId, lugar) {
+function openForm(prueba, tiempo, fecha, marcaId, lugar) {
   const isEdit = !!marcaId;
-  const provaInput = document.getElementById('modalProva');
-  const provaDisplay = document.getElementById('modalProvaDisplay');
-  const provaSelect = document.getElementById('modalProvaSelect');
+  const pruebaInput = document.getElementById('modalPrueba');
+  const pruebaDisplay = document.getElementById('modalPruebaDisplay');
+  const pruebaSelect = document.getElementById('modalPruebaSelect');
   document.getElementById('modalMarcaId').value = marcaId || 0;
-  provaInput.value = prova;
-  provaDisplay.value = prova ? formatProvaLabel(prova) : '';
-  provaSelect.value = prova || '';
-  provaDisplay.style.display = isEdit ? '' : 'none';
-  provaSelect.style.display = isEdit ? 'none' : '';
-  document.getElementById('modalTemps').value = temps;
+  pruebaInput.value = prueba;
+  pruebaDisplay.value = prueba ? formatPruebaLabel(prueba) : '';
+  pruebaSelect.value = prueba || '';
+  pruebaDisplay.style.display = isEdit ? '' : 'none';
+  pruebaSelect.style.display = isEdit ? 'none' : '';
+  document.getElementById('modalTiempo').value = tiempo;
   document.getElementById('modalLugar').value = lugar || '';
-  document.getElementById('modalData').value = data;
-  document.getElementById('modalTitle').textContent = isEdit ? ('Editar marca — ' + prova) : 'Añadir marca';
+  document.getElementById('modalFecha').value = fecha;
+  document.getElementById('modalTitle').textContent = isEdit ? ('Editar marca — ' + prueba) : 'Añadir marca';
   const modal = document.getElementById('marcaModal');
   modal.style.display = 'flex';
 }
-function syncModalProva(value) {
-  document.getElementById('modalProva').value = value;
+function syncModalPrueba(value) {
+  document.getElementById('modalPrueba').value = value;
 }
-function formatProvaLabel(prova) {
+function formatPruebaLabel(prueba) {
   const labels = {
     '50L': '50 Libre',
     '100L': '100 Libre',
@@ -380,14 +396,14 @@ function formatProvaLabel(prova) {
     '200X': '200 Estilos',
     '400X': '400 Estilos'
   };
-  return labels[prova] || prova;
+  return labels[prueba] || prueba;
 }
 function openCreateForm() {
   openForm('', '', '<?= date('Y-m-d') ?>', 0, '');
 }
 function closeForm() {
   document.getElementById('modalMarcaId').value = 0;
-  document.getElementById('modalProva').value = '';
+  document.getElementById('modalPrueba').value = '';
   document.getElementById('marcaModal').style.display = 'none';
 }
 document.getElementById('marcaModal').addEventListener('click', function(e) {
@@ -400,7 +416,7 @@ document.getElementById('marcaModal').addEventListener('click', function(e) {
   <div style="background:white;border-radius:12px;padding:32px;max-width:420px;width:100%;margin:20px;box-shadow:0 20px 60px rgba(0,0,0,0.2);">
     <h3 style="margin-bottom:12px;"><i class="bi bi-cloud-download"></i> Importar todo desde RFEN</h3>
     <p style="margin-bottom:20px;color:var(--gray);">
-      Se importarán <strong>todas las marcas históricas</strong> de <?= e($selected_user['nom']) ?> desde RFEN.
+      Se importarán <strong>todas las marcas históricas</strong> de <?= e($selected_user['nombre']) ?> desde RFEN.
       Las marcas existentes solo se actualizarán si el nuevo tiempo es mejor.
     </p>
     <form method="POST" onsubmit="showPageLoading('Importando todas las marcas de RFEN...');return true;">
@@ -410,10 +426,36 @@ document.getElementById('marcaModal').addEventListener('click', function(e) {
       <input type="hidden" name="user_id_back" value="<?= $selectedUserId ?>">
       <input type="hidden" name="temporada_back" value="<?= e($temporada) ?>">
       <input type="hidden" name="piscina_back" value="<?= e($selectedPiscina) ?>">
-      <input type="hidden" name="prova_back" value="<?= e($selectedProva) ?>">
+      <input type="hidden" name="prueba_back" value="<?= e($selectedPrueba) ?>">
       <div class="d-flex gap-2">
         <button type="submit" class="btn btn-primary">Importar</button>
         <button type="button" class="btn btn-gray" onclick="document.getElementById('importAllModal').style.display='none'">Cancelar</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Modal: eliminar todas las marcas de la temporada -->
+<div id="deleteTemporadaModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:200;align-items:center;justify-content:center;" onclick="if(event.target===this)this.style.display='none'">
+  <div style="background:white;border-radius:12px;padding:32px;max-width:420px;width:100%;margin:20px;box-shadow:0 20px 60px rgba(0,0,0,0.2);">
+    <h3 style="margin-bottom:12px;color:var(--red);"><i class="bi bi-exclamation-triangle-fill"></i> Eliminar marcas de temporada</h3>
+    <p style="margin-bottom:20px;color:var(--gray);">
+      Se eliminarán <strong>todas las marcas</strong> de <strong><?= e($selected_user['nombre']) ?></strong>
+      en la temporada <strong><?= e($temporada) ?></strong>.<br>
+      Esta acción no se puede deshacer.
+    </p>
+    <form method="POST">
+      <?= csrf_field() ?>
+      <input type="hidden" name="action" value="delete_temporada">
+      <input type="hidden" name="user_id" value="<?= $selectedUserId ?>">
+      <input type="hidden" name="temporada" value="<?= e($temporada) ?>">
+      <input type="hidden" name="user_id_back" value="<?= $selectedUserId ?>">
+      <input type="hidden" name="temporada_back" value="<?= e($temporada) ?>">
+      <input type="hidden" name="piscina_back" value="<?= e($selectedPiscina) ?>">
+      <input type="hidden" name="prueba_back" value="<?= e($selectedPrueba) ?>">
+      <div class="d-flex gap-2">
+        <button type="submit" class="btn btn-danger">Eliminar todas</button>
+        <button type="button" class="btn btn-gray" onclick="document.getElementById('deleteTemporadaModal').style.display='none'">Cancelar</button>
       </div>
     </form>
   </div>

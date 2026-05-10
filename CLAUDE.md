@@ -27,11 +27,12 @@ cn-medio-cudeyo/
 │   └── db.php             ← PDO connection ($pdo global)
 ├── includes/
 │   ├── auth.php           ← Helpers auth, session, flash, utils
-│   └── layout.php         ← render_header(), render_footer(), render_admin_layout()
+│   ├── layout.php         ← render_header(), render_footer(), render_admin_layout()
+│   └── rfen.php           ← Helpers importación RFEN
 └── public/                ← DocumentRoot de Apache
     ├── assets/
     │   ├── css/main.css   ← CSS global (variables, componentes, responsive)
-    │   └── js/calculadora.js ← FINA_TIMES, MINIMES, calcularAQUA(), etc.
+    │   └── js/calculadora.js ← FINA_TIMES, MINIMAS, calcularAQUA(), etc.
     ├── index.php           ← Homepage pública
     ├── login.php           ← Acceso socios
     ├── logout.php          ← Destruye sesión
@@ -44,12 +45,16 @@ cn-medio-cudeyo/
     │   └── detall.php      ← Detalle noticia (?id=X)
     ├── admin/
     │   ├── usuarios.php    ← CRUD usuarios + aprobar/rechazar
-    │   ├── marques.php     ← Gestión marcas por liga > nadador
+    │   ├── marcas.php      ← Gestión marcas por liga > nadador
     │   ├── ranking.php     ← Ranking con filtros liga/prueba/piscina
     │   ├── noticias.php    ← CRUD noticias
-    │   └── biblioteca.php  ← CRUD documentos
-    └── soci/
+    │   ├── config.php      ← Configuración (temporada, FINA, mínimas)
+    │   ├── contacto.php    ← Mensajes de contacto
+    │   ├── rfen_buscar.php ← API búsqueda deportistas RFEN
+    │   └── rfen_importar.php ← Importar marcas desde RFEN
+    └── socio/
         ├── panel.php       ← Marcas personales + calendario
+        ├── perfil.php      ← Perfil del socio + cambio contraseña
         └── ranking.php     ← Ranking de la liga (con filtros)
 ```
 
@@ -62,7 +67,7 @@ require_once dirname(__DIR__) . '/config/db.php';
 require_once dirname(__DIR__) . '/includes/auth.php';
 require_once dirname(__DIR__) . '/includes/layout.php';
 
-// Desde public/admin/*.php o public/soci/*.php (2 niveles)
+// Desde public/admin/*.php o public/socio/*.php (2 niveles)
 require_once dirname(__DIR__, 2) . '/config/db.php';
 require_once dirname(__DIR__, 2) . '/includes/auth.php';
 require_once dirname(__DIR__, 2) . '/includes/layout.php';
@@ -75,10 +80,10 @@ require_admin()           // 403 si no es admin
 current_user()            // Array de sesión o null
 is_admin()                // bool
 
-temps_a_segons("1:05.43") // → 65.43 (float)
-segons_a_temps(65.43)     // → "1:05.43" (string)
-format_prova("50L")       // → "50 Libre"
-format_lliga("alevin")    // → "Alevín"
+tiempo_a_segundos("1:05.43") // → 65.43 (float)
+segundos_a_tiempo(65.43)     // → "1:05.43" (string)
+format_prueba("50L")         // → "50 Libre"
+format_liga("alevin")        // → "Alevín"
 
 flash("Mensaje", "success")   // Guardar flash (success/danger/info/warning)
 get_flash()                    // Recuperar y borrar flash
@@ -104,13 +109,14 @@ render_admin_layout($activePage, fn)  // Sidebar admin + main
 
 | Tabla | Descripción |
 |-------|-------------|
-| `users` | Socios y admins (bcrypt, estado, lliga, sexe) |
+| `users` | Socios y admins (bcrypt, estado, liga, sexo) |
 | `noticias` | Noticias publicables |
 | `biblioteca` | Documentos por categoría |
-| `marques` | Marcas de natación (UNIQUE: user+prova+piscina+temporada) |
-| `config` | Par clave-valor (fina_times, minimes_rfen, temporada_activa) |
+| `marcas` | Marcas de natación (UNIQUE: user+prueba+piscina+temporada) |
+| `config` | Par clave-valor (fina_times, minimas_rfen, temporada_activa) |
+| `contactos` | Mensajes del formulario de contacto |
 
-**Tiempo format:** Almacenado como `mm:ss.cc` string + `temps_seg` float para ordenar.
+**Tiempo format:** Almacenado como `mm:ss.cc` string + `tiempo_seg` float para ordenar.
 
 ## Diseño
 
@@ -134,16 +140,16 @@ Inter (Google Fonts) + Arial fallback
 
 ## Flujo de autenticación
 
-1. Soci se registra → `estado = pendiente`
+1. Socio se registra → `estado = pendiente`
 2. Admin aprueba desde `/admin/usuarios.php` → `estado = activo`
-3. Login → sesión `$_SESSION['user']` con: id, nom, email, rol, lliga, sexe, estado
-4. Admin → redirige a `/admin/usuarios.php`
-5. Soci → redirige a `/soci/panel.php`
+3. Login → sesión `$_SESSION['user']` con: id, nombre, email, rol, liga, sexo, estado
+4. Admin → redirige a `/admin/usuarios`
+5. Socio → redirige a `/socio/panel`
 
-## Lligues (categorías)
-`benjamin` · `alevin` · `infantil` · `junior` · `master`
+## Ligas (categorías)
+`benjamin` · `alevin` · `infantil` · `junior` · `absoluto` · `master`
 
-## Proves (18 pruebas)
+## Pruebas (18 pruebas)
 `50L 100L 200L 400L 800L 1500L` (Libre)
 `50E 100E 200E` (Espalda)
 `50B 100B 200B` (Braza)
@@ -163,16 +169,16 @@ Inter (Google Fonts) + Arial fallback
 | Noticias — Lista | `public/noticias/index.php` | ✅ |
 | Noticias — Detalle | `public/noticias/detall.php` | ✅ |
 | Admin — Usuarios | `public/admin/usuarios.php` | ✅ |
-| Admin — Marcas | `public/admin/marques.php` | ✅ |
+| Admin — Marcas | `public/admin/marcas.php` | ✅ |
 | Admin — Ranking | `public/admin/ranking.php` | ✅ |
 | Admin — Noticias | `public/admin/noticias.php` | ✅ |
-| Admin — Biblioteca | `public/admin/biblioteca.php` | ✅ |
-| Soci — Panel | `public/soci/panel.php` | ✅ |
-| Soci — Ranking | `public/soci/ranking.php` | ✅ |
+| Admin — Config | `public/admin/config.php` | ✅ |
+| Admin — Contacto | `public/admin/contacto.php` | ✅ |
+| Socio — Panel | `public/socio/panel.php` | ✅ |
+| Socio — Ranking | `public/socio/ranking.php` | ✅ |
+| Socio — Perfil | `public/socio/perfil.php` | ✅ |
 
 ## Pendiente / futuro
-- [ ] Integrar FINA_TIMES y MINIMES desde tabla `config` de MySQL (actualmente hardcoded en JS)
 - [ ] Calendari: confirmar que el Google Calendar embed funciona
 - [ ] Deploy en Hostinger/Railway/VPS
-- [ ] Subida de imágenes para noticias (actualmente solo URL)
 - [ ] Exportar ranking a CSV/Excel

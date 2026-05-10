@@ -6,64 +6,67 @@ SET time_zone = '+00:00';
 
 CREATE TABLE IF NOT EXISTS users (
     id         INT AUTO_INCREMENT PRIMARY KEY,
-    nom        VARCHAR(100)  NOT NULL,
+    nombre     VARCHAR(100)  NOT NULL,
     email      VARCHAR(150)  NOT NULL UNIQUE,
     password   VARCHAR(255)  NOT NULL,
-    rol        ENUM('soci','admin') NOT NULL DEFAULT 'soci',
+    rol        ENUM('socio','admin') NOT NULL DEFAULT 'socio',
     estado     ENUM('pendiente','activo','rechazado') NOT NULL DEFAULT 'pendiente',
-    lliga      ENUM('benjamin','alevin','infantil','junior','absoluto','master') DEFAULT NULL,
-    sexe       ENUM('M','F') NOT NULL,
+    liga       ENUM('benjamin','alevin','infantil','junior','absoluto','master') DEFAULT NULL,
+    sexo       ENUM('M','F') NOT NULL,
     rfen_id    VARCHAR(100) DEFAULT NULL,
-    rfen_nom   VARCHAR(200) DEFAULT NULL,
+    rfen_nombre VARCHAR(200) DEFAULT NULL,
+    nadador_activo TINYINT(1) NOT NULL DEFAULT 1,
     avatar_url VARCHAR(500)  DEFAULT NULL,
+    must_change_pwd TINYINT(1) NOT NULL DEFAULT 0,
+    tutor_email VARCHAR(150) DEFAULT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS noticias (
     id         INT AUTO_INCREMENT PRIMARY KEY,
-    titol      VARCHAR(255) NOT NULL,
-    resum      VARCHAR(500) DEFAULT NULL,
-    contingut  TEXT         DEFAULT NULL,
-    imatge_url VARCHAR(500) DEFAULT NULL,
-    publicat   TINYINT(1)   NOT NULL DEFAULT 0,
+    titulo     VARCHAR(255) NOT NULL,
+    resumen    VARCHAR(500) DEFAULT NULL,
+    contenido  TEXT         DEFAULT NULL,
+    imagen_url VARCHAR(500) DEFAULT NULL,
+    publicado  TINYINT(1)   NOT NULL DEFAULT 0,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS biblioteca (
     id         INT AUTO_INCREMENT PRIMARY KEY,
-    titol      VARCHAR(255) NOT NULL,
-    descripcio VARCHAR(500) DEFAULT NULL,
+    titulo     VARCHAR(255) NOT NULL,
+    descripcion VARCHAR(500) DEFAULT NULL,
     url_drive  VARCHAR(500) NOT NULL,
     categoria  VARCHAR(100) NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-CREATE TABLE IF NOT EXISTS marques (
+CREATE TABLE IF NOT EXISTS marcas (
     id         INT AUTO_INCREMENT PRIMARY KEY,
     user_id    INT         NOT NULL,
-    prova      VARCHAR(10) NOT NULL,
+    prueba     VARCHAR(10) NOT NULL,
     piscina    ENUM('25m','50m') NOT NULL DEFAULT '25m',
-    temps      VARCHAR(20) NOT NULL,
-    temps_seg  FLOAT       NOT NULL,
-    data_marca DATE        NOT NULL,
+    tiempo     VARCHAR(20) NOT NULL,
+    tiempo_seg FLOAT       NOT NULL,
+    fecha_marca DATE       NOT NULL,
     lugar      VARCHAR(255) NOT NULL DEFAULT '',
     temporada  VARCHAR(10) GENERATED ALWAYS AS (
         IF(
-            MONTH(data_marca) >= 9,
-            CONCAT(YEAR(data_marca), '-', LPAD((YEAR(data_marca) + 1) MOD 100, 2, '0')),
-            CONCAT(YEAR(data_marca) - 1, '-', LPAD(YEAR(data_marca) MOD 100, 2, '0'))
+            MONTH(fecha_marca) >= 9,
+            CONCAT(YEAR(fecha_marca), '-', LPAD((YEAR(fecha_marca) + 1) MOD 100, 2, '0')),
+            CONCAT(YEAR(fecha_marca) - 1, '-', LPAD(YEAR(fecha_marca) MOD 100, 2, '0'))
         )
     ) STORED,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
-    UNIQUE KEY unique_marca (user_id, prova, piscina, temporada, data_marca, lugar)
+    UNIQUE KEY unique_marca (user_id, prueba, piscina, temporada, fecha_marca, lugar)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS config (
-    clau       VARCHAR(100) PRIMARY KEY,
+    clave      VARCHAR(100) PRIMARY KEY,
     valor      LONGTEXT     NOT NULL,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
@@ -83,18 +86,18 @@ CREATE TABLE IF NOT EXISTS contactos (
 -- ============================================================
 
 -- Admin (password: Admin1234!)
-INSERT INTO users (nom, email, password, rol, estado, lliga, sexe) VALUES
+INSERT INTO users (nombre, email, password, rol, estado, liga, sexo) VALUES
 ('Administrador', 'admin@cnmediocudeyo.es',
  '$2y$10$nJd6zNkYTS9Lb6OA8W5eye/OL.KQyev9N3VdLHDDH0Al8Glv5zIh.',
  'admin', 'activo', NULL, 'M')
 ON DUPLICATE KEY UPDATE id = id;
 
 -- Temporada activa
-INSERT INTO config (clau, valor) VALUES ('temporada_activa', '2025-26')
+INSERT INTO config (clave, valor) VALUES ('temporada_activa', '2025-26')
 ON DUPLICATE KEY UPDATE valor = valor;
 
 -- FINA Times (tiempos mundiales de referencia, temporada 2024-25)
-INSERT INTO config (clau, valor) VALUES ('fina_times', '{
+INSERT INTO config (clave, valor) VALUES ('fina_times', '{
   "50 libre_M_50m": 20.91, "50 libre_M_25m": 19.9,
   "50 libre_F_50m": 23.61, "50 libre_F_25m": 22.83,
   "100 libre_M_50m": 46.4, "100 libre_M_25m": 44.84,
@@ -133,8 +136,8 @@ INSERT INTO config (clau, valor) VALUES ('fina_times', '{
 }')
 ON DUPLICATE KEY UPDATE valor = valor;
 
--- Mínimas RFEN (temporada 2025-26)
-INSERT INTO config (clau, valor) VALUES ('minimes_rfen', '{
+-- Minimas RFEN (temporada 2025-26)
+INSERT INTO config (clave, valor) VALUES ('minimas_rfen', '{
   "50L":   { "M": { "alevin": 28.10, "infantil": null, "junior": null, "sub20": null, "absoluto": 23.85 }, "F": { "alevin": 29.30, "infantil": null, "junior": null, "sub20": null, "absoluto": 26.85 } },
   "100L":  { "M": { "alevin": 62.00, "infantil": null, "junior": null, "sub20": null, "absoluto": 51.90 }, "F": { "alevin": 63.90, "infantil": null, "junior": null, "sub20": null, "absoluto": 58.50 } },
   "200L":  { "M": { "alevin": 136.00, "infantil": null, "junior": null, "sub20": null, "absoluto": 113.75 }, "F": { "alevin": 140.00, "infantil": null, "junior": null, "sub20": null, "absoluto": 126.95 } },
@@ -157,7 +160,7 @@ INSERT INTO config (clau, valor) VALUES ('minimes_rfen', '{
 ON DUPLICATE KEY UPDATE valor = valor;
 
 -- Noticia de ejemplo
-INSERT INTO noticias (titol, resum, contingut, publicat) VALUES
+INSERT INTO noticias (titulo, resumen, contenido, publicado) VALUES
 ('Bienvenidos a la nueva web del CN Medio Cudeyo',
  'Estrenamos nueva web con sistema de socios, ranking de marcas y calculadora de rendimiento.',
  '<p>Nos complace anunciar el lanzamiento de nuestra nueva plataforma web. Desde ahora los socios podéis acceder a vuestro panel personal, consultar vuestras marcas y el ranking de la liga.</p><p>El administrador gestiona las altas, marcas y noticias desde el panel de administración.</p>',

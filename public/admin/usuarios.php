@@ -5,7 +5,7 @@ require_once dirname(__DIR__, 2) . '/includes/layout.php';
 
 require_admin();
 
-$LLIGUES = ['benjamin'=>'Benjamín','alevin'=>'Alevín','infantil'=>'Infantil','junior'=>'Junior','absoluto'=>'Absoluto','master'=>'Master'];
+$LIGAS = ['benjamin'=>'Benjamín','alevin'=>'Alevín','infantil'=>'Infantil','junior'=>'Junior','absoluto'=>'Absoluto','master'=>'Master'];
 
 // --- Acciones POST ---
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -14,29 +14,29 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $user_id = (int)($_POST['user_id'] ?? 0);
 
     if ($action === 'vincular_rfen') {
-        $rfen_id  = trim($_POST['rfen_id']  ?? '');
-        $rfen_nom = trim($_POST['rfen_nom'] ?? '');
-        if ($user_id && $rfen_id && $rfen_nom) {
-            $pdo->prepare('UPDATE users SET rfen_id=?, rfen_nom=?, updated_at=NOW() WHERE id=?')
-                ->execute([$rfen_id, $rfen_nom, $user_id]);
+        $rfen_id     = trim($_POST['rfen_id']     ?? '');
+        $rfen_nombre = trim($_POST['rfen_nombre'] ?? '');
+        if ($user_id && $rfen_id && $rfen_nombre) {
+            $pdo->prepare('UPDATE users SET rfen_id=?, rfen_nombre=?, updated_at=NOW() WHERE id=?')
+                ->execute([$rfen_id, $rfen_nombre, $user_id]);
             flash('Usuario vinculado a RFEN.', 'success');
         }
     } elseif ($action === 'desvincular_rfen') {
         if ($user_id) {
-            $pdo->prepare('UPDATE users SET rfen_id=NULL, rfen_nom=NULL, updated_at=NOW() WHERE id=?')
+            $pdo->prepare('UPDATE users SET rfen_id=NULL, rfen_nombre=NULL, updated_at=NOW() WHERE id=?')
                 ->execute([$user_id]);
             flash('Vinculación RFEN eliminada.', 'warning');
         }
     } elseif ($action === 'crear') {
-        $nom    = trim($_POST['nom']   ?? '');
-        $email  = trim($_POST['email'] ?? '');
-        $pass   = $_POST['password']   ?? '';
-        $sexe   = in_array($_POST['sexe']   ?? '', ['M','F'])                                           ? $_POST['sexe']   : 'M';
-        $lliga  = in_array($_POST['lliga']  ?? '', array_keys($LLIGUES))                                 ? $_POST['lliga']  : '';
-        $rol    = in_array($_POST['rol']    ?? '', ['soci','admin'])                                     ? $_POST['rol']    : 'soci';
+        $nombre = trim($_POST['nombre'] ?? '');
+        $email  = trim($_POST['email']  ?? '');
+        $pass   = $_POST['password']    ?? '';
+        $sexo   = in_array($_POST['sexo']   ?? '', ['M','F'])                                           ? $_POST['sexo']   : 'M';
+        $liga   = in_array($_POST['liga']   ?? '', array_keys($LIGAS))                                   ? $_POST['liga']   : '';
+        $rol    = in_array($_POST['rol']    ?? '', ['socio','admin'])                                     ? $_POST['rol']    : 'socio';
         $estado = in_array($_POST['estado'] ?? '', ['pendiente','activo','rechazado'])                   ? $_POST['estado'] : 'activo';
 
-        if (!$nom || !filter_var($email, FILTER_VALIDATE_EMAIL) || strlen($pass) < 8) {
+        if (!$nombre || !filter_var($email, FILTER_VALIDATE_EMAIL) || strlen($pass) < 8) {
             flash('Datos incorrectos. Nombre, email válido y contraseña de al menos 8 caracteres son obligatorios.', 'danger');
         } else {
             $check = $pdo->prepare('SELECT id FROM users WHERE email=?');
@@ -44,23 +44,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if ($check->fetch()) {
                 flash('El email ya está registrado.', 'danger');
             } else {
-                $pdo->prepare('INSERT INTO users (nom, email, password, sexe, lliga, rol, estado) VALUES (?,?,?,?,?,?,?)')
-                    ->execute([$nom, $email, password_hash($pass, PASSWORD_DEFAULT), $sexe, $lliga ?: null, $rol, $estado]);
+                $nadador_activo = isset($_POST['nadador_activo']) ? 1 : 0;
+                $must_change_pwd = isset($_POST['must_change_pwd']) ? 1 : 0;
+                $pdo->prepare('INSERT INTO users (nombre, email, password, sexo, liga, rol, estado, nadador_activo, must_change_pwd) VALUES (?,?,?,?,?,?,?,?,?)')
+                    ->execute([$nombre, $email, password_hash($pass, PASSWORD_DEFAULT), $sexo, $liga ?: null, $rol, $estado, $nadador_activo, $must_change_pwd]);
                 flash('Usuario creado correctamente.', 'success');
             }
         }
     } elseif ($user_id > 0) {
         switch ($action) {
             case 'editar':
-                $nom    = trim($_POST['nom']   ?? '');
-                $email  = trim($_POST['email'] ?? '');
-                $pass   = $_POST['password']   ?? '';
-                $sexe   = in_array($_POST['sexe']   ?? '', ['M','F'])                        ? $_POST['sexe']   : 'M';
-                $lliga  = in_array($_POST['lliga']  ?? '', array_keys($LLIGUES))              ? $_POST['lliga']  : '';
-                $rol    = in_array($_POST['rol']    ?? '', ['soci','admin'])                  ? $_POST['rol']    : 'soci';
+                $nombre = trim($_POST['nombre'] ?? '');
+                $email  = trim($_POST['email']  ?? '');
+                $pass   = $_POST['password']    ?? '';
+                $sexo   = in_array($_POST['sexo']   ?? '', ['M','F'])                        ? $_POST['sexo']   : 'M';
+                $liga   = in_array($_POST['liga']   ?? '', array_keys($LIGAS))                ? $_POST['liga']   : '';
+                $rol    = in_array($_POST['rol']    ?? '', ['socio','admin'])                  ? $_POST['rol']    : 'socio';
                 $estado = in_array($_POST['estado'] ?? '', ['pendiente','activo','rechazado'])? $_POST['estado'] : 'activo';
 
-                if (!$nom || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
+                if (!$nombre || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
                     flash('Nombre y email válido son obligatorios.', 'danger');
                     break;
                 }
@@ -70,39 +72,70 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     flash('El email ya está en uso por otro usuario.', 'danger');
                     break;
                 }
+                $force_pwd = isset($_POST['must_change_pwd']) ? 1 : 0;
                 if ($pass) {
-                    $pdo->prepare('UPDATE users SET nom=?,email=?,password=?,sexe=?,lliga=?,rol=?,estado=?,updated_at=NOW() WHERE id=?')
-                        ->execute([$nom, $email, password_hash($pass, PASSWORD_DEFAULT), $sexe, $lliga ?: null, $rol, $estado, $user_id]);
+                    $pdo->prepare('UPDATE users SET nombre=?,email=?,password=?,sexo=?,liga=?,rol=?,estado=?,must_change_pwd=?,updated_at=NOW() WHERE id=?')
+                        ->execute([$nombre, $email, password_hash($pass, PASSWORD_DEFAULT), $sexo, $liga ?: null, $rol, $estado, $force_pwd, $user_id]);
                 } else {
-                    $pdo->prepare('UPDATE users SET nom=?,email=?,sexe=?,lliga=?,rol=?,estado=?,updated_at=NOW() WHERE id=?')
-                        ->execute([$nom, $email, $sexe, $lliga ?: null, $rol, $estado, $user_id]);
+                    $pdo->prepare('UPDATE users SET nombre=?,email=?,sexo=?,liga=?,rol=?,estado=?,must_change_pwd=?,updated_at=NOW() WHERE id=?')
+                        ->execute([$nombre, $email, $sexo, $liga ?: null, $rol, $estado, $force_pwd, $user_id]);
                 }
                 flash('Usuario actualizado.', 'success');
                 break;
-            case 'aprovar':
+            case 'aprobar':
                 $pdo->prepare('UPDATE users SET estado=\'activo\', updated_at=NOW() WHERE id=?')
                     ->execute([$user_id]);
                 flash('Usuario aprobado correctamente.', 'success');
                 break;
-            case 'rebutjar':
+            case 'rechazar':
                 $pdo->prepare('UPDATE users SET estado=\'rechazado\', updated_at=NOW() WHERE id=?')
                     ->execute([$user_id]);
                 flash('Usuario rechazado.', 'warning');
                 break;
-            case 'canviar_lliga':
-                $lliga = $_POST['lliga'] ?? '';
-                if (in_array($lliga, array_keys($LLIGUES))) {
-                    $pdo->prepare('UPDATE users SET lliga=?, updated_at=NOW() WHERE id=?')
-                        ->execute([$lliga, $user_id]);
+            case 'cambiar_liga':
+                $liga = $_POST['liga'] ?? '';
+                if (in_array($liga, array_keys($LIGAS))) {
+                    $pdo->prepare('UPDATE users SET liga=?, updated_at=NOW() WHERE id=?')
+                        ->execute([$liga, $user_id]);
                     flash('Categoría actualizada.', 'success');
                 }
                 break;
-            case 'canviar_rol':
+            case 'toggle_nadador':
+                $val = (int)($_POST['nadador_activo'] ?? 0);
+                $pdo->prepare('UPDATE users SET nadador_activo=?, updated_at=NOW() WHERE id=?')
+                    ->execute([$val ? 1 : 0, $user_id]);
+                flash($val ? 'Nadador marcado como activo.' : 'Nadador marcado como no activo.', 'success');
+                break;
+            case 'cambiar_rol':
                 $rol = $_POST['rol'] ?? '';
-                if (in_array($rol, ['soci','admin'])) {
+                if (in_array($rol, ['socio','admin'])) {
                     $pdo->prepare('UPDATE users SET rol=?, updated_at=NOW() WHERE id=?')
                         ->execute([$rol, $user_id]);
                     flash('Rol actualizado.', 'success');
+                }
+                break;
+            case 'autologin':
+                $target = $pdo->prepare('SELECT * FROM users WHERE id=? AND rol!=\'admin\'');
+                $target->execute([$user_id]);
+                $target_user = $target->fetch();
+                if ($target_user) {
+                    // Guardar sesión admin para poder volver
+                    $_SESSION['admin_original'] = $_SESSION['user'];
+                    $_SESSION['user'] = [
+                        'id'    => $target_user['id'],
+                        'nombre'   => $target_user['nombre'],
+                        'email' => $target_user['email'],
+                        'rol'   => $target_user['rol'],
+                        'liga' => $target_user['liga'],
+                        'sexo'  => $target_user['sexo'],
+                        'nadador_activo' => (int)$target_user['nadador_activo'],
+                        'avatar_url' => $target_user['avatar_url'] ?? null,
+                        'must_change_pwd' => 0,
+                        'tutor_email' => $target_user['tutor_email'] ?? null,
+                    ];
+                    flash('Sesión iniciada como ' . $target_user['nombre'] . '. Usa el botón "Volver a admin" para regresar.', 'info');
+                    header('Location: /socio/panel');
+                    exit;
                 }
                 break;
             case 'eliminar':
@@ -112,29 +145,70 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 break;
         }
     }
-    header('Location: /admin/usuarios' . (isset($_GET['estado']) ? '?estado=' . urlencode($_GET['estado']) : ''));
+    $redir = '/admin/usuarios';
+    $rp = [];
+    if (isset($_GET['estado'])  && $_GET['estado']  !== 'todos') $rp[] = 'estado='  . urlencode($_GET['estado']);
+    if (isset($_GET['liga'])    && $_GET['liga']    !== 'todos') $rp[] = 'liga='    . urlencode($_GET['liga']);
+    if (isset($_GET['nadador']) && $_GET['nadador'] !== 'todos') $rp[] = 'nadador=' . urlencode($_GET['nadador']);
+    if (isset($_GET['q'])       && trim($_GET['q']) !== '')      $rp[] = 'q='       . urlencode(trim($_GET['q']));
+    if ($rp) $redir .= '?' . implode('&', $rp);
+    header('Location: ' . $redir);
     exit;
 }
 
-// --- Filtro ---
-$filtroEstado = $_GET['estado'] ?? 'todos';
+// --- Filtros ---
+$filtroEstado = $_GET['estado'] ?? 'activo';
+$filtroLiga   = $_GET['liga']   ?? 'todos';
+$filtroNadador = $_GET['nadador'] ?? 'activo';
+$filtroBuscar = trim($_GET['q'] ?? '');
 $validos = ['todos','pendiente','activo','rechazado'];
 if (!in_array($filtroEstado, $validos)) $filtroEstado = 'todos';
+$ligasValidas = array_keys($LIGAS);
+if ($filtroLiga !== 'todos' && !in_array($filtroLiga, $ligasValidas)) $filtroLiga = 'todos';
+if (!in_array($filtroNadador, ['todos','activo','no_activo'])) $filtroNadador = 'todos';
 
+$where  = [];
+$params = [];
 if ($filtroEstado !== 'todos') {
-    $stmt = $pdo->prepare('SELECT id,nom,email,rol,estado,lliga,sexe,rfen_id,rfen_nom,created_at FROM users WHERE estado=? ORDER BY created_at DESC');
-    $stmt->execute([$filtroEstado]);
-} else {
-    $stmt = $pdo->query('SELECT id,nom,email,rol,estado,lliga,sexe,rfen_id,rfen_nom,created_at FROM users ORDER BY created_at DESC');
+    $where[]  = 'estado = ?';
+    $params[] = $filtroEstado;
 }
+if ($filtroLiga !== 'todos') {
+    $where[]  = 'liga = ?';
+    $params[] = $filtroLiga;
+}
+if ($filtroNadador === 'activo') {
+    $where[] = 'nadador_activo = 1';
+} elseif ($filtroNadador === 'no_activo') {
+    $where[] = 'nadador_activo = 0';
+}
+if ($filtroBuscar !== '') {
+    $where[]  = 'nombre LIKE ?';
+    $params[] = '%' . $filtroBuscar . '%';
+}
+$sql = 'SELECT id,nombre,email,rol,estado,liga,sexo,rfen_id,rfen_nombre,nadador_activo,must_change_pwd,tutor_email,created_at FROM users';
+if ($where) $sql .= ' WHERE ' . implode(' AND ', $where);
+$sql .= ' ORDER BY created_at DESC';
+$stmt = $pdo->prepare($sql);
+$stmt->execute($params);
 $users = $stmt->fetchAll();
 
 // Cuenta por estado
 $counts = $pdo->query('SELECT estado, COUNT(*) as n FROM users GROUP BY estado')->fetchAll(PDO::FETCH_KEY_PAIR);
 
 render_header('Gestión de usuarios', 'admin-usuarios');
-render_admin_layout('usuarios', function() use ($users, $filtroEstado, $counts, $LLIGUES) {
+render_admin_layout('usuarios', function() use ($users, $filtroEstado, $filtroLiga, $filtroNadador, $filtroBuscar, $counts, $LIGAS) {
 ?>
+
+<style>
+.dropdown-item {
+  display:flex;align-items:center;gap:8px;width:100%;padding:8px 16px;
+  border:none;background:none;font-size:13px;font-weight:500;color:#333;
+  cursor:pointer;text-align:left;white-space:nowrap;
+}
+.dropdown-item:hover { background:#f5f5f5; }
+.dropdown-item i { width:16px;text-align:center; }
+</style>
 
 <div class="d-flex justify-between align-center mb-6" style="gap:12px;">
   <h1 style="margin:0;">Gestión de usuarios</h1>
@@ -145,54 +219,103 @@ render_admin_layout('usuarios', function() use ($users, $filtroEstado, $counts, 
 
 <?php render_flash(); ?>
 
-<!-- Filtros de estado -->
-<div class="filters-bar" style="margin-bottom:20px;">
+<!-- Filtros -->
+<div class="filters-bar" style="margin-bottom:16px;flex-wrap:wrap;">
   <?php
-  $estados = ['todos' => 'Todos', 'pendiente' => 'Pendientes', 'activo' => 'Activos', 'rechazado' => 'Rechazados'];
+  $estados = ['todos' => 'Todos', 'pendiente' => 'Pendientes', 'activo' => 'Aprobados', 'rechazado' => 'Rechazados'];
   foreach ($estados as $val => $label):
     $count = $val === 'todos' ? array_sum($counts) : ($counts[$val] ?? 0);
     $active = $filtroEstado === $val ? 'btn-primary' : 'btn-gray';
+    $params = 'estado=' . $val;
+    if ($filtroLiga !== 'todos') $params .= '&liga=' . urlencode($filtroLiga);
+    if ($filtroNadador !== 'todos') $params .= '&nadador=' . urlencode($filtroNadador);
+    if ($filtroBuscar !== '') $params .= '&q=' . urlencode($filtroBuscar);
   ?>
-    <a href="?estado=<?= $val ?>" class="btn btn-sm <?= $active ?>">
+    <a href="?<?= $params ?>" class="btn btn-sm <?= $active ?>">
       <?= $label ?> <span class="badge badge-gray" style="margin-left:4px;"><?= $count ?></span>
     </a>
   <?php endforeach; ?>
+
+  <div style="width:100%;display:flex;flex-wrap:wrap;gap:12px;align-items:center;margin-top:12px;">
+    <form method="GET" style="display:flex;gap:8px;align-items:center;flex:1;min-width:200px;max-width:360px;margin:0;">
+      <input type="hidden" name="estado" value="<?= e($filtroEstado) ?>">
+      <input type="hidden" name="liga" value="<?= e($filtroLiga) ?>">
+      <input type="text" name="q" class="form-control" placeholder="Buscar por nombre..." value="<?= e($filtroBuscar) ?>" style="padding:6px 10px;font-size:13px;flex:1;">
+      <button type="submit" class="btn btn-primary btn-sm" style="height:34px;"><i class="bi bi-search"></i></button>
+      <?php if ($filtroBuscar !== ''): ?>
+        <a href="?estado=<?= e($filtroEstado) ?>&liga=<?= e($filtroLiga) ?>" class="btn btn-gray btn-sm" style="height:34px;" title="Limpiar"><i class="bi bi-x-lg"></i></a>
+      <?php endif; ?>
+    </form>
+
+    <select class="form-control" style="padding:6px 24px 6px 10px;font-size:13px;width:auto;min-width:170px;" onchange="window.location='?estado=<?= e($filtroEstado) ?>&liga='+this.value+'&nadador=<?= e($filtroNadador) ?><?= $filtroBuscar ? '&q=' . urlencode($filtroBuscar) : '' ?>'">
+      <option value="todos" <?= $filtroLiga === 'todos' ? 'selected' : '' ?>>Todas las categorías</option>
+      <?php foreach ($LIGAS as $k=>$v): ?>
+        <option value="<?= $k ?>" <?= $filtroLiga === $k ? 'selected' : '' ?>><?= $v ?></option>
+      <?php endforeach; ?>
+    </select>
+
+    <span style="font-size:12px;color:var(--gray);font-weight:600;margin-left:8px;">Nadador:</span>
+    <?php
+    $nadadorTabs = ['todos' => 'Todos', 'activo' => 'Activos', 'no_activo' => 'No activos'];
+    foreach ($nadadorTabs as $nv => $nl):
+      $nActive = $filtroNadador === $nv ? 'btn-primary' : 'btn-gray';
+      $nParams = 'estado=' . e($filtroEstado) . '&liga=' . e($filtroLiga) . '&nadador=' . $nv;
+      if ($filtroBuscar !== '') $nParams .= '&q=' . urlencode($filtroBuscar);
+    ?>
+      <a href="?<?= $nParams ?>" class="btn btn-sm <?= $nActive ?>"><?= $nl ?></a>
+    <?php endforeach; ?>
+  </div>
 </div>
 
+<!-- Tabla -->
 <div class="table-card">
   <div class="table-wrapper">
     <table>
       <thead>
         <tr>
-          <th>Nombre</th>
-          <th>Email</th>
+          <th>Usuario</th>
           <th>Categoría</th>
-          <th>Sexo</th>
           <th>Rol</th>
           <th>Estado</th>
+          <th>Nadador</th>
           <th>RFEN</th>
-          <th>Registro</th>
           <th>Acciones</th>
         </tr>
       </thead>
       <tbody>
         <?php if (!$users): ?>
-          <tr><td colspan="8" class="text-center text-muted" style="padding:32px;">No hay usuarios.</td></tr>
+          <tr><td colspan="7" class="text-center text-muted" style="padding:32px;">No hay usuarios.</td></tr>
         <?php endif; ?>
         <?php foreach ($users as $u): ?>
         <tr>
-          <td><strong><?= e($u['nom']) ?></strong></td>
-          <td><?= e($u['email']) ?></td>
+          <!-- Usuario: nombre + email + sexo + tutor -->
+          <td>
+            <div style="display:flex;flex-direction:column;gap:2px;">
+              <div>
+                <strong><?= e($u['nombre']) ?></strong>
+                <span class="text-muted" style="font-size:12px;margin-left:4px;"><?= $u['sexo'] === 'M' ? '♂' : '♀' ?></span>
+                <?php if (in_array($u['liga'], ['benjamin','alevin','infantil','junior'])): ?>
+                  <?php if ($u['tutor_email']): ?>
+                    <span class="badge badge-green" style="font-size:10px;margin-left:4px;" title="Tutor: <?= e($u['tutor_email']) ?>"><i class="bi bi-person-check"></i></span>
+                  <?php else: ?>
+                    <span class="badge badge-warning" style="font-size:10px;margin-left:4px;" title="Pendiente autorización tutor"><i class="bi bi-exclamation-triangle"></i></span>
+                  <?php endif; ?>
+                <?php endif; ?>
+              </div>
+              <span class="text-muted" style="font-size:12px;"><?= e($u['email']) ?></span>
+            </div>
+          </td>
+          <!-- Categoría -->
           <td>
             <?php if ($u['rol'] !== 'admin'): ?>
             <form method="POST" style="display:inline;">
               <?= csrf_field() ?>
-              <input type="hidden" name="action" value="canviar_lliga">
+              <input type="hidden" name="action" value="cambiar_liga">
               <input type="hidden" name="user_id" value="<?= $u['id'] ?>">
-              <select name="lliga" class="form-control" style="width:130px;padding:4px 8px;font-size:13px;" onchange="this.form.submit()">
-                <option value="">— Sin liga —</option>
-                <?php foreach ($LLIGUES as $k=>$v): ?>
-                  <option value="<?= $k ?>" <?= $u['lliga'] === $k ? 'selected' : '' ?>><?= $v ?></option>
+              <select name="liga" class="form-control" style="width:120px;padding:4px 8px;font-size:12px;" onchange="this.form.submit()">
+                <option value="">— Sin —</option>
+                <?php foreach ($LIGAS as $k=>$v): ?>
+                  <option value="<?= $k ?>" <?= $u['liga'] === $k ? 'selected' : '' ?>><?= $v ?></option>
                 <?php endforeach; ?>
               </select>
             </form>
@@ -200,18 +323,11 @@ render_admin_layout('usuarios', function() use ($users, $filtroEstado, $counts, 
               <span class="text-muted">—</span>
             <?php endif; ?>
           </td>
-          <td><?= $u['sexe'] === 'M' ? 'Masc.' : 'Fem.' ?></td>
+          <!-- Rol -->
           <td>
-            <form method="POST" style="display:inline;">
-              <?= csrf_field() ?>
-              <input type="hidden" name="action" value="canviar_rol">
-              <input type="hidden" name="user_id" value="<?= $u['id'] ?>">
-              <select name="rol" class="form-control" style="width:90px;padding:4px 8px;font-size:13px;" onchange="this.form.submit()">
-                <option value="soci"  <?= $u['rol']==='soci'  ? 'selected' : '' ?>>Socio</option>
-                <option value="admin" <?= $u['rol']==='admin' ? 'selected' : '' ?>>Admin</option>
-              </select>
-            </form>
+            <span class="badge badge-<?= $u['rol'] === 'admin' ? 'blue' : 'gray' ?>"><?= $u['rol'] === 'admin' ? 'Admin' : 'Socio' ?></span>
           </td>
+          <!-- Estado -->
           <td>
             <?php
             $badges = ['pendiente'=>'warning','activo'=>'success','rechazado'=>'danger'];
@@ -221,72 +337,121 @@ render_admin_layout('usuarios', function() use ($users, $filtroEstado, $counts, 
             ?>
             <span class="badge badge-<?= $b ?>"><?= $l ?></span>
           </td>
+          <!-- Nadador -->
           <td>
-            <?php if ($u['rfen_id']): ?>
-              <span class="badge badge-green" title="<?= e($u['rfen_nom']) ?>"><i class="bi bi-link-45deg"></i> Vinculado</span>
-            <?php else: ?>
-              <span class="badge badge-gray">—</span>
-            <?php endif; ?>
-          </td>
-          <td class="text-sm text-muted"><?= date('d/m/Y', strtotime($u['created_at'])) ?></td>
-          <td>
-            <div class="d-flex gap-2">
-              <!-- Editar -->
-              <button class="btn btn-secondary btn-sm"
-                onclick="abrirModalEditar(<?= $u['id'] ?>, <?= htmlspecialchars(json_encode($u['nom']), ENT_QUOTES) ?>, <?= htmlspecialchars(json_encode($u['email']), ENT_QUOTES) ?>, '<?= e($u['sexe']) ?>', '<?= e($u['lliga'] ?? '') ?>', '<?= e($u['rol']) ?>', '<?= e($u['estado']) ?>')">
-                <i class="bi bi-pencil-fill"></i>
-              </button>
-              <?php if ($u['estado'] === 'pendiente'): ?>
-                <form method="POST" style="display:inline;">
-                  <?= csrf_field() ?>
-                  <input type="hidden" name="action" value="aprovar">
-                  <input type="hidden" name="user_id" value="<?= $u['id'] ?>">
-                  <button class="btn btn-success btn-sm">Aprobar</button>
-                </form>
-                <form method="POST" style="display:inline;">
-                  <?= csrf_field() ?>
-                  <input type="hidden" name="action" value="rebutjar">
-                  <input type="hidden" name="user_id" value="<?= $u['id'] ?>">
-                  <button class="btn btn-danger btn-sm">Rechazar</button>
-                </form>
-              <?php elseif ($u['estado'] === 'activo' && $u['rol'] !== 'admin'): ?>
-                <form method="POST" style="display:inline;">
-                  <?= csrf_field() ?>
-                  <input type="hidden" name="action" value="rebutjar">
-                  <input type="hidden" name="user_id" value="<?= $u['id'] ?>">
-                  <button class="btn btn-warning btn-sm">Desactivar</button>
-                </form>
-              <?php elseif ($u['estado'] === 'rechazado'): ?>
-                <form method="POST" style="display:inline;">
-                  <?= csrf_field() ?>
-                  <input type="hidden" name="action" value="aprovar">
-                  <input type="hidden" name="user_id" value="<?= $u['id'] ?>">
-                  <button class="btn btn-success btn-sm">Reactivar</button>
-                </form>
-              <?php endif; ?>
-              <?php if ($u['rol'] !== 'admin'): ?>
-                <?php if ($u['rfen_id']): ?>
-                  <form method="POST" style="display:inline;"
-                        onsubmit="return confirm('¿Eliminar vinculación RFEN de <?= e($u['nom']) ?>?')">
-                    <?= csrf_field() ?>
-                    <input type="hidden" name="action" value="desvincular_rfen">
-                    <input type="hidden" name="user_id" value="<?= $u['id'] ?>">
-                    <button class="btn btn-gray btn-sm" title="Desvincular RFEN"><i class="bi bi-link"></i></button>
-                  </form>
+            <?php if ($u['rol'] !== 'admin'): ?>
+              <form method="POST" style="display:inline;">
+                <?= csrf_field() ?>
+                <input type="hidden" name="action" value="toggle_nadador">
+                <input type="hidden" name="user_id" value="<?= $u['id'] ?>">
+                <input type="hidden" name="nadador_activo" value="<?= $u['nadador_activo'] ? '0' : '1' ?>">
+                <?php if ($u['nadador_activo']): ?>
+                  <button type="submit" class="badge badge-green" style="cursor:pointer;border:none;font-size:11px;" title="Clic para desactivar">
+                    <i class="bi bi-check-circle-fill"></i>&nbsp;Activo
+                  </button>
                 <?php else: ?>
-                  <button class="btn btn-secondary btn-sm" title="Vincular RFEN"
-                    onclick="abrirModalRFEN(<?= $u['id'] ?>, <?= htmlspecialchars(json_encode($u['nom']), ENT_QUOTES) ?>, '<?= e($u['sexe']) ?>')">
-                    <i class="bi bi-link-45deg"></i>
+                  <button type="submit" class="badge badge-gray" style="cursor:pointer;border:none;font-size:11px;" title="Clic para activar">
+                    <i class="bi bi-x-circle"></i>&nbsp;No activo
                   </button>
                 <?php endif; ?>
-                <form method="POST" style="display:inline;"
-                      onsubmit="return confirm('¿Eliminar a <?= e($u['nom']) ?>? Esta acción no se puede deshacer.')">
-                  <?= csrf_field() ?>
-                  <input type="hidden" name="action" value="eliminar">
-                  <input type="hidden" name="user_id" value="<?= $u['id'] ?>">
-                  <button class="btn btn-gray btn-sm"><i class="bi bi-trash-fill"></i></button>
-                </form>
+              </form>
+            <?php else: ?>
+              <span class="text-muted">—</span>
+            <?php endif; ?>
+          </td>
+          <!-- RFEN -->
+          <td>
+            <?php if ($u['rfen_id']): ?>
+              <span class="badge badge-success" title="<?= e($u['rfen_nombre']) ?>">Sí</span>
+            <?php else: ?>
+              <span class="badge badge-gray">No</span>
+            <?php endif; ?>
+          </td>
+          <!-- Acciones dropdown -->
+          <td>
+            <div style="display:flex;align-items:center;gap:4px;">
+              <!-- Editar -->
+              <button class="btn btn-secondary btn-sm" title="Editar"
+                onclick="abrirModalEditar(<?= $u['id'] ?>, <?= htmlspecialchars(json_encode($u['nombre']), ENT_QUOTES) ?>, <?= htmlspecialchars(json_encode($u['email']), ENT_QUOTES) ?>, '<?= e($u['sexo']) ?>', '<?= e($u['liga'] ?? '') ?>', '<?= e($u['rol']) ?>', '<?= e($u['estado']) ?>', <?= (int)$u['must_change_pwd'] ?>)">
+                <i class="bi bi-pencil-fill"></i>
+              </button>
+              <?php if ($u['rol'] !== 'admin'): ?>
+              <!-- Autologin -->
+              <form method="POST" style="display:inline;">
+                <?= csrf_field() ?>
+                <input type="hidden" name="action" value="autologin">
+                <input type="hidden" name="user_id" value="<?= $u['id'] ?>">
+                <button type="submit" class="btn btn-gray btn-sm" title="Entrar como este usuario"><i class="bi bi-box-arrow-in-right"></i></button>
+              </form>
               <?php endif; ?>
+              <!-- Dropdown con el resto -->
+              <div class="dropdown" style="position:relative;">
+                <button class="btn btn-gray btn-sm" onclick="toggleDropdown(this)">
+                  <i class="bi bi-three-dots-vertical"></i>
+                </button>
+                <div class="dropdown-menu" style="display:none;position:absolute;right:0;top:100%;margin-top:4px;background:#fff;border-radius:8px;box-shadow:0 8px 30px rgba(0,0,0,0.15);min-width:180px;z-index:100;padding:6px 0;">
+                <?php if ($u['rol'] !== 'admin'): ?>
+                  <!-- Estado -->
+                  <?php if ($u['estado'] === 'pendiente'): ?>
+                    <form method="POST">
+                      <?= csrf_field() ?>
+                      <input type="hidden" name="action" value="aprobar">
+                      <input type="hidden" name="user_id" value="<?= $u['id'] ?>">
+                      <button type="submit" class="dropdown-item" style="color:#16a34a;"><i class="bi bi-check-circle-fill"></i> Aprobar</button>
+                    </form>
+                    <form method="POST">
+                      <?= csrf_field() ?>
+                      <input type="hidden" name="action" value="rechazar">
+                      <input type="hidden" name="user_id" value="<?= $u['id'] ?>">
+                      <button type="submit" class="dropdown-item" style="color:var(--red);"><i class="bi bi-x-circle-fill"></i> Rechazar</button>
+                    </form>
+                  <?php elseif ($u['estado'] === 'activo'): ?>
+                    <form method="POST">
+                      <?= csrf_field() ?>
+                      <input type="hidden" name="action" value="rechazar">
+                      <input type="hidden" name="user_id" value="<?= $u['id'] ?>">
+                      <button type="submit" class="dropdown-item" style="color:#d97706;"><i class="bi bi-pause-circle-fill"></i> Desactivar</button>
+                    </form>
+                  <?php elseif ($u['estado'] === 'rechazado'): ?>
+                    <form method="POST">
+                      <?= csrf_field() ?>
+                      <input type="hidden" name="action" value="aprobar">
+                      <input type="hidden" name="user_id" value="<?= $u['id'] ?>">
+                      <button type="submit" class="dropdown-item" style="color:#16a34a;"><i class="bi bi-check-circle-fill"></i> Reactivar</button>
+                    </form>
+                  <?php endif; ?>
+                  <!-- RFEN -->
+                  <?php if ($u['rfen_id']): ?>
+                    <form method="POST" data-confirm="¿Eliminar vinculación RFEN de <?= e($u['nombre']) ?>?">
+                      <?= csrf_field() ?>
+                      <input type="hidden" name="action" value="desvincular_rfen">
+                      <input type="hidden" name="user_id" value="<?= $u['id'] ?>">
+                      <button type="submit" class="dropdown-item"><i class="bi bi-link"></i> Desvincular RFEN</button>
+                    </form>
+                  <?php else: ?>
+                    <button class="dropdown-item" onclick="abrirModalRFEN(<?= $u['id'] ?>, <?= htmlspecialchars(json_encode($u['nombre']), ENT_QUOTES) ?>, '<?= e($u['sexo']) ?>')">
+                      <i class="bi bi-link-45deg"></i> Vincular RFEN
+                    </button>
+                  <?php endif; ?>
+                  <!-- Rol -->
+                  <form method="POST">
+                    <?= csrf_field() ?>
+                    <input type="hidden" name="action" value="cambiar_rol">
+                    <input type="hidden" name="user_id" value="<?= $u['id'] ?>">
+                    <input type="hidden" name="rol" value="<?= $u['rol'] === 'socio' ? 'admin' : 'socio' ?>">
+                    <button type="submit" class="dropdown-item"><i class="bi bi-shield-fill"></i> Hacer <?= $u['rol'] === 'socio' ? 'admin' : 'socio' ?></button>
+                  </form>
+                  <!-- Eliminar -->
+                  <div style="border-top:1px solid #f0f0f0;margin:4px 0;"></div>
+                  <form method="POST" data-confirm="¿Eliminar a <?= e($u['nombre']) ?>? Esta acción no se puede deshacer.">
+                    <?= csrf_field() ?>
+                    <input type="hidden" name="action" value="eliminar">
+                    <input type="hidden" name="user_id" value="<?= $u['id'] ?>">
+                    <button type="submit" class="dropdown-item" style="color:var(--red);"><i class="bi bi-trash-fill"></i> Eliminar</button>
+                  </form>
+                <?php endif; ?>
+                </div>
+              </div>
             </div>
           </td>
         </tr>
@@ -297,7 +462,7 @@ render_admin_layout('usuarios', function() use ($users, $filtroEstado, $counts, 
 </div>
 
 <!-- Modal: Crear usuario -->
-<div class="modal-overlay" id="modal-crear" style="display:none;" onclick="cerrarModalFondo(event,'crear')">
+<div class="modal-overlay" id="modal-crear" style="display:none;">
   <div class="modal-box">
     <div class="modal-header">
       <h3><i class="bi bi-person-plus-fill"></i> Nuevo usuario</h3>
@@ -310,7 +475,7 @@ render_admin_layout('usuarios', function() use ($users, $filtroEstado, $counts, 
         <div class="form-row">
           <div class="form-group">
             <label class="form-label">Nombre *</label>
-            <input type="text" name="nom" class="form-control" required autofocus>
+            <input type="text" name="nombre" class="form-control" required autofocus>
           </div>
           <div class="form-group">
             <label class="form-label">Email *</label>
@@ -319,21 +484,29 @@ render_admin_layout('usuarios', function() use ($users, $filtroEstado, $counts, 
         </div>
         <div class="form-group">
           <label class="form-label">Contraseña *</label>
-          <input type="password" name="password" class="form-control" required placeholder="Mínimo 8 caracteres">
+          <div class="input-password-wrapper">
+            <input type="password" name="password" id="crear-password" class="form-control" required placeholder="Mínimo 8 caracteres" autocomplete="new-password">
+            <button type="button" class="toggle-password" onclick="togglePwd(this)" tabindex="-1" aria-label="Mostrar contraseña">
+              <i class="bi bi-eye"></i>
+            </button>
+          </div>
+          <button type="button" class="btn btn-gray btn-sm" style="margin-top:6px;" onclick="generarPassword()">
+            <i class="bi bi-key-fill"></i> Generar contraseña
+          </button>
         </div>
         <div class="form-row">
           <div class="form-group">
             <label class="form-label">Sexo</label>
-            <select name="sexe" class="form-control">
+            <select name="sexo" class="form-control">
               <option value="M">Masculino</option>
               <option value="F">Femenino</option>
             </select>
           </div>
           <div class="form-group">
             <label class="form-label">Liga / Categoría</label>
-            <select name="lliga" class="form-control">
+            <select name="liga" class="form-control">
               <option value="">— Sin liga —</option>
-              <?php foreach ($LLIGUES as $k=>$v): ?>
+              <?php foreach ($LIGAS as $k=>$v): ?>
                 <option value="<?= $k ?>"><?= $v ?></option>
               <?php endforeach; ?>
             </select>
@@ -343,7 +516,7 @@ render_admin_layout('usuarios', function() use ($users, $filtroEstado, $counts, 
           <div class="form-group">
             <label class="form-label">Rol</label>
             <select name="rol" class="form-control">
-              <option value="soci">Socio</option>
+              <option value="socio">Socio</option>
               <option value="admin">Admin</option>
             </select>
           </div>
@@ -355,6 +528,20 @@ render_admin_layout('usuarios', function() use ($users, $filtroEstado, $counts, 
               <option value="rechazado">Rechazado</option>
             </select>
           </div>
+        </div>
+        <div class="form-group">
+          <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+            <input type="checkbox" name="nadador_activo" value="1" checked>
+            <span class="form-label" style="margin:0;">Nadador activo</span>
+          </label>
+          <div class="form-hint">Desmarca si solo quieres guardar sus marcas antiguas sin acceso completo.</div>
+        </div>
+        <div class="form-group">
+          <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+            <input type="checkbox" name="must_change_pwd" value="1" checked>
+            <span class="form-label" style="margin:0;">Obligar a cambiar contraseña en primer login</span>
+          </label>
+          <div class="form-hint">El usuario deberá establecer su propia contraseña la primera vez que acceda.</div>
         </div>
       </div>
       <div class="modal-footer">
@@ -380,7 +567,7 @@ render_admin_layout('usuarios', function() use ($users, $filtroEstado, $counts, 
         <div class="form-row">
           <div class="form-group">
             <label class="form-label">Nombre *</label>
-            <input type="text" name="nom" id="edit-nom" class="form-control" required>
+            <input type="text" name="nombre" id="edit-nombre" class="form-control" required>
           </div>
           <div class="form-group">
             <label class="form-label">Email *</label>
@@ -390,26 +577,32 @@ render_admin_layout('usuarios', function() use ($users, $filtroEstado, $counts, 
         <div class="form-group">
           <label class="form-label">Nueva contraseña</label>
           <div class="input-password-wrapper">
-            <input type="password" name="password" class="form-control" placeholder="Dejar en blanco para no cambiar">
+            <input type="password" name="password" id="edit-password" class="form-control" autocomplete="new-password" placeholder="Dejar en blanco para no cambiar">
             <button type="button" class="toggle-password" onclick="togglePwd(this)" tabindex="-1" aria-label="Mostrar">
               <i class="bi bi-eye"></i>
             </button>
           </div>
           <div class="form-hint">Solo rellena si quieres cambiar la contraseña.</div>
         </div>
+        <div class="form-group">
+          <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+            <input type="checkbox" name="must_change_pwd" id="edit-must-change-pwd" value="1">
+            <span class="form-label" style="margin:0;">Obligar a cambiar contraseña en próximo login</span>
+          </label>
+        </div>
         <div class="form-row">
           <div class="form-group">
             <label class="form-label">Sexo</label>
-            <select name="sexe" id="edit-sexe" class="form-control">
+            <select name="sexo" id="edit-sexo" class="form-control">
               <option value="M">Masculino</option>
               <option value="F">Femenino</option>
             </select>
           </div>
           <div class="form-group">
             <label class="form-label">Liga / Categoría</label>
-            <select name="lliga" id="edit-lliga" class="form-control">
+            <select name="liga" id="edit-liga" class="form-control">
               <option value="">— Sin liga —</option>
-              <?php foreach ($LLIGUES as $k=>$v): ?>
+              <?php foreach ($LIGAS as $k=>$v): ?>
                 <option value="<?= $k ?>"><?= $v ?></option>
               <?php endforeach; ?>
             </select>
@@ -419,7 +612,7 @@ render_admin_layout('usuarios', function() use ($users, $filtroEstado, $counts, 
           <div class="form-group">
             <label class="form-label">Rol</label>
             <select name="rol" id="edit-rol" class="form-control">
-              <option value="soci">Socio</option>
+              <option value="socio">Socio</option>
               <option value="admin">Admin</option>
             </select>
           </div>
@@ -465,13 +658,13 @@ render_admin_layout('usuarios', function() use ($users, $filtroEstado, $counts, 
       <button type="button" class="btn btn-primary btn-sm" id="rfen-buscar-btn" onclick="buscarRFEN()">
         <i class="bi bi-search"></i> Buscar en RFEN
       </button>
-      <div id="rfen-resultats" style="margin-top:16px;"></div>
+      <div id="rfen-resultados" style="margin-top:16px;"></div>
       <form method="POST" id="rfen-vincular-form" style="display:none;">
         <?= csrf_field() ?>
-        <input type="hidden" name="action"   value="vincular_rfen">
-        <input type="hidden" name="user_id"  id="rfen-user-id">
-        <input type="hidden" name="rfen_id"  id="rfen-id-val">
-        <input type="hidden" name="rfen_nom" id="rfen-nom-val">
+        <input type="hidden" name="action"       value="vincular_rfen">
+        <input type="hidden" name="user_id"      id="rfen-user-id">
+        <input type="hidden" name="rfen_id"      id="rfen-id-val">
+        <input type="hidden" name="rfen_nombre"  id="rfen-nombre-val">
       </form>
     </div>
   </div>
@@ -479,31 +672,31 @@ render_admin_layout('usuarios', function() use ($users, $filtroEstado, $counts, 
 
 <script>
 let rfenUserId = 0;
-let rfenSexe   = 'M';
+let rfenSexo   = 'M';
 
-function abrirModalRFEN(userId, nom, sexe) {
+function abrirModalRFEN(userId, nombre, sexo) {
   rfenUserId = userId;
-  rfenSexe   = sexe;
+  rfenSexo   = sexo;
   // Rellenar nombre y apellidos del socio
-  const parts = nom.trim().split(/\s+/);
+  const parts = nombre.trim().split(/\s+/);
   document.getElementById('rfen-nombre').value   = parts[0] || '';
   document.getElementById('rfen-apellidos').value = parts.slice(1).join(' ') || '';
-  document.getElementById('rfen-resultats').innerHTML = '';
+  document.getElementById('rfen-resultados').innerHTML = '';
   document.getElementById('rfen-vincular-form').style.display = 'none';
   document.getElementById('modal-rfen').style.display = 'flex';
   document.body.style.overflow = 'hidden';
 }
 
 function buscarRFEN() {
-  const nom  = document.getElementById('rfen-nombre').value.trim();
-  const cog  = document.getElementById('rfen-apellidos').value.trim();
-  const btn  = document.getElementById('rfen-buscar-btn');
-  const div  = document.getElementById('rfen-resultats');
-  if (!nom || !cog) { div.innerHTML = '<p class="text-danger text-sm">Introduce nombre y apellidos.</p>'; return; }
+  const nombre = document.getElementById('rfen-nombre').value.trim();
+  const cog    = document.getElementById('rfen-apellidos').value.trim();
+  const btn    = document.getElementById('rfen-buscar-btn');
+  const div    = document.getElementById('rfen-resultados');
+  if (!nombre || !cog) { div.innerHTML = '<p class="text-danger text-sm">Introduce nombre y apellidos.</p>'; return; }
   btn.disabled = true;
   btn.innerHTML = '<i class="bi bi-hourglass-split"></i> Buscando...';
   div.innerHTML = '';
-  fetch(`/admin/rfen_buscar?nombre=${encodeURIComponent(nom)}&apellidos=${encodeURIComponent(cog)}&sexe=${rfenSexe}`)
+  fetch(`/admin/rfen_buscar?nombre=${encodeURIComponent(nombre)}&apellidos=${encodeURIComponent(cog)}&sexo=${rfenSexo}`)
     .then(r => r.json())
     .then(data => {
       btn.disabled = false;
@@ -515,9 +708,9 @@ function buscarRFEN() {
       }
       let html = '<div class="table-wrapper"><table><thead><tr><th></th><th>Nombre</th><th>Apellidos</th><th>Año nac.</th></tr></thead><tbody>';
       data.results.forEach((r, i) => {
-        html += `<tr style="cursor:pointer;" onclick="seleccionarRFEN('${escHtml(r.rfen_id)}','${escHtml(r.rfen_nom)}',${i})">
+        html += `<tr style="cursor:pointer;" onclick="seleccionarRFEN('${escHtml(r.rfen_id)}','${escHtml(r.rfen_nombre)}',${i})">
           <td><input type="radio" name="rfen_sel" id="rfen_r${i}"></td>
-          <td>${escHtml(r.nom)}</td><td>${escHtml(r.cognoms)}</td><td>${escHtml(r.any_naix)}</td>
+          <td>${escHtml(r.nombre)}</td><td>${escHtml(r.apellidos_cell)}</td><td>${escHtml(r.anio_nac)}</td>
         </tr>`;
       });
       html += '</tbody></table></div>';
@@ -530,11 +723,11 @@ function buscarRFEN() {
     });
 }
 
-function seleccionarRFEN(rfen_id, rfen_nom, idx) {
+function seleccionarRFEN(rfen_id, rfen_nombre, idx) {
   document.getElementById('rfen_r' + idx).checked = true;
   document.getElementById('rfen-user-id').value = rfenUserId;
   document.getElementById('rfen-id-val').value  = rfen_id;
-  document.getElementById('rfen-nom-val').value  = rfen_nom;
+  document.getElementById('rfen-nombre-val').value = rfen_nombre;
   const form = document.getElementById('rfen-vincular-form');
   form.style.display = 'block';
   // Añadir botón de confirmación si no existe
@@ -557,14 +750,16 @@ function abrirModalCrear() {
   document.getElementById('modal-crear').style.display = 'flex';
   document.body.style.overflow = 'hidden';
 }
-function abrirModalEditar(id, nom, email, sexe, lliga, rol, estado) {
+function abrirModalEditar(id, nombre, email, sexo, liga, rol, estado, mustChangePwd) {
   document.getElementById('edit-user-id').value = id;
-  document.getElementById('edit-nom').value     = nom;
+  document.getElementById('edit-nombre').value  = nombre;
   document.getElementById('edit-email').value   = email;
-  document.getElementById('edit-sexe').value    = sexe;
-  document.getElementById('edit-lliga').value   = lliga;
+  document.getElementById('edit-sexo').value    = sexo;
+  document.getElementById('edit-liga').value     = liga;
   document.getElementById('edit-rol').value     = rol;
   document.getElementById('edit-estado').value  = estado;
+  document.getElementById('edit-password').value = '';
+  document.getElementById('edit-must-change-pwd').checked = !!mustChangePwd;
   document.getElementById('modal-editar').style.display = 'flex';
   document.body.style.overflow = 'hidden';
 }
@@ -587,6 +782,37 @@ function togglePwd(btn) {
   const show = input.type === 'password';
   input.type = show ? 'text' : 'password';
   btn.querySelector('i').className = show ? 'bi bi-eye-slash' : 'bi bi-eye';
+}
+
+function toggleDropdown(btn) {
+  const menu = btn.nextElementSibling;
+  const isOpen = menu.style.display === 'block';
+  document.querySelectorAll('.dropdown-menu').forEach(m => { m.style.display = 'none'; m.style.top = ''; m.style.bottom = ''; });
+  if (!isOpen) {
+    menu.style.display = 'block';
+    const rect = menu.getBoundingClientRect();
+    if (rect.bottom > window.innerHeight) {
+      menu.style.top = 'auto';
+      menu.style.bottom = '100%';
+      menu.style.marginTop = '0';
+      menu.style.marginBottom = '4px';
+    }
+  }
+}
+document.addEventListener('click', function(e) {
+  if (!e.target.closest('.dropdown')) {
+    document.querySelectorAll('.dropdown-menu').forEach(m => m.style.display = 'none');
+  }
+});
+function generarPassword() {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789!@#$%';
+  let pwd = '';
+  for (let i = 0; i < 12; i++) pwd += chars[Math.floor(Math.random() * chars.length)];
+  const input = document.getElementById('crear-password');
+  input.value = pwd;
+  input.type = 'text';
+  const eyeBtn = input.nextElementSibling;
+  if (eyeBtn) eyeBtn.querySelector('i').className = 'bi bi-eye-slash';
 }
 </script>
 

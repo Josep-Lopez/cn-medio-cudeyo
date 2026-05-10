@@ -4,6 +4,7 @@ require_once dirname(__DIR__) . '/includes/auth.php';
 require_once dirname(__DIR__) . '/includes/layout.php';
 
 require_login();
+require_nadador_activo();
 
 // ── Drive API ────────────────────────────────────────────────────────────────
 

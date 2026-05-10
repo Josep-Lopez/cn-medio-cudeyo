@@ -6,7 +6,7 @@ require_once dirname(__DIR__, 2) . '/includes/layout.php';
 require_admin();
 
 // Estructura agrupada — FINA (claves = nombre en JSON, con emoji para el título)
-$FINA_PROVES = [
+$FINA_PRUEBAS = [
     '🌊 Libre'    => ['50 libre','100 libre','200 libre','400 libre','800 libre','1500 libre'],
     '↩ Espalda'  => ['50 espalda','100 espalda','200 espalda'],
     '🐸 Braza'    => ['50 braza','100 braza','200 braza'],
@@ -15,7 +15,7 @@ $FINA_PROVES = [
 ];
 
 // Estructura agrupada — Mínimas (mismos grupos, con códigos de prueba)
-$MIN_PROVES_BY_GROUP = [
+$MIN_PRUEBAS_BY_GROUP = [
     '🌊 Libre'    => ['50L','100L','200L','400L','800L','1500L'],
     '↩ Espalda'  => ['50E','100E','200E'],
     '🐸 Braza'    => ['50B','100B','200B'],
@@ -23,24 +23,23 @@ $MIN_PROVES_BY_GROUP = [
     '⭐ Estilos'  => ['100X','200X','400X'],
 ];
 // Lista plana de pruebas (para el POST handler)
-$MIN_PROVES = array_merge(...array_values($MIN_PROVES_BY_GROUP));
+$MIN_PRUEBAS = array_merge(...array_values($MIN_PRUEBAS_BY_GROUP));
 
 $MIN_CATS = ['alevin'=>'Alevín','infantil'=>'Infantil','junior'=>'Junior','sub20'=>'Sub-20','absoluto'=>'Absoluto'];
 
-$defaultEdats = [
+$defaultEdades = [
     'alevin'   => ['min' => 12, 'max' => 13],
     'infantil' => ['min' => 14, 'max' => 15],
     'junior'   => ['min' => 16, 'max' => 18],
 ];
 
-// Mapa categoria → claves de lookup (edades concretas para Alevín/Infantil/Junior,
+// Mapa categoría → claves de lookup (edades concretas para Alevín/Infantil/Junior,
 // clave genérica para Sub-20/Absoluto). Se calcula al cargar datos.
-// $CAT_EDATS se construye después de leer $edatsData desde BD.
 
 // Temporadas: 2 años antes hasta 3 años después del año actual
-$anyActual  = (int)date('Y');
+$anioActual  = (int)date('Y');
 $temporadas = [];
-for ($y = $anyActual - 2; $y <= $anyActual + 3; $y++) {
+for ($y = $anioActual - 2; $y <= $anioActual + 3; $y++) {
     $temporadas[] = $y . '-' . substr((string)($y + 1), 2);
 }
 
@@ -50,7 +49,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     // Temporada
     $temporada = trim($_POST['temporada_activa'] ?? '');
     if (!in_array($temporada, $temporadas, true)) $temporada = $temporadas[2];
-    $pdo->prepare('INSERT INTO config (clau, valor) VALUES (?,?) ON DUPLICATE KEY UPDATE valor=?')
+    $pdo->prepare('INSERT INTO config (clave, valor) VALUES (?,?) ON DUPLICATE KEY UPDATE valor=?')
         ->execute(['temporada_activa', $temporada, $temporada]);
 
     // Tiempos FINA
@@ -60,53 +59,53 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             foreach ($piscinaArr as $piscina => $val) {
                 $val = trim($val);
                 if ($val !== '') {
-                    $seg = temps_a_segons($val);
+                    $seg = tiempo_a_segundos($val);
                     if ($seg > 0) $finaData["{$prueba}_{$sexo}_{$piscina}"] = round($seg, 2);
                 }
             }
         }
     }
     $finaJson = json_encode($finaData);
-    $pdo->prepare('INSERT INTO config (clau, valor) VALUES (?,?) ON DUPLICATE KEY UPDATE valor=?')
+    $pdo->prepare('INSERT INTO config (clave, valor) VALUES (?,?) ON DUPLICATE KEY UPDATE valor=?')
         ->execute(['fina_times', $finaJson, $finaJson]);
 
-    // Edats per categoria (primero, para usar sus rangos al guardar mínimas)
-    $edatsData = [];
-    foreach ($defaultEdats as $cat => $defaults) {
-        $min = (int)($_POST['edats'][$cat]['min'] ?? $defaults['min']);
-        $max = (int)($_POST['edats'][$cat]['max'] ?? $defaults['max']);
-        if ($min > 0 && $max >= $min) $edatsData[$cat] = ['min' => $min, 'max' => $max];
+    // Edades por categoría (primero, para usar sus rangos al guardar mínimas)
+    $edadesData = [];
+    foreach ($defaultEdades as $cat => $defaults) {
+        $min = (int)($_POST['edades'][$cat]['min'] ?? $defaults['min']);
+        $max = (int)($_POST['edades'][$cat]['max'] ?? $defaults['max']);
+        if ($min > 0 && $max >= $min) $edadesData[$cat] = ['min' => $min, 'max' => $max];
     }
-    $edatsJson = json_encode($edatsData);
-    $pdo->prepare('INSERT INTO config (clau, valor) VALUES (?,?) ON DUPLICATE KEY UPDATE valor=?')
-        ->execute(['minimes_edats', $edatsJson, $edatsJson]);
+    $edadesJson = json_encode($edadesData);
+    $pdo->prepare('INSERT INTO config (clave, valor) VALUES (?,?) ON DUPLICATE KEY UPDATE valor=?')
+        ->execute(['minimas_edats', $edadesJson, $edadesJson]);
 
     // Mínimas RFEN — formato:
-    //   age-based:  $minData[prueba][piscina][sexo][cat][age]  p.ej. ['alevin']['12']
-    //   sin edat:   $minData[prueba][piscina][sexo][cat]        p.ej. ['sub20'] = float|null
+    //   con edad:    $minData[prueba][piscina][sexo][cat][age]  p.ej. ['alevin']['12']
+    //   sin edad:    $minData[prueba][piscina][sexo][cat]        p.ej. ['sub20'] = float|null
     $minData = [];
-    foreach ($MIN_PROVES as $prueba) {
+    foreach ($MIN_PRUEBAS as $prueba) {
         foreach (['25m', '50m'] as $piscina) {
             foreach (['M', 'F'] as $sexo) {
                 // Alevín, Infantil, Junior — un valor por edad concreta
-                foreach ($edatsData as $cat => $rang) {
+                foreach ($edadesData as $cat => $rang) {
                     for ($e = $rang['min']; $e <= $rang['max']; $e++) {
                         $age = (string)$e;
                         $val = trim($_POST['min'][$prueba][$piscina][$sexo][$cat][$age] ?? '');
-                        $minData[$prueba][$piscina][$sexo][$cat][$age] = ($val !== '') ? round(temps_a_segons($val), 2) : null;
+                        $minData[$prueba][$piscina][$sexo][$cat][$age] = ($val !== '') ? round(tiempo_a_segundos($val), 2) : null;
                     }
                 }
                 // Sub-20 y Absoluto — valor único directamente
                 foreach (['sub20', 'absoluto'] as $cat) {
                     $val = trim($_POST['min'][$prueba][$piscina][$sexo][$cat] ?? '');
-                    $minData[$prueba][$piscina][$sexo][$cat] = ($val !== '') ? round(temps_a_segons($val), 2) : null;
+                    $minData[$prueba][$piscina][$sexo][$cat] = ($val !== '') ? round(tiempo_a_segundos($val), 2) : null;
                 }
             }
         }
     }
     $minJson = json_encode($minData);
-    $pdo->prepare('INSERT INTO config (clau, valor) VALUES (?,?) ON DUPLICATE KEY UPDATE valor=?')
-        ->execute(['minimes_rfen', $minJson, $minJson]);
+    $pdo->prepare('INSERT INTO config (clave, valor) VALUES (?,?) ON DUPLICATE KEY UPDATE valor=?')
+        ->execute(['minimas_rfen', $minJson, $minJson]);
 
     flash('Configuración guardada correctamente.', 'success');
     header('Location: /admin/config');
@@ -114,32 +113,32 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 
 // --- Cargar valores desde BD ---
-$configRows = $pdo->query('SELECT clau, valor FROM config')->fetchAll(PDO::FETCH_KEY_PAIR);
+$configRows = $pdo->query('SELECT clave, valor FROM config')->fetchAll(PDO::FETCH_KEY_PAIR);
 $finaData   = json_decode($configRows['fina_times']   ?? '{}', true) ?? [];
-$minData    = json_decode($configRows['minimes_rfen'] ?? '{}', true) ?? [];
-$edatsData  = array_merge($defaultEdats, json_decode($configRows['minimes_edats'] ?? '{}', true) ?? []);
+$minData    = json_decode($configRows['minimas_rfen'] ?? '{}', true) ?? [];
+$edadesData  = array_merge($defaultEdades, json_decode($configRows['minimas_edats'] ?? '{}', true) ?? []);
 
 // Helper: tiempo FINA formateado para un input
 function cfg_fina(array $data, string $prueba, string $sexo, string $piscina): string {
     $key = "{$prueba}_{$sexo}_{$piscina}";
-    return isset($data[$key]) ? segons_a_temps((float)$data[$key]) : '';
+    return isset($data[$key]) ? segundos_a_tiempo((float)$data[$key]) : '';
 }
 
-// Para categorías con edat (alevin/infantil/junior): $data[prueba][pisc][sexo][cat][age]
+// Para categorías con edad (alevin/infantil/junior): $data[prueba][pisc][sexo][cat][age]
 function cfg_min_age(array $data, string $prueba, string $piscina, string $sexo, string $cat, string $age): string {
     $val = $data[$prueba][$piscina][$sexo][$cat][$age] ?? null;
-    return ($val !== null) ? segons_a_temps((float)$val) : '';
+    return ($val !== null) ? segundos_a_tiempo((float)$val) : '';
 }
 
 // Para sub20/absoluto: $data[prueba][pisc][sexo][cat] (valor directo)
 function cfg_min(array $data, string $prueba, string $piscina, string $sexo, string $cat): string {
     $val = $data[$prueba][$piscina][$sexo][$cat] ?? null;
     if (is_array($val)) return '';
-    return ($val !== null) ? segons_a_temps((float)$val) : '';
+    return ($val !== null) ? segundos_a_tiempo((float)$val) : '';
 }
 
 render_header('Configuración', 'admin-config');
-render_admin_layout('config', function() use ($configRows, $finaData, $minData, $edatsData, $FINA_PROVES, $MIN_PROVES_BY_GROUP, $MIN_CATS, $temporadas) {
+render_admin_layout('config', function() use ($configRows, $finaData, $minData, $edadesData, $FINA_PRUEBAS, $MIN_PRUEBAS_BY_GROUP, $MIN_CATS, $temporadas) {
 ?>
 
 <h1>Configuración</h1>
@@ -176,7 +175,7 @@ render_admin_layout('config', function() use ($configRows, $finaData, $minData, 
       </div>
     </div>
 
-    <?php foreach ($FINA_PROVES as $grupo => $proves): ?>
+    <?php foreach ($FINA_PRUEBAS as $grupo => $pruebas): ?>
     <div class="marks-section">
       <div class="marks-section-title"><?= $grupo ?></div>
       <div class="table-wrapper">
@@ -195,7 +194,7 @@ render_admin_layout('config', function() use ($configRows, $finaData, $minData, 
             </tr>
           </thead>
           <tbody>
-            <?php foreach ($proves as $prueba): ?>
+            <?php foreach ($pruebas as $prueba): ?>
             <tr>
               <td style="font-weight:600;font-size:13px;"><?= e(ucfirst($prueba)) ?></td>
               <?php foreach (['M', 'F'] as $sexo): ?>
@@ -262,13 +261,13 @@ render_admin_layout('config', function() use ($configRows, $finaData, $minData, 
     <!-- Paneles: uno por cada combinación categoría × piscina -->
     <?php foreach (array_keys($MIN_CATS) as $cat): ?>
       <?php
-        $isAgeCat = isset($edatsData[$cat]);
-        $ages = $isAgeCat ? range($edatsData[$cat]['min'], $edatsData[$cat]['max']) : [];
+        $isAgeCat = isset($edadesData[$cat]);
+        $ages = $isAgeCat ? range($edadesData[$cat]['min'], $edadesData[$cat]['max']) : [];
       ?>
       <?php foreach (['25m', '50m'] as $pisc): ?>
         <?php $isFirst = ($cat === array_key_first($MIN_CATS) && $pisc === '25m'); ?>
         <div id="min-<?= $cat ?>-<?= $pisc ?>" data-min-panel <?= !$isFirst ? 'style="display:none"' : '' ?>>
-          <?php foreach ($MIN_PROVES_BY_GROUP as $grupo => $proves): ?>
+          <?php foreach ($MIN_PRUEBAS_BY_GROUP as $grupo => $pruebas): ?>
           <div class="marks-section">
             <div class="marks-section-title"><?= $grupo ?></div>
             <div class="table-wrapper">
@@ -295,9 +294,9 @@ render_admin_layout('config', function() use ($configRows, $finaData, $minData, 
                   <?php endif; ?>
                 </thead>
                 <tbody>
-                  <?php foreach ($proves as $prueba): ?>
+                  <?php foreach ($pruebas as $prueba): ?>
                   <tr>
-                    <td style="font-weight:600;font-size:13px;"><?= e(format_prova($prueba)) ?></td>
+                    <td style="font-weight:600;font-size:13px;"><?= e(format_prueba($prueba)) ?></td>
                     <?php if ($isAgeCat): ?>
                       <?php foreach ($ages as $age): $lastAge = ($age === end($ages)); ?>
                         <?php foreach (['M' => '#f8faff', 'F' => '#fdf7fb'] as $sexo => $bg): ?>

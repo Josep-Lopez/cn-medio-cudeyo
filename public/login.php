@@ -5,7 +5,7 @@ require_once dirname(__DIR__) . '/includes/layout.php';
 
 // Ya logueado → redirigir
 if ($u = current_user()) {
-    header('Location: ' . ($u['rol'] === 'admin' ? '/admin/usuarios' : '/soci/panel'));
+    header('Location: ' . ($u['rol'] === 'admin' ? '/admin/usuarios' : '/socio/panel'));
     exit;
 }
 
@@ -39,14 +39,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             rate_limit_reset($ip);
             $_SESSION['user'] = [
                 'id'    => $user['id'],
-                'nom'   => $user['nom'],
+                'nombre'   => $user['nombre'],
                 'email' => $user['email'],
                 'rol'   => $user['rol'],
-                'lliga' => $user['lliga'],
-                'sexe'  => $user['sexe'],
+                'liga' => $user['liga'],
+                'sexo'  => $user['sexo'],
+                'nadador_activo' => (int)$user['nadador_activo'],
+                'avatar_url' => $user['avatar_url'] ?? null,
+                'must_change_pwd' => (int)($user['must_change_pwd'] ?? 0),
+                'tutor_email' => $user['tutor_email'] ?? null,
             ];
-            flash('Bienvenido, ' . $user['nom'] . '!');
-            header('Location: ' . ($user['rol'] === 'admin' ? '/admin/usuarios' : '/soci/panel'));
+            flash('Bienvenido, ' . $user['nombre'] . '!');
+            // Primer login: redirigir a cambio de contraseña
+            if ($user['must_change_pwd']) {
+                header('Location: /socio/cambiar-password');
+            } else {
+                header('Location: ' . ($user['rol'] === 'admin' ? '/admin/usuarios' : '/socio/panel'));
+            }
             exit;
         }
     }

@@ -6,22 +6,22 @@ require_once dirname(__DIR__, 2) . '/includes/rfen.php';
 
 require_admin();
 
-// ── Càrrega usuari ────────────────────────────────────────────────────────────
+// ── Cargar usuario ───────────────────────────────────────────────────────────
 
 $user_id = (int)($_GET['user_id'] ?? $_POST['user_id'] ?? 0);
 if (!$user_id) {
   flash('Usuario no especificado.', 'danger');
-  header('Location: /admin/marques');
+  header('Location: /admin/marcas');
   exit;
 }
 
-$stmt = $pdo->prepare('SELECT id, nom, lliga, sexe, rfen_id FROM users WHERE id=?');
+$stmt = $pdo->prepare('SELECT id, nombre, liga, sexo, rfen_id FROM users WHERE id=?');
 $stmt->execute([$user_id]);
 $nadador = $stmt->fetch();
 
 if (!$nadador || !$nadador['rfen_id']) {
   flash('Este usuario no tiene vinculación RFEN.', 'danger');
-  header('Location: /admin/marques?user_id=' . $user_id);
+  header('Location: /admin/marcas?user_id=' . $user_id);
   exit;
 }
 
@@ -29,7 +29,7 @@ if (!$nadador || !$nadador['rfen_id']) {
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
   csrf_verify();
-  $PROVES = [
+  $PRUEBAS = [
     '50L',
     '100L',
     '200L',
@@ -56,13 +56,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
   $sin_cambios = 0;
   $procesadas = 0;
   $stmtImport = $pdo->prepare('
-            INSERT INTO marques (user_id, prova, piscina, temps, temps_seg, data_marca, lugar)
+            INSERT INTO marcas (user_id, prueba, piscina, tiempo, tiempo_seg, fecha_marca, lugar)
             VALUES (?,?,?,?,?,?,?)
             ON DUPLICATE KEY UPDATE
-                temps=IF(VALUES(temps_seg)<temps_seg, VALUES(temps), temps),
-                temps_seg=IF(VALUES(temps_seg)<temps_seg, VALUES(temps_seg), temps_seg),
-                data_marca=IF(VALUES(temps_seg)<temps_seg, VALUES(data_marca), data_marca),
-                lugar=IF(VALUES(temps_seg)<temps_seg, VALUES(lugar), lugar),
+                tiempo=IF(VALUES(tiempo_seg)<tiempo_seg, VALUES(tiempo), tiempo),
+                tiempo_seg=IF(VALUES(tiempo_seg)<tiempo_seg, VALUES(tiempo_seg), tiempo_seg),
+                fecha_marca=IF(VALUES(tiempo_seg)<tiempo_seg, VALUES(fecha_marca), fecha_marca),
+                lugar=IF(VALUES(tiempo_seg)<tiempo_seg, VALUES(lugar), lugar),
                 updated_at=NOW()
         ');
   foreach (array_keys($_POST['imp_sel'] ?? []) as $idx) {
@@ -71,19 +71,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
       continue;
     }
     $row = $payload[$idx];
-    $prova   = (string)($row['prova'] ?? '');
+    $prueba  = (string)($row['prueba'] ?? '');
     $piscina = (string)($row['piscina'] ?? '');
-    $temps   = (string)($row['temps'] ?? '');
-    $data_m  = (string)($row['data'] ?? '');
+    $tiempo  = (string)($row['tiempo'] ?? '');
+    $fecha_m = (string)($row['fecha'] ?? '');
     $lugar   = trim((string)($row['lugar'] ?? ''));
-    if (!in_array($prova, $PROVES) || !in_array($piscina, ['25m', '50m']) || !$temps) {
+    if (!in_array($prueba, $PRUEBAS) || !in_array($piscina, ['25m', '50m']) || !$tiempo) {
       continue;
     }
-    $secs = temps_a_segons($temps);
+    $secs = tiempo_a_segundos($tiempo);
     if ($secs <= 0) {
       continue;
     }
-    $stmtImport->execute([$user_id, $prova, $piscina, $temps, $secs, $data_m, $lugar]);
+    $stmtImport->execute([$user_id, $prueba, $piscina, $tiempo, $secs, $fecha_m, $lugar]);
     $procesadas++;
     $affected = $stmtImport->rowCount();
     if ($affected === 1) {
@@ -95,7 +95,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
   }
   flash("RFEN: {$procesadas} procesadas · {$insertadas} insertadas · {$actualizadas} actualizadas · {$sin_cambios} sin cambios.", 'success');
-  header('Location: /admin/marques?user_id=' . $user_id);
+  header('Location: /admin/marcas?user_id=' . $user_id);
   exit;
 }
 
@@ -103,14 +103,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 // Temporadas disponibles (desde 2012 hasta actual)
 $current_year  = (int)date('n') >= 9 ? (int)date('Y') : (int)date('Y') - 1;
-$temporades_disp = [];
+$temporadas_disp = [];
 for ($y = $current_year; $y >= 2012; $y--) {
-  $temporades_disp[] = $y . '-' . substr((string)($y + 1), 2);
+  $temporadas_disp[] = $y . '-' . substr((string)($y + 1), 2);
 }
 
-$filterTemporada = $_GET['temporada'] ?? $temporades_disp[0];
-if (!in_array($filterTemporada, $temporades_disp) && $filterTemporada !== 'todas')
-  $filterTemporada = $temporades_disp[0];
+$filterTemporada = $_GET['temporada'] ?? $temporadas_disp[0];
+if (!in_array($filterTemporada, $temporadas_disp) && $filterTemporada !== 'todas')
+  $filterTemporada = $temporadas_disp[0];
 
 // Calcular rango de fechas RFEN para la temporada (formato YYYY-MM-DD)
 $rfen_inicio = '';
@@ -132,11 +132,11 @@ $rfen_base = 'https://intranet.rfen.es/ConsultarHistorial.dcl?' . $base_params;
 
 // Fetch paginado
 $parse_error = null;
-$registres   = [];
-$pagines_llegides = 0;
+$registros   = [];
+$paginas_leidas = 0;
 $current_url = $rfen_base;
 
-while ($current_url && $pagines_llegides < 50) {
+while ($current_url && $paginas_leidas < 100) {
   $html = rfen_fetch_html($current_url);
   if (!$html) {
     $parse_error = 'No se ha podido conectar con RFEN.';
@@ -149,23 +149,34 @@ while ($current_url && $pagines_llegides < 50) {
   libxml_clear_errors();
   $xpath = new DOMXPath($dom);
 
-  $rows = rfen_parse_rows($xpath);
+  $result = rfen_parse_rows($xpath);
+  $rows = $result['rows'];
 
-  if (empty($rows)) {
-    if ($pagines_llegides === 0) {
-      $all_tr = $xpath->query('//table//tr');
-      if (!$all_tr || $all_tr->length === 0)
-        $parse_error = 'No se ha encontrado la tabla de marcas. La página puede haber cambiado.';
-    }
+  if (!$result['has_table']) {
+    if ($paginas_leidas === 0)
+      $parse_error = 'No se ha encontrado la tabla de marcas. La página puede haber cambiado.';
     break;
   }
 
-  $registres = array_merge($registres, $rows);
-  $pagines_llegides++;
+  $registros = array_merge($registros, $rows);
+  $paginas_leidas++;
 
   parse_str(parse_url($current_url, PHP_URL_QUERY), $qp);
   $current_page = (int)($qp['page'] ?? 1);
   $next_page    = $current_page + 1;
+
+  // Detectar última página desde el select de paginación
+  $max_page = $current_page;
+  $page_options = $xpath->query('//select[@name="page"]/option');
+  if ($page_options && $page_options->length > 0) {
+    $last_option = $page_options->item($page_options->length - 1);
+    $max_page = (int)$last_option->getAttribute('value');
+  }
+
+  if ($current_page >= $max_page) {
+    $current_url = null;
+    continue;
+  }
 
   $next_url = null;
 
@@ -177,7 +188,6 @@ while ($current_url && $pagines_llegides < 50) {
       if (str_starts_with($href, 'http')) {
         $next_url = $href;
       } elseif (str_starts_with($href, '?')) {
-        // href es solo query string: ?eje=30&page=2&...
         $next_url = 'https://intranet.rfen.es/ConsultarHistorial.dcl' . $href;
       } else {
         $next_url = 'https://intranet.rfen.es/' . ltrim($href, '/');
@@ -186,7 +196,7 @@ while ($current_url && $pagines_llegides < 50) {
     }
   }
 
-  // Estrategia 2: incrementar page preservando todos los params (incluido eje)
+  // Estrategia 2: incrementar page preservando todos los params
   if (!$next_url) {
     $qp['page'] = $next_page;
     $next_url = 'https://intranet.rfen.es/ConsultarHistorial.dcl?' . http_build_query($qp);
@@ -195,31 +205,31 @@ while ($current_url && $pagines_llegides < 50) {
   $current_url = $next_url;
 }
 
-if (empty($registres) && !$parse_error) {
+if (empty($registros) && !$parse_error) {
   $parse_error = 'No hay marcas para la temporada seleccionada.';
 }
 
-// Agrupar por prova+piscina+fecha+lugar para evitar duplicados exactos del feed RFEN
-$agrupats = [];
-foreach ($registres as $r) {
-  $key = implode('|', [$r['prova'], $r['piscina'], $r['data_iso'], mb_strtolower(trim($r['lugar'] ?? ''))]);
-  if (!isset($agrupats[$key]) || $r['temps_seg'] < $agrupats[$key]['temps_seg']) {
-    $agrupats[$key] = $r;
+// Agrupar por prueba+piscina+fecha+lugar para evitar duplicados exactos del feed RFEN
+$agrupados = [];
+foreach ($registros as $r) {
+  $key = implode('|', [$r['prueba'], $r['piscina'], $r['fecha_iso'], mb_strtolower(trim($r['lugar'] ?? ''))]);
+  if (!isset($agrupados[$key]) || $r['tiempo_seg'] < $agrupados[$key]['tiempo_seg']) {
+    $agrupados[$key] = $r;
   }
 }
-usort($agrupats, fn($a, $b) => [$b['data_iso'], $a['prova'], $a['piscina']] <=> [$a['data_iso'], $b['prova'], $b['piscina']]);
+usort($agrupados, fn($a, $b) => [$b['fecha_iso'], $a['prueba'], $a['piscina']] <=> [$a['fecha_iso'], $b['prueba'], $b['piscina']]);
 
 // ── Render ────────────────────────────────────────────────────────────────────
 
-render_header('Importar desde RFEN', 'admin-marques');
-render_admin_layout('marques', function () use ($nadador, $user_id, $agrupats, $parse_error, $rfen_base, $temporades_disp, $filterTemporada, $pagines_llegides) {
+render_header('Importar desde RFEN', 'admin-marcas');
+render_admin_layout('marcas', function () use ($nadador, $user_id, $agrupados, $parse_error, $rfen_base, $temporadas_disp, $filterTemporada, $paginas_leidas) {
 ?>
 
   <div class="d-flex align-center gap-3 mb-6" style="flex-wrap:wrap;">
-    <a href="/admin/marques?user_id=<?= $user_id ?>" class="btn btn-gray btn-sm">
+    <a href="/admin/marcas?user_id=<?= $user_id ?>" class="btn btn-gray btn-sm">
       <i class="bi bi-arrow-left"></i> Volver
     </a>
-    <h1 style="margin:0;">Importar desde RFEN — <?= e($nadador['nom']) ?></h1>
+    <h1 style="margin:0;">Importar desde RFEN — <?= e($nadador['nombre']) ?></h1>
   </div>
 
   <?php render_flash(); ?>
@@ -249,7 +259,7 @@ render_admin_layout('marques', function () use ($nadador, $user_id, $agrupats, $
         <label class="form-label">Temporada</label>
         <select name="temporada" class="form-control js-loading-select">
           <option value="todas" <?= $filterTemporada === 'todas' ? 'selected' : '' ?>>Todas</option>
-          <?php foreach ($temporades_disp as $t): ?>
+          <?php foreach ($temporadas_disp as $t): ?>
             <option value="<?= e($t) ?>" <?= $filterTemporada === $t ? 'selected' : '' ?>><?= e($t) ?></option>
           <?php endforeach; ?>
         </select>
@@ -261,7 +271,7 @@ render_admin_layout('marques', function () use ($nadador, $user_id, $agrupats, $
   <?php if ($parse_error): ?>
     <div class="alert alert-danger"><?= e($parse_error) ?></div>
     <p class="text-muted text-sm">URL consultada: <a href="<?= e($rfen_base) ?>" target="_blank"><?= e($rfen_base) ?></a></p>
-  <?php elseif (empty($agrupats)): ?>
+  <?php elseif (empty($agrupados)): ?>
     <div class="alert alert-info">No hay marcas para la temporada seleccionada.</div>
   <?php else: ?>
 
@@ -271,28 +281,28 @@ render_admin_layout('marques', function () use ($nadador, $user_id, $agrupats, $
       <input type="hidden" name="user_id" value="<?= $user_id ?>">
       <input type="hidden" name="imp_payload" value="<?= e(json_encode(array_map(
         fn($r) => [
-          'prova' => $r['prova'],
+          'prueba' => $r['prueba'],
           'piscina' => $r['piscina'],
-          'temps' => $r['temps'],
-          'data' => $r['data_iso'],
+          'tiempo' => $r['tiempo'],
+          'fecha' => $r['fecha_iso'],
           'lugar' => $r['lugar'],
         ],
-        $agrupats
+        $agrupados
       ), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)) ?>">
 
       <div class="d-flex gap-3" style="margin-bottom:16px;justify-content:flex-end;">
         <button type="submit" class="btn btn-primary">
           <i class="bi bi-cloud-download-fill"></i> Importar seleccionadas
         </button>
-        <a href="/admin/marques?user_id=<?= $user_id ?>" class="btn btn-gray">
+        <a href="/admin/marcas?user_id=<?= $user_id ?>" class="btn btn-gray">
           Cancelar
         </a>
       </div>
       <div class="card mb-4">
         <p style="margin:0;" class="text-muted text-sm">
-          <strong><?= count($agrupats) ?></strong> marcas encontradas
+          <strong><?= count($agrupados) ?></strong> marcas encontradas
           · Temporada <strong><?= e($filterTemporada) ?></strong>
-          · <?= $pagines_llegides ?> página<?= $pagines_llegides !== 1 ? 's' : '' ?> leída<?= $pagines_llegides !== 1 ? 's' : '' ?> de RFEN.
+          · <?= $paginas_leidas ?> página<?= $paginas_leidas !== 1 ? 's' : '' ?> leída<?= $paginas_leidas !== 1 ? 's' : '' ?> de RFEN.
           Si ya existe la marca, se actualizará <strong>solo si el tiempo es mejor</strong>.
         </p>
       </div>
@@ -313,16 +323,16 @@ render_admin_layout('marques', function () use ($nadador, $user_id, $agrupats, $
               </tr>
             </thead>
             <tbody>
-              <?php foreach ($agrupats as $i => $r): ?>
+              <?php foreach ($agrupados as $i => $r): ?>
                 <tr>
                   <td>
                     <input type="checkbox" name="imp_sel[<?= $i ?>]" value="1" checked>
                   </td>
-                  <td><strong><?= e(format_prova($r['prova'])) ?></strong></td>
+                  <td><strong><?= e(format_prueba($r['prueba'])) ?></strong></td>
                   <td><?= e($r['piscina']) ?></td>
-                  <td><span class="mark-time"><?= e($r['temps']) ?></span></td>
+                  <td><span class="mark-time"><?= e($r['tiempo']) ?></span></td>
                   <td class="text-sm text-muted"><?= e($r['lugar']) ?></td>
-                  <td class="text-sm text-muted"><?= date('d/m/Y', strtotime($r['data_iso'])) ?></td>
+                  <td class="text-sm text-muted"><?= date('d/m/Y', strtotime($r['fecha_iso'])) ?></td>
                 </tr>
               <?php endforeach; ?>
             </tbody>

@@ -9,7 +9,7 @@ if (!$id) {
     exit;
 }
 
-$stmt = $pdo->prepare('SELECT * FROM noticias WHERE id=? AND publicat=1 LIMIT 1');
+$stmt = $pdo->prepare('SELECT * FROM noticias WHERE id=? AND publicado=1 LIMIT 1');
 $stmt->execute([$id]);
 $noticia = $stmt->fetch();
 
@@ -21,17 +21,17 @@ if (!$noticia) {
     exit;
 }
 
-$desc = mb_substr(strip_tags($noticia['contingut']), 0, 155);
-if (mb_strlen(strip_tags($noticia['contingut'])) > 155) $desc .= '…';
-render_header(e($noticia['titol']), 'noticias', '', $desc);
+$desc = mb_substr(strip_tags($noticia['contenido']), 0, 155);
+if (mb_strlen(strip_tags($noticia['contenido'])) > 155) $desc .= '…';
+render_header(e($noticia['titulo']), 'noticias', '', $desc);
 ?>
 
 <div class="container-sm page-content">
   <a href="/noticias/" class="text-muted text-sm" style="display:inline-block;margin-bottom:24px;">← Volver a noticias</a>
 
   <article>
-    <?php if ($noticia['imatge_url']): ?>
-      <img src="<?= e($noticia['imatge_url']) ?>" alt="<?= e($noticia['titol']) ?>"
+    <?php if ($noticia['imagen_url']): ?>
+      <img src="<?= e($noticia['imagen_url']) ?>" alt="<?= e($noticia['titulo']) ?>"
            style="width:100%;border-radius:12px;margin-bottom:28px;max-height:420px;object-fit:cover;">
     <?php endif; ?>
 
@@ -39,26 +39,26 @@ render_header(e($noticia['titol']), 'noticias', '', $desc);
       <?php
         $meses = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
         $ts = strtotime($noticia['created_at']);
-        echo '📅 ' . date('j', $ts) . ' de ' . $meses[(int)date('n', $ts) - 1] . ' de ' . date('Y', $ts);
+        echo date('j', $ts) . ' de ' . $meses[(int)date('n', $ts) - 1] . ' de ' . date('Y', $ts);
       ?>
     </div>
 
     <h1 style="font-size:28px;font-weight:800;margin-bottom:16px;line-height:1.3;">
-      <?= e($noticia['titol']) ?>
+      <?= e($noticia['titulo']) ?>
     </h1>
 
-    <?php if ($noticia['resum']): ?>
+    <?php if ($noticia['resumen']): ?>
       <p style="font-size:17px;color:#555;margin-bottom:28px;line-height:1.6;">
-        <?= e($noticia['resum']) ?>
+        <?= e($noticia['resumen']) ?>
       </p>
     <?php endif; ?>
 
-    <?php if ($noticia['contingut']): ?>
+    <?php if ($noticia['contenido']): ?>
       <div style="font-size:15px;line-height:1.8;color:#333;">
         <?php
           // Permitir solo etiquetas HTML seguras del editor Quill
           $allowed = '<p><br><h2><h3><strong><em><u><s><ol><ul><li><a><blockquote><span>';
-          echo strip_tags($noticia['contingut'], $allowed);
+          echo strip_tags($noticia['contenido'], $allowed);
         ?>
       </div>
     <?php endif; ?>

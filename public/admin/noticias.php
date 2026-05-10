@@ -8,7 +8,7 @@ require_admin();
 $mode    = $_GET['mode'] ?? 'list';
 $edit_id = (int)($_GET['id'] ?? 0);
 $errors  = [];
-$data    = ['titol' => '', 'resum' => '', 'contingut' => '', 'imatge_url' => '', 'publicat' => 0];
+$data    = ['titulo' => '', 'resumen' => '', 'contenido' => '', 'imagen_url' => '', 'publicado' => 0];
 
 // --- POST: crear / actualizar / eliminar ---
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -26,49 +26,49 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     if (in_array($action, ['create', 'update'])) {
-        $data['titol']     = trim($_POST['titol'] ?? '');
-        $data['resum']     = trim($_POST['resum'] ?? '');
-        $data['contingut'] = trim($_POST['contingut'] ?? '');
-        $data['imatge_url'] = trim($_POST['imatge_url'] ?? ''); // valor actual (per update)
-        $data['publicat']  = isset($_POST['publicat']) ? 1 : 0;
+        $data['titulo']     = trim($_POST['titulo'] ?? '');
+        $data['resumen']    = trim($_POST['resumen'] ?? '');
+        $data['contenido']  = trim($_POST['contenido'] ?? '');
+        $data['imagen_url'] = trim($_POST['imagen_url'] ?? ''); // valor actual (para update)
+        $data['publicado']  = isset($_POST['publicado']) ? 1 : 0;
 
-        if (!$data['titol']) $errors[] = 'El título es obligatorio.';
+        if (!$data['titulo']) $errors[] = 'El título es obligatorio.';
 
         // Procesar upload de imagen
-        $nova_imatge = null; // null = no canvia
-        if (isset($_FILES['imatge']) && $_FILES['imatge']['error'] === UPLOAD_ERR_OK) {
-            $info = @getimagesize($_FILES['imatge']['tmp_name']);
+        $nueva_imagen = null; // null = no cambia
+        if (isset($_FILES['imagen']) && $_FILES['imagen']['error'] === UPLOAD_ERR_OK) {
+            $info = @getimagesize($_FILES['imagen']['tmp_name']);
             if (!$info) {
                 $errors[] = 'El archivo no es una imagen válida.';
             } elseif (!in_array($info['mime'], ['image/jpeg', 'image/png', 'image/webp', 'image/gif'])) {
                 $errors[] = 'Formato no permitido. Usa JPG, PNG o WebP.';
-            } elseif ($_FILES['imatge']['size'] > 8 * 1024 * 1024) {
+            } elseif ($_FILES['imagen']['size'] > 8 * 1024 * 1024) {
                 $errors[] = 'La imagen no puede superar los 8 MB.';
             } else {
-                $ext = strtolower(pathinfo($_FILES['imatge']['name'], PATHINFO_EXTENSION));
+                $ext = strtolower(pathinfo($_FILES['imagen']['name'], PATHINFO_EXTENSION));
                 $dir = dirname(__DIR__, 2) . '/public/uploads/noticias/';
                 if (!is_dir($dir)) mkdir($dir, 0755, true);
                 $filename = 'noticia_' . uniqid() . '.' . $ext;
-                if (move_uploaded_file($_FILES['imatge']['tmp_name'], $dir . $filename)) {
-                    $nova_imatge = '/uploads/noticias/' . $filename;
+                if (move_uploaded_file($_FILES['imagen']['tmp_name'], $dir . $filename)) {
+                    $nueva_imagen = '/uploads/noticias/' . $filename;
                 } else {
                     $errors[] = 'Error al guardar la imagen.';
                 }
             }
-        } elseif (isset($_FILES['imatge']) && $_FILES['imatge']['error'] !== UPLOAD_ERR_NO_FILE) {
-            $errors[] = 'Error al subir el archivo (código ' . $_FILES['imatge']['error'] . ').';
+        } elseif (isset($_FILES['imagen']) && $_FILES['imagen']['error'] !== UPLOAD_ERR_NO_FILE) {
+            $errors[] = 'Error al subir el archivo (código ' . $_FILES['imagen']['error'] . ').';
         }
 
         if (!$errors) {
-            $imatge_final = $nova_imatge ?? $data['imatge_url'];
+            $imagen_final = $nueva_imagen ?? $data['imagen_url'];
             if ($action === 'create') {
-                $pdo->prepare('INSERT INTO noticias (titol, resum, contingut, imatge_url, publicat) VALUES (?,?,?,?,?)')
-                    ->execute([$data['titol'], $data['resum'], $data['contingut'], $imatge_final, $data['publicat']]);
+                $pdo->prepare('INSERT INTO noticias (titulo, resumen, contenido, imagen_url, publicado) VALUES (?,?,?,?,?)')
+                    ->execute([$data['titulo'], $data['resumen'], $data['contenido'], $imagen_final, $data['publicado']]);
                 flash('Noticia creada correctamente.', 'success');
             } else {
                 $id = (int)($_POST['noticia_id'] ?? 0);
-                $pdo->prepare('UPDATE noticias SET titol=?, resum=?, contingut=?, imatge_url=?, publicat=?, updated_at=NOW() WHERE id=?')
-                    ->execute([$data['titol'], $data['resum'], $data['contingut'], $imatge_final, $data['publicat'], $id]);
+                $pdo->prepare('UPDATE noticias SET titulo=?, resumen=?, contenido=?, imagen_url=?, publicado=?, updated_at=NOW() WHERE id=?')
+                    ->execute([$data['titulo'], $data['resumen'], $data['contenido'], $imagen_final, $data['publicado'], $id]);
                 flash('Noticia actualizada.', 'success');
             }
             header('Location: /admin/noticias');
@@ -129,35 +129,35 @@ render_admin_layout('noticias', function() use ($mode, $edit_id, $noticias, $dat
 
     <div class="form-group">
       <label class="form-label">Título *</label>
-      <input type="text" name="titol" class="form-control" value="<?= e($data['titol']) ?>" required autofocus>
+      <input type="text" name="titulo" class="form-control" value="<?= e($data['titulo']) ?>" required autofocus>
     </div>
     <div class="form-group">
       <label class="form-label">Resumen <span class="text-muted">(aparece en el listado)</span></label>
-      <textarea name="resum" class="form-control" style="min-height:70px;"><?= e($data['resum']) ?></textarea>
+      <textarea name="resumen" class="form-control" style="min-height:70px;"><?= e($data['resumen']) ?></textarea>
     </div>
     <div class="form-group">
       <label class="form-label">Contenido</label>
       <div id="quill-editor" style="min-height:200px;background:white;border-radius:var(--radius);"></div>
-      <input type="hidden" name="contingut" id="contingut-input" value="<?= e($data['contingut']) ?>">
+      <input type="hidden" name="contenido" id="contenido-input" value="<?= e($data['contenido']) ?>">
     </div>
     <div class="form-group">
       <label class="form-label">Imagen</label>
-      <?php if (!empty($data['imatge_url'])): ?>
+      <?php if (!empty($data['imagen_url'])): ?>
         <div style="margin-bottom:10px;">
-          <img src="<?= e($data['imatge_url']) ?>" alt="Imagen actual"
+          <img src="<?= e($data['imagen_url']) ?>" alt="Imagen actual"
                style="max-height:120px;max-width:300px;border-radius:8px;border:1px solid #e8e8e8;object-fit:cover;">
           <div class="text-muted text-sm" style="margin-top:4px;">Imagen actual. Sube una nueva para reemplazarla.</div>
         </div>
       <?php endif; ?>
-      <input type="hidden" name="imatge_url" value="<?= e($data['imatge_url']) ?>">
-      <input type="file" name="imatge" class="form-control" accept="image/jpeg,image/png,image/webp,image/gif"
+      <input type="hidden" name="imagen_url" value="<?= e($data['imagen_url']) ?>">
+      <input type="file" name="imagen" class="form-control" accept="image/jpeg,image/png,image/webp,image/gif"
              onchange="previewNoticia(this)">
       <div class="text-muted text-sm" style="margin-top:4px;">JPG, PNG o WebP · Máx. 8 MB</div>
       <img id="noticia-preview" src="" alt="" style="display:none;max-height:120px;max-width:300px;border-radius:8px;margin-top:10px;object-fit:cover;">
     </div>
     <div class="form-group">
       <label style="display:flex;align-items:center;gap:10px;cursor:pointer;">
-        <input type="checkbox" name="publicat" value="1" <?= $data['publicat'] ? 'checked' : '' ?> style="width:18px;height:18px;">
+        <input type="checkbox" name="publicado" value="1" <?= $data['publicado'] ? 'checked' : '' ?> style="width:18px;height:18px;">
         <span class="form-label" style="margin:0;">Publicada (visible en la web)</span>
       </label>
     </div>
@@ -184,7 +184,7 @@ document.addEventListener('DOMContentLoaded', function () {
     }
   });
 
-  var hiddenInput = document.getElementById('contingut-input');
+  var hiddenInput = document.getElementById('contenido-input');
   if (hiddenInput.value) {
     quill.root.innerHTML = hiddenInput.value;
   }
@@ -232,13 +232,13 @@ function previewNoticia(input) {
         <?php foreach ($noticias as $n): ?>
         <tr>
           <td>
-            <strong><?= e($n['titol']) ?></strong>
-            <?php if ($n['resum']): ?>
-              <div class="text-muted text-sm" style="margin-top:2px;"><?= e(mb_strimwidth($n['resum'], 0, 80, '…')) ?></div>
+            <strong><?= e($n['titulo']) ?></strong>
+            <?php if ($n['resumen']): ?>
+              <div class="text-muted text-sm" style="margin-top:2px;"><?= e(mb_strimwidth($n['resumen'], 0, 80, '…')) ?></div>
             <?php endif; ?>
           </td>
           <td>
-            <?php if ($n['publicat']): ?>
+            <?php if ($n['publicado']): ?>
               <span class="badge badge-success">Publicada</span>
             <?php else: ?>
               <span class="badge badge-gray">Borrador</span>
@@ -250,7 +250,7 @@ function previewNoticia(input) {
               <a href="?mode=edit&id=<?= $n['id'] ?>" class="btn btn-secondary btn-sm">Editar</a>
               <a href="/noticias/detall?id=<?= $n['id'] ?>" target="_blank" class="btn btn-gray btn-sm">Ver</a>
               <form method="POST" style="display:inline;"
-                    onsubmit="return confirm('¿Eliminar esta noticia?')">
+                    data-confirm="¿Eliminar esta noticia? Esta acción no se puede deshacer.">
                 <?= csrf_field() ?>
                 <input type="hidden" name="action" value="delete">
                 <input type="hidden" name="noticia_id" value="<?= $n['id'] ?>">

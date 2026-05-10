@@ -86,7 +86,7 @@ render_admin_layout('contacto', function() use ($mensajes, $filtro, $total_nuevo
           </form>
         <?php endif; ?>
         <form method="POST" style="display:inline;"
-              onsubmit="return confirm('¿Eliminar este mensaje?')">
+              data-confirm="¿Eliminar este mensaje?">
           <input type="hidden" name="delete_id" value="<?= $m['id'] ?>">
           <button class="btn btn-danger btn-sm">🗑</button>
         </form>

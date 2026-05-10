@@ -5,7 +5,7 @@ require_once dirname(__DIR__) . '/includes/layout.php';
 
 // Últimas 3 noticias publicadas
 $noticias = $pdo->query(
-    'SELECT * FROM noticias WHERE publicat=1 ORDER BY created_at DESC LIMIT 3'
+    'SELECT * FROM noticias WHERE publicado=1 ORDER BY created_at DESC LIMIT 3'
 )->fetchAll();
 
 render_header('Inicio', 'inicio', '', 'Club de Natación Medio Cudeyo, en Cantabria. Consulta marcas personales, ranking de liga, noticias del club y más. ¡Únete a nosotros!');
@@ -26,7 +26,7 @@ render_header('Inicio', 'inicio', '', 'Club de Natación Medio Cudeyo, en Cantab
         <a href="/register" class="btn btn-primary btn-lg"><i class="bi bi-person-plus-fill"></i> Hazte socio</a>
         <a href="/sobre-nosotros" class="btn btn-secondary btn-lg">Conocer el club</a>
       <?php else: ?>
-        <a href="/soci/panel" class="btn btn-primary btn-lg"><i class="bi bi-grid-fill"></i> Mi panel</a>
+        <a href="/socio/panel" class="btn btn-primary btn-lg"><i class="bi bi-grid-fill"></i> Mi panel</a>
         <a href="/calculadoras" class="btn btn-secondary btn-lg">Calculadoras</a>
       <?php endif; ?>
     </div>
@@ -92,16 +92,16 @@ render_header('Inicio', 'inicio', '', 'Club de Natación Medio Cudeyo, en Cantab
     <div class="news-grid">
       <?php foreach ($noticias as $n): ?>
       <a href="/noticias/detall?id=<?= (int)$n['id'] ?>" class="news-card">
-        <?php if ($n['imatge_url']): ?>
-          <img src="<?= e($n['imatge_url']) ?>" alt="<?= e($n['titol']) ?>" class="news-card-img">
+        <?php if ($n['imagen_url']): ?>
+          <img src="<?= e($n['imagen_url']) ?>" alt="<?= e($n['titulo']) ?>" class="news-card-img">
         <?php else: ?>
           <div class="news-card-img-placeholder"><i class="bi bi-newspaper"></i></div>
         <?php endif; ?>
         <div class="news-card-body">
           <div class="news-card-date"><?= date('d/m/Y', strtotime($n['created_at'])) ?></div>
-          <div class="news-card-title"><?= e($n['titol']) ?></div>
-          <?php if ($n['resum']): ?>
-            <div class="news-card-excerpt"><?= e(mb_strimwidth($n['resum'], 0, 100, '…')) ?></div>
+          <div class="news-card-title"><?= e($n['titulo']) ?></div>
+          <?php if ($n['resumen']): ?>
+            <div class="news-card-excerpt"><?= e(mb_strimwidth($n['resumen'], 0, 100, '…')) ?></div>
           <?php endif; ?>
           <span class="news-card-link">Leer más →</span>
         </div>
@@ -155,7 +155,7 @@ render_header('Inicio', 'inicio', '', 'Club de Natación Medio Cudeyo, en Cantab
       <h2>¡A por los mejores tiempos!</h2>
       <p>Consulta el ranking de tu liga, revisa tus marcas y calcula tus tiempos FINA.</p>
       <div class="hero-btns">
-        <a href="/soci/ranking" class="btn btn-primary btn-lg"><i class="bi bi-bar-chart-fill"></i> Ver ranking</a>
+        <a href="/socio/ranking" class="btn btn-primary btn-lg"><i class="bi bi-bar-chart-fill"></i> Ver ranking</a>
         <a href="/calculadoras" class="btn btn-secondary btn-lg">Calculadoras</a>
       </div>
     <?php endif; ?>

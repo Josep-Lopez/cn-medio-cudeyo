@@ -1,27 +1,27 @@
-# Entorn i secrets
+# Entorno y secrets
 .env
 
-# Dependències
+# Dependencias
 vendor/
 
-# Fitxers pujats pels usuaris (contingut generat, no codi)
+# Archivos subidos por los usuarios (contenido generado, no código)
 public/uploads/avatars/*
 !public/uploads/avatars/.htaccess
 public/uploads/noticias/*
 !public/uploads/noticias/.htaccess
 
-# Logs i temporals
+# Logs y temporales
 *.log
 
 # SO
 .DS_Store
 Thumbs.db
 
-# Editor / eines locals
+# Editor / herramientas locales
 .claude/
 .vscode/
 memory/
 .codex
 
-# Migracions locals (canvis BD, no es pugen al repo)
+# Migraciones locales (cambios BD, no se suben al repo)
 migrations/

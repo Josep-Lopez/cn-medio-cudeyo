@@ -7,10 +7,10 @@ $perPage = 12;
 $page    = max(1, (int)($_GET['p'] ?? 1));
 $offset  = ($page - 1) * $perPage;
 
-$total   = $pdo->query('SELECT COUNT(*) FROM noticias WHERE publicat=1')->fetchColumn();
+$total   = $pdo->query('SELECT COUNT(*) FROM noticias WHERE publicado=1')->fetchColumn();
 $pages   = (int)ceil($total / $perPage);
 
-$stmt    = $pdo->prepare('SELECT * FROM noticias WHERE publicat=1 ORDER BY created_at DESC LIMIT ? OFFSET ?');
+$stmt    = $pdo->prepare('SELECT * FROM noticias WHERE publicado=1 ORDER BY created_at DESC LIMIT ? OFFSET ?');
 $stmt->bindValue(1, $perPage, PDO::PARAM_INT);
 $stmt->bindValue(2, $offset, PDO::PARAM_INT);
 $stmt->execute();
@@ -34,16 +34,16 @@ render_header('Noticias', 'noticias', '', 'Últimas noticias y novedades del Clu
     <div class="news-grid">
       <?php foreach ($noticias as $n): ?>
       <a href="/noticias/detall?id=<?= $n['id'] ?>" class="news-card">
-        <?php if ($n['imatge_url']): ?>
-          <img src="<?= e($n['imatge_url']) ?>" alt="<?= e($n['titol']) ?>" class="news-card-img">
+        <?php if ($n['imagen_url']): ?>
+          <img src="<?= e($n['imagen_url']) ?>" alt="<?= e($n['titulo']) ?>" class="news-card-img">
         <?php else: ?>
           <div class="news-card-img-placeholder"><i class="bi bi-newspaper"></i></div>
         <?php endif; ?>
         <div class="news-card-body">
           <div class="news-card-date"><?= date('d/m/Y', strtotime($n['created_at'])) ?></div>
-          <div class="news-card-title"><?= e($n['titol']) ?></div>
-          <?php if ($n['resum']): ?>
-            <div class="news-card-excerpt"><?= e(mb_strimwidth($n['resum'], 0, 120, '…')) ?></div>
+          <div class="news-card-title"><?= e($n['titulo']) ?></div>
+          <?php if ($n['resumen']): ?>
+            <div class="news-card-excerpt"><?= e(mb_strimwidth($n['resumen'], 0, 120, '…')) ?></div>
           <?php endif; ?>
           <span class="news-card-link">Leer más →</span>
         </div>

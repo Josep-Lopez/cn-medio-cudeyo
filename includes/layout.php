@@ -1,8 +1,19 @@
 <?php
 function render_header(string $title, string $activePage = '', string $extraHead = '', string $description = ''): void
 {
+    global $pdo;
     $user = current_user();
     $isAdmin = $user && $user['rol'] === 'admin';
+    $notif_count = 0;
+    if ($user && !$isAdmin && $pdo) {
+        $stmtN = $pdo->prepare("
+            SELECT COUNT(*) FROM comunicaciones c
+            WHERE (c.destinatario_tipo='todos' OR (c.destinatario_tipo='liga' AND c.destinatario_valor=?) OR (c.destinatario_tipo='individual' AND c.destinatario_valor=?))
+            AND c.id NOT IN (SELECT comunicacion_id FROM comunicaciones_leidas WHERE user_id=?)
+        ");
+        $stmtN->execute([$user['liga'] ?? '', $user['id'], $user['id']]);
+        $notif_count = (int)$stmtN->fetchColumn();
+    }
     $metaDesc = $description ?: 'Club de Natación Medio Cudeyo — Cantabria. Marcas personales, ranking de liga, noticias y más.';
     $pageTitle = e($title) . ' — CN Medio Cudeyo';
     ?>
@@ -20,11 +31,19 @@ function render_header(string $title, string $activePage = '', string $extraHead
   <link rel="canonical" href="https://www.mediocudeyonatacion.es<?= strtok($_SERVER['REQUEST_URI'] ?? '/', '?') ?>">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
-  <link rel="stylesheet" href="/assets/css/main.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tom-select@2/dist/css/tom-select.min.css">
+  <link rel="stylesheet" href="/assets/css/main.css?v=<?= filemtime($_SERVER['DOCUMENT_ROOT'] . '/assets/css/main.css') ?>">
   <link rel="icon" type="image/png" href="/assets/images/favicon.png">
   <?= $extraHead ?>
 </head>
 <body>
+
+<?php if (!empty($_SESSION['admin_original'])): ?>
+<div style="background:#1e40af;color:#fff;padding:8px 16px;text-align:center;font-size:13px;font-weight:600;position:sticky;top:0;z-index:9999;display:flex;align-items:center;justify-content:center;gap:12px;">
+  <span><i class="bi bi-person-fill-gear"></i> Sesión como: <?= e($_SESSION['user']['nombre'] ?? '') ?></span>
+  <a href="/admin/volver-admin" style="background:#fff;color:#1e40af;padding:4px 12px;border-radius:6px;text-decoration:none;font-weight:700;font-size:12px;">Volver a admin</a>
+</div>
+<?php endif; ?>
 
 <nav class="navbar">
   <div class="container">
@@ -40,14 +59,14 @@ function render_header(string $title, string $activePage = '', string $extraHead
           <?php if ($isAdmin): ?>
             <a href="/admin/usuarios" <?= str_starts_with($activePage, 'admin') ? 'class="active"' : '' ?>>Administración</a>
           <?php else: ?>
-            <a href="/soci/panel" <?= str_starts_with($activePage, 'soci') ? 'class="active"' : '' ?>>Mi panel</a>
+            <a href="/socio/panel" <?= str_starts_with($activePage, 'socio') ? 'class="active"' : '' ?>>Mi panel</a>
           <?php endif; ?>
         <?php endif; ?>
         <a href="/noticias/" <?= $activePage === 'noticias' ? 'class="active"' : '' ?>>Noticias</a>
-        <?php if ($user): ?>
+        <?php if ($user && is_nadador_activo()): ?>
           <a href="/calculadoras" <?= $activePage === 'calculadoras' ? 'class="active"' : '' ?>>Calculadoras</a>
           <a href="/biblioteca"   <?= $activePage === 'biblioteca'   ? 'class="active"' : '' ?>>Biblioteca</a>
-        <?php else: ?>
+        <?php elseif (!$user): ?>
           <a href="/sobre-nosotros" <?= $activePage === 'sobre' ? 'class="active"' : '' ?>>Sobre nosotros</a>
         <?php endif; ?>
         <a href="/contacto" <?= $activePage === 'contacto' ? 'class="active"' : '' ?>>Contacto</a>
@@ -55,21 +74,30 @@ function render_header(string $title, string $activePage = '', string $extraHead
 
       <div class="navbar-auth">
         <?php if ($user): ?>
-          <?php if (!$isAdmin): ?>
-            <a href="/soci/perfil" class="navbar-user" style="text-decoration:none;color:white;">
-          <?php else: ?>
-            <div class="navbar-user">
-          <?php endif; ?>
-              <div class="navbar-user-avatar"><?= strtoupper(mb_substr($user['nom'], 0, 1)) ?></div>
-              <span><?= e($user['nom']) ?></span>
-          <?php if (!$isAdmin): ?>
+          <?php if (!$isAdmin && $notif_count > 0): ?>
+            <a href="/socio/comunicaciones" class="navbar-notif" title="<?= $notif_count ?> sin leer">
+              <i class="bi bi-bell-fill"></i>
+              <span class="navbar-notif-badge"><?= $notif_count ?></span>
             </a>
-          <?php else: ?>
-            </div>
           <?php endif; ?>
-          <a href="/logout" class="navbar-logout">
-            <i class="bi bi-box-arrow-right"></i> Cerrar sesión
-          </a>
+          <div class="navbar-user-dropdown">
+            <button class="navbar-user" onclick="document.querySelector('.navbar-user-dropdown').classList.toggle('open')" type="button">
+              <?php if (!empty($user['avatar_url'])): ?>
+                <img src="<?= e($user['avatar_url']) ?>" alt="" class="navbar-user-avatar" style="width:32px;height:32px;border-radius:50%;object-fit:cover;">
+              <?php else: ?>
+                <div class="navbar-user-avatar"><?= strtoupper(mb_substr($user['nombre'], 0, 1)) ?></div>
+              <?php endif; ?>
+              <span><?= e($user['nombre']) ?></span>
+              <i class="bi bi-chevron-down" style="font-size:12px;opacity:0.7;"></i>
+            </button>
+            <div class="navbar-dropdown-menu">
+              <a href="/socio/perfil"><i class="bi bi-person"></i> Mi perfil</a>
+              <?php if (!$isAdmin): ?>
+                <a href="/socio/comunicaciones"><i class="bi bi-bell"></i> Comunicaciones<?= $notif_count > 0 ? ' <span class="badge badge-blue" style="font-size:11px;padding:2px 6px;margin-left:4px;">' . $notif_count . '</span>' : '' ?></a>
+              <?php endif; ?>
+              <a href="/logout"><i class="bi bi-box-arrow-right"></i> Cerrar sesión</a>
+            </div>
+          </div>
         <?php else: ?>
           <a href="/login"    class="btn btn-secondary btn-sm">Acceso</a>
           <a href="/register" class="btn btn-primary btn-sm">Registro</a>
@@ -89,21 +117,23 @@ function render_header(string $title, string $activePage = '', string $extraHead
       <?php if ($isAdmin): ?>
         <a href="/admin/usuarios">Administración</a>
       <?php else: ?>
-        <a href="/soci/panel">Mi panel</a>
-        <a href="/soci/ranking">Ranking mi liga</a>
+        <a href="/socio/panel">Mi panel</a>
+        <?php if (is_nadador_activo()): ?>
+          <a href="/socio/ranking">Ranking mi liga</a>
+        <?php endif; ?>
       <?php endif; ?>
     <?php endif; ?>
     <a href="/noticias/">Noticias</a>
-    <?php if ($user): ?>
+    <?php if ($user && is_nadador_activo()): ?>
       <a href="/calculadoras">Calculadoras</a>
       <a href="/biblioteca">Biblioteca</a>
-    <?php else: ?>
+    <?php elseif (!$user): ?>
       <a href="/sobre-nosotros">Sobre nosotros</a>
     <?php endif; ?>
     <a href="/contacto">Contacto</a>
     <div class="mobile-auth">
       <?php if ($user): ?>
-        <span style="font-size:14px;color:#888;">Hola, <strong><?= e($user['nom']) ?></strong></span>
+        <span style="font-size:14px;color:#888;">Hola, <strong><?= e($user['nombre']) ?></strong></span>
         <a href="/logout" class="btn btn-secondary btn-sm"><i class="bi bi-box-arrow-right"></i> Cerrar sesión</a>
       <?php else: ?>
         <a href="/login"    class="btn btn-secondary btn-sm">Acceso</a>
@@ -142,8 +172,8 @@ function render_footer(): void
           <a href="/login">Acceso socios</a>
           <a href="/register">Registro</a>
         <?php endif; ?>
-        <a href="/soci/panel">Mi panel</a>
-        <a href="/soci/ranking">Ranking liga</a>
+        <a href="/socio/panel">Mi panel</a>
+        <a href="/socio/ranking">Ranking liga</a>
       </div>
     </div>
     <div class="footer-bottom">
@@ -156,7 +186,63 @@ function render_footer(): void
   </div>
 </footer>
 
+<script src="https://cdn.jsdelivr.net/npm/tom-select@2/dist/js/tom-select.complete.min.js"></script>
 <script>
+function initSearchable(el) {
+  if (el.tomselect) return;
+  new TomSelect(el, {
+    plugins: ['dropdown_input'],
+    allowEmptyOption: true,
+    render: { no_results: function() { return '<div class="no-results" style="padding:10px;text-align:center;color:var(--gray);">Sin resultados</div>'; } }
+  });
+}
+document.querySelectorAll('select.searchable').forEach(function(el) {
+  if (el.offsetParent !== null) initSearchable(el);
+});
+</script>
+
+<!-- Modal confirmación global -->
+<div id="confirmModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:9999;align-items:center;justify-content:center;" onclick="if(event.target===this)closeConfirm()">
+  <div style="background:white;border-radius:12px;padding:32px;max-width:380px;width:100%;margin:20px;box-shadow:0 20px 60px rgba(0,0,0,0.2);text-align:center;">
+    <div style="font-size:36px;margin-bottom:12px;color:var(--red);"><i class="bi bi-exclamation-triangle-fill"></i></div>
+    <h3 id="confirmTitle" style="margin-bottom:8px;">¿Estás seguro?</h3>
+    <p id="confirmMsg" style="color:var(--gray);margin-bottom:20px;"></p>
+    <div class="d-flex gap-2" style="justify-content:center;">
+      <button id="confirmOk" class="btn btn-danger">Eliminar</button>
+      <button class="btn btn-gray" onclick="closeConfirm()">Cancelar</button>
+    </div>
+  </div>
+</div>
+
+<script>
+let confirmCallback = null;
+function showConfirm(message, onConfirm) {
+  document.getElementById('confirmMsg').textContent = message;
+  confirmCallback = onConfirm;
+  document.getElementById('confirmModal').style.display = 'flex';
+}
+function closeConfirm() {
+  document.getElementById('confirmModal').style.display = 'none';
+  confirmCallback = null;
+}
+document.getElementById('confirmOk').addEventListener('click', function() {
+  if (confirmCallback) confirmCallback();
+  closeConfirm();
+});
+
+// Auto-bind forms with data-confirm attribute
+document.addEventListener('submit', function(e) {
+  const form = e.target;
+  const msg = form.dataset.confirm;
+  if (msg && !form._confirmed) {
+    e.preventDefault();
+    showConfirm(msg, function() {
+      form._confirmed = true;
+      form.submit();
+    });
+  }
+});
+
 function toggleMenu() {
   const m = document.getElementById('mobileMenu');
   m.classList.toggle('open');
@@ -166,6 +252,10 @@ document.addEventListener('click', function(e) {
   const btn  = document.querySelector('.navbar-hamburger');
   if (menu && btn && !menu.contains(e.target) && !btn.contains(e.target)) {
     menu.classList.remove('open');
+  }
+  const dropdown = document.querySelector('.navbar-user-dropdown');
+  if (dropdown && !dropdown.contains(e.target)) {
+    dropdown.classList.remove('open');
   }
 });
 </script>
@@ -184,10 +274,16 @@ function render_admin_layout(string $activePage, callable $content): void
       <a href="/admin/usuarios" class="<?= $activePage === 'usuarios' ? 'active' : '' ?>">
         <i class="bi bi-people-fill"></i> Gestión de usuarios
       </a>
+      <a href="/admin/asistencia" class="<?= $activePage === 'asistencia' ? 'active' : '' ?>">
+        <i class="bi bi-clipboard-check-fill"></i> Pasar lista
+      </a>
+      <a href="/admin/asistencia_historial" class="<?= $activePage === 'asistencia_historial' ? 'active' : '' ?>">
+        <i class="bi bi-calendar-check"></i> Historial asistencia
+      </a>
     </div>
     <div class="admin-sidebar-section">
       <div class="admin-sidebar-title">Marcas &amp; Ranking</div>
-      <a href="/admin/marques" class="<?= $activePage === 'marques' ? 'active' : '' ?>">
+      <a href="/admin/marcas" class="<?= $activePage === 'marcas' ? 'active' : '' ?>">
         <i class="bi bi-stopwatch-fill"></i> Gestión de marcas
       </a>
       <a href="/admin/ranking" class="<?= $activePage === 'ranking' ? 'active' : '' ?>">
@@ -198,6 +294,9 @@ function render_admin_layout(string $activePage, callable $content): void
       <div class="admin-sidebar-title">Contenido</div>
       <a href="/admin/noticias" class="<?= $activePage === 'noticias' ? 'active' : '' ?>">
         <i class="bi bi-newspaper"></i> Noticias
+      </a>
+      <a href="/admin/comunicaciones" class="<?= $activePage === 'comunicaciones' ? 'active' : '' ?>">
+        <i class="bi bi-megaphone-fill"></i> Comunicaciones
       </a>
       <a href="/admin/contacto" class="<?= $activePage === 'contacto' ? 'active' : '' ?>">
         <i class="bi bi-envelope-fill"></i> Mensajes de contacto

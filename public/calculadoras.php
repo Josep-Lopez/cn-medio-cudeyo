@@ -4,11 +4,12 @@ require_once dirname(__DIR__) . '/includes/auth.php';
 require_once dirname(__DIR__) . '/includes/layout.php';
 
 require_login();
+require_nadador_activo();
 
 // Cargar config desde BD (con fallback a null si no existe)
-$finaTimesJson = $pdo->query("SELECT valor FROM config WHERE clau='fina_times' LIMIT 1")->fetchColumn() ?: null;
-$minimesJson   = $pdo->query("SELECT valor FROM config WHERE clau='minimes_rfen' LIMIT 1")->fetchColumn() ?: null;
-$edatsCatJson  = $pdo->query("SELECT valor FROM config WHERE clau='minimes_edats' LIMIT 1")->fetchColumn() ?: null;
+$finaTimesJson = $pdo->query("SELECT valor FROM config WHERE clave='fina_times' LIMIT 1")->fetchColumn() ?: null;
+$minimasJson   = $pdo->query("SELECT valor FROM config WHERE clave='minimas_rfen' LIMIT 1")->fetchColumn() ?: null;
+$edadesCatJson  = $pdo->query("SELECT valor FROM config WHERE clave='minimas_edats' LIMIT 1")->fetchColumn() ?: null;
 
 render_header('Calculadoras', 'calculadoras');
 ?>
@@ -132,7 +133,7 @@ render_header('Calculadoras', 'calculadoras');
           <label class="form-label">Prueba</label>
           <select id="min-prueba" class="form-control">
             <option value="">— Seleccionar —</option>
-            <?php render_prova_options(''); ?>
+            <?php render_prueba_options(''); ?>
           </select>
         </div>
         <div class="form-group">
@@ -146,7 +147,7 @@ render_header('Calculadoras', 'calculadoras');
       <div class="form-row">
         <div class="form-group">
           <label class="form-label">Categoría</label>
-          <select id="min-categoria" class="form-control" onchange="actualizarEdatSelect()">
+          <select id="min-categoria" class="form-control" onchange="actualizarEdadSelect()">
             <option value="alevin">Alevín</option>
             <option value="infantil">Infantil</option>
             <option value="junior">Junior</option>
@@ -154,9 +155,9 @@ render_header('Calculadoras', 'calculadoras');
             <option value="absoluto" selected>Absoluto</option>
           </select>
         </div>
-        <div class="form-group" id="min-edat-group">
+        <div class="form-group" id="min-edad-group">
           <label class="form-label">Edad</label>
-          <select id="min-edat" class="form-control">
+          <select id="min-edad" class="form-control">
             <option value="">— Seleccionar —</option>
           </select>
         </div>
@@ -259,13 +260,13 @@ render_header('Calculadoras', 'calculadoras');
   </div>
 </div>
 
-<?php if ($finaTimesJson || $minimesJson || $edatsCatJson): ?>
+<?php if ($finaTimesJson || $minimasJson || $edadesCatJson): ?>
 <script>
 <?php if ($finaTimesJson): ?>window.FINA_TIMES_DB = <?= $finaTimesJson ?>;<?php endif; ?>
-<?php if ($minimesJson): ?>window.MINIMES_DB = <?= $minimesJson ?>;<?php endif; ?>
-<?php if ($edatsCatJson): ?>window.EDATS_CAT_DB = <?= $edatsCatJson ?>;<?php endif; ?>
+<?php if ($minimasJson): ?>window.MINIMAS_DB = <?= $minimasJson ?>;<?php endif; ?>
+<?php if ($edadesCatJson): ?>window.EDADES_CAT_DB = <?= $edadesCatJson ?>;<?php endif; ?>
 </script>
 <?php endif; ?>
-<script src="/assets/js/calculadora.js"></script>
+<script src="/assets/js/calculadora.js?v=<?= filemtime($_SERVER['DOCUMENT_ROOT'] . '/assets/js/calculadora.js') ?>"></script>
 
 <?php render_footer(); ?>
