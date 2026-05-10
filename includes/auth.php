@@ -84,9 +84,11 @@ function require_login(): void
     }
 
     // Tutor legal obligatorio para menores (benjamin, alevin, infantil, junior)
+    // Saltar si admin está suplantando al usuario
     $ligas_tutor = ['benjamin', 'alevin', 'infantil', 'junior'];
     if (
-        empty($_SESSION['user']['must_change_pwd'])
+        empty($_SESSION['admin_original'])
+        && empty($_SESSION['user']['must_change_pwd'])
         && in_array($_SESSION['user']['liga'] ?? '', $ligas_tutor)
         && empty($_SESSION['user']['tutor_email'])
     ) {

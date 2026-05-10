@@ -147,7 +147,7 @@ foreach ($records_stmt->fetchAll() as $r) {
 
 render_header('Ranking general', 'admin-ranking');
 render_admin_layout('ranking', function() use ($PRUEBAS, $ranking, $filterLiga, $filterPrueba, $filterPiscina, $filterTemporada, $filterSexo, $filterNadador, $filterMejores, $filterTop10, $temporadas_disp, $sort, $dir, $club_records) {
-  $sortUrl = function (string $column) use ($filterLiga, $filterPrueba, $filterPiscina, $filterTemporada, $filterSexo, $filterNadador, $filterMejores, $sort, $dir): string {
+  $sortUrl = function (string $column) use ($filterLiga, $filterPrueba, $filterPiscina, $filterTemporada, $filterSexo, $filterNadador, $filterMejores, $filterTop10, $sort, $dir): string {
       $params = [
           'liga' => $filterLiga,
           'prueba' => $filterPrueba,
@@ -159,6 +159,7 @@ render_admin_layout('ranking', function() use ($PRUEBAS, $ranking, $filterLiga, 
           'dir' => ($sort === $column && $dir === 'asc') ? 'desc' : 'asc',
       ];
       if ($filterMejores) $params['mejores'] = '1';
+      if ($filterTop10) $params['top10'] = '1';
       return '?' . http_build_query(array_filter($params, static fn($v) => $v !== '' && $v !== null));
   };
   $sortIcon = function (string $column) use ($sort, $dir): string {

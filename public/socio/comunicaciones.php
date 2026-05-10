@@ -15,7 +15,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $com_id = (int)($_POST['comunicacion_id'] ?? 0);
         $respuestas = $_POST['respuestas'] ?? [];
 
-        if ($com_id && $respuestas) {
+        // Verificar que la comunicación va dirigida a este usuario
+        $access_check = $pdo->prepare("
+            SELECT id FROM comunicaciones
+            WHERE id = ?
+              AND (destinatario_tipo = 'todos'
+                   OR (destinatario_tipo = 'liga' AND destinatario_valor = ?)
+                   OR (destinatario_tipo = 'individual' AND destinatario_valor = ?))
+        ");
+        $access_check->execute([$com_id, $user['liga'], $user['id']]);
+
+        if ($com_id && $respuestas && $access_check->fetch()) {
             foreach ($respuestas as $pq_id => $resp) {
                 $pq_id = (int)$pq_id;
                 $opcion_id = !empty($resp['opcion_id']) ? (int)$resp['opcion_id'] : null;
@@ -61,8 +71,14 @@ $detalle = null;
 $preguntas_detalle = [];
 $ya_respondio = false;
 if (isset($_GET['ver'])) {
-    $stmt = $pdo->prepare('SELECT * FROM comunicaciones WHERE id=?');
-    $stmt->execute([(int)$_GET['ver']]);
+    $stmt = $pdo->prepare("
+        SELECT * FROM comunicaciones
+        WHERE id = ?
+          AND (destinatario_tipo = 'todos'
+               OR (destinatario_tipo = 'liga' AND destinatario_valor = ?)
+               OR (destinatario_tipo = 'individual' AND destinatario_valor = ?))
+    ");
+    $stmt->execute([(int)$_GET['ver'], $user['liga'], $user['id']]);
     $detalle = $stmt->fetch();
 
     if ($detalle) {
