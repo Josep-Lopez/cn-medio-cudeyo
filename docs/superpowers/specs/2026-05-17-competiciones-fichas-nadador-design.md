@@ -2,35 +2,87 @@
 
 **Fecha:** 2026-05-17
 **Estado:** spec aprobado, pendiente de plan de implementación
-**Inspiración:** subset histórico de SplashMe / swimrankings.net
+**Inspiración:** subset histórico de SplashMe (datos de swimrankings.net / Splash Meet Manager)
 
 ## Objetivo
 
-Página pública de **Competiciones** (resultados pasados completos, estilo SplashMe sin la parte "live") y **fichas públicas de nadador**. Datos extraídos de **swimrankings.net** (archivo público de Splash Meet Manager).
+App **separada del sitio principal** (subdominio propio, identidad visual propia) que muestra:
 
-Este spec cubre los sub-proyectos **A (histórico competiciones del club)** y **B (fichas públicas de nadador)** del brainstorming. Quedan explícitamente fuera del scope:
+- Listado de competiciones con resultados completos (histórico)
+- Fichas públicas de nadador
 
-- ❌ Resultados en vivo (sub-proyecto D, fase futura, decisión fuera de scope por coste de mantenimiento)
-- ❌ Calendario de próximas competiciones (sub-proyecto C, fase futura)
+Datos extraídos de **swimrankings.net** (archivo público de Splash Meet Manager). No relacionada con el módulo RFEN/marcas del sitio principal — vive en paralelo y solo comparte BD para vincular con `users`.
+
+Cubre los sub-proyectos **A (histórico de competiciones)** y **B (fichas públicas de nadador)**. Quedan explícitamente fuera del scope:
+
+- ❌ Resultados en vivo (sub-proyecto D — futura fase, mejor enfoque vía iframe de livetiming.splash.de en su día)
+- ❌ Calendario de próximas competiciones (sub-proyecto C — futura fase)
 - ❌ Rankings mundiales, favoritos, notificaciones push
-- ❌ Almacenamiento de resultados de nadadores no socios (se parsean al importar pero no se guardan en BD)
+- ❌ Almacenamiento de resultados de no-socios (se parsean al importar pero no se guardan en BD)
 
-## Ubicación en el sitio
+## Naming
 
-**Público (sin login)**, sigue el patrón de `/public/noticias/`:
+Nombre de la app: **TBD** (lo decide el usuario antes de implementación). En todo este documento aparece como `[NOMBRE_APP]`. Ejemplos placeholder:
 
-- `/competiciones/` (`public/competiciones/index.php`) — listado paginado de competiciones donde han nadado socios del club, ordenadas por fecha descendente
-- `/competiciones/detall.php?id=X` — ficha de una competición con todos los resultados de socios agrupados por prueba
-- `/nadador/detall.php?slug=X` — ficha pública del nadador (canónico: `/nadador/[slug]`)
+- `competiciones.cnmediocudeyo.es`
+- `[NOMBRE_APP].cnmediocudeyo.es`
 
-**Admin**:
+Cuando el usuario decida el nombre, se hace search/replace de `[NOMBRE_APP]` por el slug definitivo en este spec y en el código generado.
 
-- `/admin/swimrankings.php` — buscar deportistas en swimrankings.net, vincular a usuarios del club, importar meets de un nadador, listar competiciones importadas
-- `scripts/swimrankings_import_all.php` — CLI espejo de `rfen_import_all.php` para importación masiva
+## Arquitectura: subdominio independiente
 
-**Navbar público**: añadir entrada "Competiciones" entre "Noticias" y "Biblioteca".
+### Producción
+
+- Subdominio: `[NOMBRE_APP].cnmediocudeyo.es`
+- Apache vhost separado apuntando a una nueva carpeta `[NOMBRE_APP]/public/` (paralela a la actual `public/`)
+- Comparte el mismo servidor PHP y la **misma BD MySQL** (mismo `cn_medio_cudeyo`)
+- Sesión **independiente** del sitio principal (cookies del subdominio, no compartidas)
+
+### Desarrollo local
+
+- Docker Compose añade un nuevo servicio Apache (o un vhost extra en el contenedor existente) en puerto 8082
+- Acceso local vía `http://[NOMBRE_APP].localhost:8082` o `http://localhost:8082`
+- Misma BD que el sitio principal
+
+### Estructura de directorios
+
+```
+cn-medio-cudeyo/
+├── public/                    ← sitio del club (sin cambios)
+├── [NOMBRE_APP]/              ← NUEVO: app aparte
+│   ├── public/                ← DocumentRoot del subdominio
+│   │   ├── index.php          ← landing: últimas competiciones
+│   │   ├── competicion.php    ← detalle de una competición ?id=X
+│   │   ├── nadador.php        ← ficha pública ?slug=X
+│   │   ├── assets/
+│   │   │   ├── css/main.css   ← identidad visual propia
+│   │   │   └── js/
+│   │   └── admin/             ← panel admin de esta app
+│   │       ├── index.php
+│   │       ├── buscar.php     ← buscar deportistas en swimrankings
+│   │       ├── importar.php   ← importar meets de un nadador
+│   │       └── login.php      ← auth propia (reutiliza tabla users con rol=admin)
+│   └── includes/
+│       ├── auth.php           ← helpers de auth para el subdominio
+│       ├── layout.php         ← header/footer propios
+│       └── swimrankings.php   ← scraper
+├── includes/                  ← compartidos sitio principal (sin cambios)
+├── config/                    ← db.php compartido
+├── scripts/
+│   └── swimrankings_import_all.php  ← CLI mass import
+└── docker-compose.yml         ← actualizado con vhost del subdominio
+```
+
+### Identidad visual
+
+- CSS propio en `[NOMBRE_APP]/public/assets/css/main.css`
+- Reutiliza variables de color base si se quiere coherencia (o totalmente distinto, a decidir con mockup)
+- Header/footer propios — sin navbar del club
+- En el sitio principal del club, un enlace prominente (footer o sección "Más") apunta al subdominio
 
 ## Modelo de datos
+
+BD compartida (`cn_medio_cudeyo`), tablas nuevas con prefijo opcional para aislamiento:
 
 ### Tablas nuevas
 
@@ -73,18 +125,18 @@ CREATE TABLE competicion_resultados (
 
 ```sql
 ALTER TABLE users
-  ADD COLUMN swimrankings_id INT NULL UNIQUE AFTER rfen_id,
+  ADD COLUMN swimrankings_id INT NULL UNIQUE,
   ADD COLUMN slug VARCHAR(100) NULL UNIQUE AFTER nombre,
-  ADD COLUMN perfil_publico TINYINT(1) NOT NULL DEFAULT 1 AFTER swimrankings_id;
+  ADD COLUMN perfil_publico TINYINT(1) NOT NULL DEFAULT 1;
 ```
 
-Slug generado automáticamente en el primer guardado del usuario (slugify del nombre, colisiones `-2`, `-3`).
+Slug generado automáticamente al guardar usuario (slugify del nombre + colisiones `-2`, `-3`).
 
 ## Componentes
 
-### 1. Scraper — `includes/swimrankings.php`
+### 1. Scraper — `[NOMBRE_APP]/includes/swimrankings.php`
 
-Espejo del patrón de `includes/rfen.php`. URLs base de swimrankings.net (a confirmar con muestras reales durante la implementación):
+Patrón genérico de scraping HTML (curl + DOMXPath + UTF-8 + paginación). URLs base de swimrankings.net (a confirmar con muestras reales en implementación):
 
 - Detalle nadador: `https://www.swimrankings.net/index.php?page=athleteDetail&athleteId=X`
 - Detalle meet: `https://www.swimrankings.net/index.php?page=meetDetail&meetId=X`
@@ -92,95 +144,96 @@ Espejo del patrón de `includes/rfen.php`. URLs base de swimrankings.net (a conf
 
 Funciones públicas:
 
-- `swr_fetch_html(string $url): string` — fetch con curl + UTF-8 (idéntico a `rfen_fetch_html`)
-- `swr_buscar_athlete(string $nombre, ?int $club_id = null): array` — devuelve candidatos con `id`, `nombre`, `nacimiento`, `club`
-- `swr_get_athlete_meets(int $swimrankings_id, ?string $since_date = null): array` — lista de meets del nadador con `meet_id`, `nombre`, `fecha`, `lugar`
-- `swr_parse_meet_results(int $meet_id): array` — todos los resultados del meet, devuelve filas con `nadador_swr_id`, `nombre`, `prueba`, `tiempo`, `fase`, `puesto`
-- `swr_import_meet(PDO $pdo, int $meet_id): array` — INSERT/UPDATE en `competiciones` + INSERT en `competicion_resultados` filtrando solo nadadores con `swimrankings_id` matcheado en `users`. Devuelve contadores como `rfen_import_marks`.
+- `swr_fetch_html(string $url): string` — fetch con curl + UTF-8
+- `swr_buscar_athlete(string $nombre, ?int $club_id = null): array` — candidatos con id, nombre, nacimiento, club
+- `swr_get_athlete_meets(int $swimrankings_id, ?string $since_date = null): array` — meets del nadador
+- `swr_parse_meet_results(int $meet_id): array` — resultados completos del meet
+- `swr_import_meet(PDO $pdo, int $meet_id): array` — INSERT/UPDATE en `competiciones` + `competicion_resultados`, vinculando por `users.swimrankings_id`; devuelve contadores
 
-Pruebas válidas: reutilizar el array de `rfen_prueba()` (mismas 18 pruebas).
+Pruebas válidas: array compartido con el sitio principal (las 18 pruebas estándar). Se extrae a un helper común si interesa, o se duplica si queremos aislamiento total.
 
-### 2. Páginas públicas
+### 2. Páginas públicas (subdominio)
 
-**`public/competiciones/index.php`**:
+**`index.php`** (landing):
 - Paginado 12 por página
-- Card por competición: nombre, lugar, fechas, badge con N socios participantes, link a detalle
-- Sin filtros en MVP (orden fijo: fecha DESC)
+- Listado de competiciones con socios participantes, ordenadas por `fecha_inicio DESC`
+- Card por competición: nombre, lugar, fechas, badge "N socios", link al detalle
 
-**`public/competiciones/detall.php`**:
-- Header con nombre, lugar, fechas, piscina, link externo a swimrankings.net
-- Tabla agrupada por prueba; columnas: puesto, nombre nadador (link a `/nadador/[slug]` si `perfil_publico=1`, texto plano si no), tiempo, fase
+**`competicion.php?id=X`**:
+- Header: nombre, lugar, fechas, piscina, link externo a swimrankings.net
+- Tabla agrupada por prueba; columnas: puesto, nombre nadador (link a `nadador.php?slug=X` si `perfil_publico=1`), tiempo, fase
 - Solo muestra resultados de socios del club (filtro `user_id IS NOT NULL`)
 
-**`public/nadador/detall.php`**:
-- Si `users.perfil_publico = 0` → 404
-- Si usuario no encontrado por slug → 404
-- Cabecera: nombre, foto opcional (no en MVP), liga, sexo, club
-- Sección "Mejores marcas" — tabla de `marcas` por prueba/piscina (reutilizar query existente del panel socio)
-- Sección "Últimas competiciones" — últimas 10 entradas de `competicion_resultados` ordenadas por fecha desc
-- Sin gráfico de evolución en MVP
+**`nadador.php?slug=X`**:
+- Si `perfil_publico=0` o slug no existe → 404
+- Cabecera: nombre, liga, sexo
+- "Mejores marcas" — query a tabla `marcas` existente
+- "Últimas competiciones" — últimas 10 entradas de `competicion_resultados` ordenadas por fecha desc
 
-### 3. Admin — `public/admin/swimrankings.php`
+### 3. Admin (subdominio)
 
-Sigue el estilo de `rfen_buscar.php` / `rfen_importar.php`:
-- Buscador por nombre + filtro club
-- Lista candidatos con botón "Vincular a usuario [select]"
-- Una vez vinculado, botón "Importar todos los meets" → recorre `swr_get_athlete_meets()` y por cada meet llama `swr_import_meet()`
-- Listado de competiciones importadas con botón "Re-importar"
+`[NOMBRE_APP]/public/admin/`:
+- Login propio (reutiliza `users` con `rol='admin'`, sesión independiente del club)
+- **Buscar deportistas** en swimrankings, vincular a usuarios del club
+- **Importar meets** de un nadador concreto
+- **Listar competiciones** importadas, re-importar, eliminar
 
-CLI: `scripts/swimrankings_import_all.php` — recorre todos los `users` con `swimrankings_id` NOT NULL e importa sus meets de la temporada activa.
+CLI: `scripts/swimrankings_import_all.php` — recorre todos los `users` con `swimrankings_id NOT NULL` e importa sus meets de la temporada activa.
 
 ## Flujo de datos
 
-1. Admin entra a `/admin/swimrankings.php` y busca nadador
-2. Selecciona candidato → vincula a usuario del club (set `users.swimrankings_id`)
-3. Click "Importar meets" → para cada meet del nadador:
+1. Admin entra a `[NOMBRE_APP].cnmediocudeyo.es/admin/` y busca nadador en swimrankings
+2. Selecciona candidato → vincula a usuario (set `users.swimrankings_id`)
+3. Click "Importar meets" → por cada meet del nadador:
    - `INSERT … ON DUPLICATE KEY UPDATE` en `competiciones` (key: `swimrankings_meet_id`)
    - Parsea todos los resultados del meet
-   - Por cada resultado, busca `users.swimrankings_id` que matchea el ID del nadador en swimrankings
-   - Si match → INSERT en `competicion_resultados` con `user_id`; si no → descarta (no guardamos no-socios en MVP)
-4. Página pública `/competiciones/` agrega: `SELECT … FROM competiciones c WHERE EXISTS (SELECT 1 FROM competicion_resultados r WHERE r.competicion_id = c.id) ORDER BY c.fecha_inicio DESC`
-5. Detalle muestra `competicion_resultados` JOIN `users` agrupado por prueba
+   - Para cada resultado, busca match en `users.swimrankings_id`
+   - Si match → INSERT en `competicion_resultados`; si no → descarta
+4. Landing del subdominio agrega: `SELECT … FROM competiciones c WHERE EXISTS (SELECT 1 FROM competicion_resultados r WHERE r.competicion_id = c.id) ORDER BY c.fecha_inicio DESC`
+5. Detalle muestra `competicion_resultados JOIN users` agrupado por prueba
 
 ## Privacidad
 
 - Columna `users.perfil_publico` (default 1)
-- Socio puede toggle desde `/socio/perfil`
+- Socio puede toggle desde `/socio/perfil` en el sitio principal
 - Si =0:
-  - Nombre sigue apareciendo en `/competiciones/detall.php` pero como texto plano (sin link)
-  - `/nadador/[slug]` devuelve 404
-  - Mejores marcas del nadador no aparecen ni en `/ranking` público (si lo hubiera) ni en la ficha
+  - Nombre sigue apareciendo en `competicion.php` pero como texto plano (sin link)
+  - `nadador.php?slug=X` devuelve 404
+  - Mejores marcas del nadador no aparecen en su ficha pública del subdominio
 
 ## Errores y casos límite
 
-- **swimrankings.net caído**: timeout 15s en curl, mostrar error "datos no disponibles" en admin, no romper páginas públicas (sirven desde BD)
-- **HTML cambia y rompe parser**: log + flash al admin, sin actualización destructiva (ya estaba en BD)
-- **Homonimia de nadadores**: el admin elige manualmente al vincular (un humano lo resuelve)
-- **Slug colisión**: intenta slug base (slugify del nombre); si ya existe, añade sufijo `-2`, `-3`… hasta encontrar uno libre
-- **Resultado duplicado por re-importación**: UNIQUE KEY `(competicion_id, user_id, prueba, fase)` evita duplicados; re-import sobrescribe tiempo/puesto si difiere
+- **swimrankings.net caído**: timeout 15s en curl, error "datos no disponibles" en admin, páginas públicas siguen sirviendo desde BD
+- **HTML cambia y rompe parser**: log + flash al admin, sin actualización destructiva
+- **Homonimia de nadadores**: el admin elige manualmente al vincular
+- **Slug colisión**: intenta slug base; si existe, añade sufijo `-2`, `-3`… hasta encontrar libre
+- **Resultado duplicado en re-importación**: UNIQUE KEY `(competicion_id, user_id, prueba, fase)` evita duplicados; re-import sobrescribe tiempo/puesto si difiere
+- **Subdominio sin DNS aún**: dev usa Docker en puerto distinto; deploy puede arrancar primero con `[NOMBRE_APP]-prefix path` y migrar a subdominio cuando el DNS esté listo
 
 ## Testing
 
 Sin tests automatizados (consistente con el resto del proyecto). Validación manual:
 
-1. Vincular 2-3 socios reales con sus IDs de swimrankings
-2. Importar 1 meet conocido y verificar resultados
-3. Comprobar `/competiciones/` y `/competiciones/detall.php?id=X`
-4. Comprobar `/nadador/[slug]` (público) y toggle `perfil_publico` desde `/socio/perfil`
-5. Probar re-importación (no debe duplicar filas)
+1. Levantar Docker con vhost del subdominio funcionando
+2. Vincular 2-3 socios reales con sus IDs de swimrankings
+3. Importar 1 meet conocido y verificar resultados
+4. Comprobar `index.php`, `competicion.php?id=X`, `nadador.php?slug=X`
+5. Toggle `perfil_publico` desde `/socio/perfil` y comprobar que la ficha pública se cae
+6. Re-importar el mismo meet (no debe duplicar filas)
 
 ## Reuso de código existente
 
-- `render_header()`, `render_footer()`, `render_admin_layout()` — layout
-- `require_login()`, `require_admin()`, `current_user()`, `e()` — auth
-- `format_prueba()`, `tiempo_a_segundos()`, `segundos_a_tiempo()`, `format_liga()` — utils
-- Patrón `rfen_fetch_html()` y `rfen_parse_rows()` — base para swimrankings scraper
-- Estilos en `public/assets/css/main.css` (cards, tablas, formularios admin)
-- Patrón de paginación de `public/noticias/index.php`
+- `config/db.php` compartido (mismo `$pdo`)
+- `format_prueba()`, `tiempo_a_segundos()`, `segundos_a_tiempo()`, `format_liga()` — extraer a un helper común reutilizable desde ambos sitios, o duplicar mínimamente
+- Patrón de scraping HTML con curl + DOMXPath (existe en el repo, sirve de referencia)
+- Estilos: el subdominio tiene CSS propio pero puede heredar paleta y tipografía si se quiere coherencia
 
-## Decisiones diferidas (NO bloquean implementación)
+## Decisiones diferidas (no bloquean implementación)
 
-- Gráfico de evolución en ficha de nadador (out of MVP, evaluar tras feedback de socios)
+- **Nombre del subdominio** — TBD
+- **Identidad visual concreta** — mockup pendiente; default a reutilizar paleta del club
+- Gráfico de evolución en ficha de nadador (out of MVP)
 - Foto de perfil del nadador (out of MVP)
-- Filtros en `/competiciones/` (por temporada, piscina) — añadir si N > 30 competiciones
-- Resultados de nadadores no-socios (decidir si interesa cuando se vea uso real)
+- Filtros en landing (por temporada, piscina) — añadir si N > 30 competiciones
+- Resultados de no-socios (decidir si interesa con uso real)
+- Sesión compartida entre dominio principal y subdominio (default: independiente)
