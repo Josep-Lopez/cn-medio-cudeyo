@@ -114,8 +114,8 @@ $user_best_stmt = $pdo->prepare("
 $user_best_stmt->execute([$user['id']]);
 $user_bests = $user_best_stmt->fetchAll();
 
-$user_top3_count = 0;
-$user_top10_count = 0;
+$user_top3 = ['25m' => 0, '50m' => 0];
+$user_top10 = ['25m' => 0, '50m' => 0];
 if ($user_bests) {
     $rank_stmt = $pdo->prepare("
         SELECT COUNT(DISTINCT m.user_id) AS ahead
@@ -128,10 +128,14 @@ if ($user_bests) {
     foreach ($user_bests as $ub) {
         $rank_stmt->execute([$user['sexo'], $ub['prueba'], $ub['piscina'], $ub['best_seg']]);
         $ahead = (int)$rank_stmt->fetchColumn();
-        if ($ahead < 3) $user_top3_count++;
-        if ($ahead < 10) $user_top10_count++;
+        $pisc = $ub['piscina'];
+        if (!isset($user_top3[$pisc])) continue;
+        if ($ahead < 3) $user_top3[$pisc]++;
+        if ($ahead < 10) $user_top10[$pisc]++;
     }
 }
+$user_top3_total = $user_top3['25m'] + $user_top3['50m'];
+$user_top10_total = $user_top10['25m'] + $user_top10['50m'];
 
 render_header('Mi panel', 'socio-panel');
 ?>
@@ -196,13 +200,15 @@ render_header('Mi panel', 'socio-panel');
       <div style="font-weight:700;font-size:14px;margin-bottom:10px;"><i class="bi bi-star-fill" style="color:#d97706;"></i> Ranking del club</div>
       <div style="display:flex;gap:16px;">
         <div style="text-align:center;flex:1;">
-          <div style="font-size:26px;font-weight:800;color:<?= $user_top3_count > 0 ? '#b45309' : 'var(--gray)' ?>;"><?= $user_top3_count ?></div>
+          <div style="font-size:26px;font-weight:800;color:<?= $user_top3_total > 0 ? '#b45309' : 'var(--gray)' ?>;"><?= $user_top3_total ?></div>
           <span style="display:inline-block;background:#fef3c7;color:#92400e;font-size:13px;font-weight:700;padding:3px 10px;border-radius:6px;border:1px solid #fde68a;margin-top:4px;">TOP 3</span>
+          <div class="text-muted text-sm" style="margin-top:6px;font-size:11px;">25m: <strong style="color:#111;"><?= $user_top3['25m'] ?></strong> · 50m: <strong style="color:#111;"><?= $user_top3['50m'] ?></strong></div>
         </div>
         <div style="width:1px;background:#e5e7eb;"></div>
         <div style="text-align:center;flex:1;">
-          <div style="font-size:26px;font-weight:800;color:<?= $user_top10_count > 0 ? '#d97706' : 'var(--gray)' ?>;"><?= $user_top10_count ?></div>
+          <div style="font-size:26px;font-weight:800;color:<?= $user_top10_total > 0 ? '#d97706' : 'var(--gray)' ?>;"><?= $user_top10_total ?></div>
           <span style="display:inline-block;background:#fff7ed;color:#a16207;font-size:13px;font-weight:700;padding:3px 10px;border-radius:6px;border:1px solid #fed7aa;margin-top:4px;">TOP 10</span>
+          <div class="text-muted text-sm" style="margin-top:6px;font-size:11px;">25m: <strong style="color:#111;"><?= $user_top10['25m'] ?></strong> · 50m: <strong style="color:#111;"><?= $user_top10['50m'] ?></strong></div>
         </div>
       </div>
     </div>
