@@ -156,7 +156,7 @@ CLI: `scripts/swimrankings_import_all.php` — recorre todos los `users` con `sw
 - **swimrankings.net caído**: timeout 15s en curl, mostrar error "datos no disponibles" en admin, no romper páginas públicas (sirven desde BD)
 - **HTML cambia y rompe parser**: log + flash al admin, sin actualización destructiva (ya estaba en BD)
 - **Homonimia de nadadores**: el admin elige manualmente al vincular (un humano lo resuelve)
-- **Slug colisión**: `rstrip('-N')` + `-2`, `-3`, … hasta encontrar libre
+- **Slug colisión**: intenta slug base (slugify del nombre); si ya existe, añade sufijo `-2`, `-3`… hasta encontrar uno libre
 - **Resultado duplicado por re-importación**: UNIQUE KEY `(competicion_id, user_id, prueba, fase)` evita duplicados; re-import sobrescribe tiempo/puesto si difiere
 
 ## Testing
