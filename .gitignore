@@ -22,6 +22,8 @@ Thumbs.db
 .vscode/
 memory/
 .codex
+.agents/
+skills-lock.json
 
 # Migraciones locales (cambios BD, no se suben al repo)
 migrations/
