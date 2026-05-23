@@ -94,6 +94,7 @@ function render_header(string $title, string $activePage = '', string $extraHead
               <a href="/socio/perfil"><i class="bi bi-person"></i> Mi perfil</a>
               <?php if (!$isAdmin): ?>
                 <a href="/socio/comunicaciones"><i class="bi bi-bell"></i> Comunicaciones<?= $notif_count > 0 ? ' <span class="badge badge-blue" style="font-size:11px;padding:2px 6px;margin-left:4px;">' . $notif_count . '</span>' : '' ?></a>
+                <a href="/socio/incidencias" <?= $activePage === 'socio-incidencias' ? 'class="active"' : '' ?>><i class="bi bi-exclamation-triangle"></i> Incidencias</a>
               <?php endif; ?>
               <a href="/logout"><i class="bi bi-box-arrow-right"></i> Cerrar sesión</a>
             </div>
@@ -279,6 +280,9 @@ function render_admin_layout(string $activePage, callable $content): void
       </a>
       <a href="/admin/asistencia_historial" class="<?= $activePage === 'asistencia_historial' ? 'active' : '' ?>">
         <i class="bi bi-calendar-check"></i> Historial asistencia
+      </a>
+      <a href="/admin/incidencias" class="<?= $activePage === 'incidencias' ? 'active' : '' ?>">
+        <i class="bi bi-exclamation-triangle"></i> Incidencias
       </a>
     </div>
     <div class="admin-sidebar-section">
