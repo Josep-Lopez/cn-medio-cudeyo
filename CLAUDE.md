@@ -51,11 +51,15 @@ cn-medio-cudeyo/
     │   ├── config.php      ← Configuración (temporada, FINA, mínimas)
     │   ├── contacto.php    ← Mensajes de contacto
     │   ├── rfen_buscar.php ← API búsqueda deportistas RFEN
-    │   └── rfen_importar.php ← Importar marcas desde RFEN
+    │   ├── rfen_importar.php ← Importar marcas desde RFEN
+    │   ├── incidencias.php ← Listado + nueva + detalle + edit + eliminar
+    │   └── incidencia_descargar.php ← Descarga de adjuntos
     └── socio/
         ├── panel.php       ← Marcas personales + calendario
         ├── perfil.php      ← Perfil del socio + cambio contraseña
-        └── ranking.php     ← Ranking de la liga (con filtros)
+        ├── ranking.php     ← Ranking de la liga (con filtros)
+        ├── incidencias.php ← Listado + nueva + detalle (solo propias visibles)
+        └── incidencia_descargar.php ← Descarga de adjuntos (con check)
 ```
 
 ## Convenciones PHP
@@ -115,6 +119,9 @@ render_admin_layout($activePage, fn)  // Sidebar admin + main
 | `marcas` | Marcas de natación (UNIQUE: user+prueba+piscina+temporada) |
 | `config` | Par clave-valor (fina_times, minimas_rfen, temporada_activa) |
 | `contactos` | Mensajes del formulario de contacto |
+| `incidencias` | Incidencias del club (lesiones/conducta/operativas/justificantes) con estados y visibilidad por socio |
+| `incidencia_adjuntos` | Ficheros adjuntos por incidencia (PDF/JPG/PNG, máx 5 MB, máx 5/incidencia) |
+| `incidencia_comentarios` | Hilo de comentarios bidireccional (admin + socio asociado) |
 
 **Tiempo format:** Almacenado como `mm:ss.cc` string + `tiempo_seg` float para ordenar.
 
@@ -177,6 +184,8 @@ Inter (Google Fonts) + Arial fallback
 | Socio — Panel | `public/socio/panel.php` | ✅ |
 | Socio — Ranking | `public/socio/ranking.php` | ✅ |
 | Socio — Perfil | `public/socio/perfil.php` | ✅ |
+| Admin — Incidencias | `public/admin/incidencias.php` | ✅ |
+| Socio — Incidencias | `public/socio/incidencias.php` | ✅ |
 
 ## Pendiente / futuro
 - [ ] Calendari: confirmar que el Google Calendar embed funciona
