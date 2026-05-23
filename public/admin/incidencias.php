@@ -6,6 +6,42 @@ require_once dirname(__DIR__, 2) . '/includes/incidencias.php';
 
 require_admin();
 
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['accion'] ?? '') === 'crear') {
+    csrf_verify();
+    try {
+        $data = [
+            'tipo' => $_POST['tipo'] ?? '',
+            'titulo' => $_POST['titulo'] ?? '',
+            'descripcion' => $_POST['descripcion'] ?? '',
+            'fecha_suceso' => $_POST['fecha_suceso'] ?? '',
+            'user_id' => $_POST['user_id'] ?? null,
+            'visible_socio' => isset($_POST['visible_socio']) ? 1 : 0,
+            'creado_por' => current_user()['id'],
+        ];
+        $files = [];
+        if (!empty($_FILES['adjuntos']) && is_array($_FILES['adjuntos']['name'])) {
+            foreach ($_FILES['adjuntos']['name'] as $idx => $name) {
+                if (($_FILES['adjuntos']['error'][$idx] ?? UPLOAD_ERR_NO_FILE) === UPLOAD_ERR_NO_FILE) continue;
+                $files[] = [
+                    'name' => $name,
+                    'tmp_name' => $_FILES['adjuntos']['tmp_name'][$idx],
+                    'error' => $_FILES['adjuntos']['error'][$idx],
+                    'size' => $_FILES['adjuntos']['size'][$idx],
+                    'type' => $_FILES['adjuntos']['type'][$idx],
+                ];
+            }
+        }
+        $id = crear_incidencia($pdo, $data, $files);
+        flash('Incidencia creada (#' . $id . ').', 'success');
+        header('Location: /admin/incidencias?ver=' . $id);
+        exit;
+    } catch (Throwable $ex) {
+        flash('Error: ' . $ex->getMessage(), 'danger');
+        header('Location: /admin/incidencias?accion=nueva');
+        exit;
+    }
+}
+
 $accion = $_GET['accion'] ?? '';
 $verId = isset($_GET['ver']) ? (int)$_GET['ver'] : 0;
 
@@ -30,7 +66,81 @@ $sociosStmt = $pdo->query("SELECT id, nombre FROM users WHERE rol='socio' AND es
 $socios = $sociosStmt->fetchAll();
 
 render_header('Incidencias', 'admin-incidencias');
-render_admin_layout('incidencias', function() use ($filtros, $incidencias, $total, $pagina, $totalPaginas, $socios) {
+render_admin_layout('incidencias', function() use ($accion, $filtros, $incidencias, $total, $pagina, $totalPaginas, $socios) {
+
+    if ($accion === 'nueva') {
+        $hoy = date('Y-m-d');
+?>
+<h1>Nueva incidencia</h1>
+<?php render_flash(); ?>
+<form method="POST" action="/admin/incidencias" enctype="multipart/form-data" class="card" style="padding:24px;max-width:760px;">
+  <?= csrf_field() ?>
+  <input type="hidden" name="accion" value="crear">
+
+  <div class="form-group">
+    <label class="form-label">Tipo *</label>
+    <select name="tipo" class="form-control" required onchange="ajustarVisibleDefault(this.value)">
+      <option value="">— Selecciona —</option>
+      <?php foreach (INCIDENCIA_TIPOS as $t): ?>
+        <option value="<?= $t ?>"><?= format_incidencia_tipo($t) ?></option>
+      <?php endforeach; ?>
+    </select>
+  </div>
+
+  <div class="form-group">
+    <label class="form-label">Título *</label>
+    <input type="text" name="titulo" class="form-control" required maxlength="200">
+  </div>
+
+  <div class="form-group">
+    <label class="form-label">Descripción *</label>
+    <textarea name="descripcion" class="form-control" rows="5" required></textarea>
+  </div>
+
+  <div class="d-flex gap-3 flex-wrap">
+    <div class="form-group" style="flex:1;min-width:200px;">
+      <label class="form-label">Fecha del suceso *</label>
+      <input type="date" name="fecha_suceso" class="form-control" required max="<?= $hoy ?>" value="<?= $hoy ?>">
+    </div>
+    <div class="form-group" style="flex:2;min-width:240px;">
+      <label class="form-label">Socio (opcional para operativas)</label>
+      <select name="user_id" class="form-control">
+        <option value="">— Sin socio —</option>
+        <?php foreach ($socios as $s): ?>
+          <option value="<?= (int)$s['id'] ?>"><?= e($s['nombre']) ?></option>
+        <?php endforeach; ?>
+      </select>
+    </div>
+  </div>
+
+  <div class="form-group">
+    <label class="form-label">
+      <input type="checkbox" name="visible_socio" id="visible_socio" checked> Visible para el socio
+    </label>
+    <div class="text-muted text-sm">Si se desmarca, el socio no verá la incidencia ni recibirá notificación.</div>
+  </div>
+
+  <div class="form-group">
+    <label class="form-label">Adjuntos (PDF, JPG, PNG — máx 5 MB, hasta 5 ficheros)</label>
+    <input type="file" name="adjuntos[]" class="form-control" multiple accept=".pdf,.jpg,.jpeg,.png">
+  </div>
+
+  <div style="display:flex;gap:12px;">
+    <button type="submit" class="btn btn-primary"><i class="bi bi-check-lg"></i> Crear incidencia</button>
+    <a href="/admin/incidencias" class="btn btn-gray">Cancelar</a>
+  </div>
+</form>
+
+<script>
+function ajustarVisibleDefault(tipo) {
+  var cb = document.getElementById('visible_socio');
+  if (tipo === 'conducta') cb.checked = false;
+  else cb.checked = true;
+}
+</script>
+<?php
+        return;
+    }
 ?>
 
 <h1>Incidencias</h1>
