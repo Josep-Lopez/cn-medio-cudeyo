@@ -36,17 +36,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 // ── Filtros ──────────────────────────────────────────────────────────────────
 $fecha = $_GET['fecha'] ?? date('Y-m-d');
-$filtroLiga = $_GET['liga'] ?? '';
-if ($filtroLiga && !array_key_exists($filtroLiga, $LIGAS)) $filtroLiga = '';
+$filtroLiga = $_GET['liga'] ?? 'todos';
+if ($filtroLiga !== 'todos' && !array_key_exists($filtroLiga, $LIGAS)) $filtroLiga = 'todos';
 
-// Cargar nadadores activos (solo si hay categoría seleccionada)
+// Cargar nadadores activos (solo si hay categoría seleccionada o "todos")
 $where = "estado='activo' AND rol='socio' AND nadador_activo=1";
 $params = [];
-if ($filtroLiga) {
+if ($filtroLiga && $filtroLiga !== 'todos') {
     $where .= ' AND liga=?';
     $params[] = $filtroLiga;
 }
-$stmt = $pdo->prepare("SELECT id, nombre, liga, sexo FROM users WHERE $where ORDER BY liga, nombre");
+$stmt = $pdo->prepare("SELECT id, nombre, liga, sexo FROM users WHERE $where ORDER BY nombre");
 $stmt->execute($params);
 $nadadores = $stmt->fetchAll();
 
@@ -82,32 +82,30 @@ render_admin_layout('asistencia', function() use ($LIGAS, $nadadores, $registros
              style="width:auto;">
     </div>
     <div class="form-group" style="margin:0;">
-      <label class="form-label">Categoría *</label>
+      <label class="form-label">Categoría</label>
       <select class="form-control" style="width:auto;min-width:160px;"
               onchange="window.location='?fecha=<?= e($fecha) ?>&liga='+this.value">
-        <option value="">— Seleccionar —</option>
+        <option value="todos" <?= $filtroLiga === 'todos' ? 'selected' : '' ?>>Todos</option>
         <?php foreach ($LIGAS as $k => $v): ?>
           <option value="<?= $k ?>" <?= $filtroLiga === $k ? 'selected' : '' ?>><?= $v ?></option>
         <?php endforeach; ?>
       </select>
     </div>
-    <?php if ($filtroLiga): ?>
+    <div class="form-group" style="margin:0;flex:1;min-width:200px;">
+      <label class="form-label">Buscar nadador</label>
+      <input type="text" id="buscador" class="form-control" placeholder="Nombre…"
+             oninput="filtrarNadadores(this.value)">
+    </div>
     <div style="margin-left:auto;display:flex;align-items:center;gap:16px;">
       <div style="text-align:center;">
         <div style="font-size:24px;font-weight:800;color:var(--blue);"><?= $presentes ?>/<?= $total ?></div>
         <div class="text-muted text-sm">Presentes</div>
       </div>
     </div>
-    <?php endif; ?>
   </div>
 </div>
 
-<?php if (!$filtroLiga): ?>
-  <div class="card text-center" style="padding:32px;">
-    <div style="font-size:32px;color:var(--blue);margin-bottom:12px;"><i class="bi bi-arrow-up-circle"></i></div>
-    <p class="text-muted">Selecciona una categoría para pasar lista.</p>
-  </div>
-<?php elseif (!$nadadores): ?>
+<?php if (!$nadadores): ?>
   <div class="card text-center" style="padding:32px;">
     <p class="text-muted">No hay nadadores activos en esta categoría.</p>
   </div>
@@ -144,7 +142,7 @@ render_admin_layout('asistencia', function() use ($LIGAS, $nadadores, $registros
             $checked = $reg && (int)$reg['presente'] === 1;
             $obs = $reg['observaciones'] ?? '';
           ?>
-            <tr>
+            <tr data-nombre="<?= e(mb_strtolower($n['nombre'])) ?>">
               <td>
                 <input type="hidden" name="user_ids[]" value="<?= $n['id'] ?>">
                 <input type="checkbox" name="asistencia[<?= $n['id'] ?>]" value="1" <?= $checked ? 'checked' : '' ?>>
@@ -162,20 +160,52 @@ render_admin_layout('asistencia', function() use ($LIGAS, $nadadores, $registros
       </table>
     </div>
 
-    <div style="padding:16px;border-top:1px solid #eee;">
+    <div id="guardar-bar" style="padding:16px;border-top:1px solid #eee;">
       <button type="submit" class="btn btn-primary"><i class="bi bi-check-lg"></i> Guardar asistencia</button>
     </div>
   </div>
 </form>
+
+<button type="button" id="fab-guardar" onclick="irAGuardar()"
+        title="Ir a guardar"
+        style="position:fixed;bottom:24px;right:24px;width:52px;height:52px;border-radius:50%;
+               background:var(--blue);color:#fff;border:none;box-shadow:0 4px 12px rgba(0,0,0,.25);
+               cursor:pointer;font-size:22px;display:none;align-items:center;justify-content:center;z-index:1000;">
+  <i class="bi bi-arrow-down"></i>
+</button>
 <?php endif; ?>
 
 <script>
 function toggleAll(checked) {
-  document.querySelectorAll('input[name^="asistencia["]').forEach(function(cb) {
+  document.querySelectorAll('tbody tr:not([hidden]) input[name^="asistencia["]').forEach(function(cb) {
     cb.checked = checked;
   });
   document.getElementById('checkAll').checked = checked;
 }
+function filtrarNadadores(q) {
+  var term = q.toLowerCase().trim();
+  document.querySelectorAll('tbody tr').forEach(function(tr) {
+    var nombre = tr.getAttribute('data-nombre') || '';
+    tr.hidden = term && nombre.indexOf(term) === -1;
+  });
+}
+function irAGuardar() {
+  var bar = document.getElementById('guardar-bar');
+  if (bar) bar.scrollIntoView({behavior:'smooth', block:'center'});
+}
+(function() {
+  var fab = document.getElementById('fab-guardar');
+  var bar = document.getElementById('guardar-bar');
+  if (!fab || !bar) return;
+  function toggle() {
+    var rect = bar.getBoundingClientRect();
+    var visible = rect.top < window.innerHeight - 40;
+    fab.style.display = visible ? 'none' : 'flex';
+  }
+  window.addEventListener('scroll', toggle, {passive:true});
+  window.addEventListener('resize', toggle);
+  toggle();
+})();
 </script>
 
 <?php

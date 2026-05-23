@@ -8,8 +8,8 @@ require_admin();
 $LIGAS = ['benjamin'=>'Benjamín','alevin'=>'Alevín','infantil'=>'Infantil','junior'=>'Junior','absoluto'=>'Absoluto','master'=>'Master'];
 
 // ── Filtros ──────────────────────────────────────────────────────────────────
-$filtroLiga = $_GET['liga'] ?? '';
-if ($filtroLiga && !array_key_exists($filtroLiga, $LIGAS)) $filtroLiga = '';
+$filtroLiga = $_GET['liga'] ?? 'todos';
+if ($filtroLiga !== 'todos' && !array_key_exists($filtroLiga, $LIGAS)) $filtroLiga = 'todos';
 
 $mes = $_GET['mes'] ?? date('Y-m');
 // Validar formato YYYY-MM
@@ -24,8 +24,12 @@ $dias_mes = [];
 $asistencia_data = [];
 
 if ($filtroLiga) {
-    $stmt = $pdo->prepare("SELECT id, nombre FROM users WHERE estado='activo' AND rol='socio' AND nadador_activo=1 AND liga=? ORDER BY nombre");
-    $stmt->execute([$filtroLiga]);
+    if ($filtroLiga === 'todos') {
+        $stmt = $pdo->query("SELECT id, nombre, liga FROM users WHERE estado='activo' AND rol='socio' AND nadador_activo=1 ORDER BY nombre");
+    } else {
+        $stmt = $pdo->prepare("SELECT id, nombre, liga FROM users WHERE estado='activo' AND rol='socio' AND nadador_activo=1 AND liga=? ORDER BY nombre");
+        $stmt->execute([$filtroLiga]);
+    }
     $nadadores = $stmt->fetchAll();
 
     // Días del mes
@@ -54,6 +58,7 @@ $nombre_mes = ucfirst($meses_es[(int)date('m', strtotime($fecha_inicio)) - 1]) .
 
 render_header('Historial de asistencia', 'admin-asistencia_historial');
 render_admin_layout('asistencia_historial', function() use ($LIGAS, $filtroLiga, $mes, $mes_anterior, $mes_siguiente, $nombre_mes, $nadadores, $dias_mes, $asistencia_data) {
+  $showLiga = ($filtroLiga === 'todos');
 ?>
 
 <h1>Historial de asistencia</h1>
@@ -62,10 +67,10 @@ render_admin_layout('asistencia_historial', function() use ($LIGAS, $filtroLiga,
 <div class="card mb-6">
   <div class="d-flex gap-3 align-center flex-wrap">
     <div class="form-group" style="margin:0;">
-      <label class="form-label">Categoría *</label>
+      <label class="form-label">Categoría</label>
       <select class="form-control" style="width:auto;min-width:160px;"
               onchange="window.location='?liga='+this.value+'&mes=<?= e($mes) ?>'">
-        <option value="">— Seleccionar —</option>
+        <option value="todos" <?= $filtroLiga === 'todos' ? 'selected' : '' ?>>Todos</option>
         <?php foreach ($LIGAS as $k => $v): ?>
           <option value="<?= $k ?>" <?= $filtroLiga === $k ? 'selected' : '' ?>><?= $v ?></option>
         <?php endforeach; ?>
@@ -79,18 +84,18 @@ render_admin_layout('asistencia_historial', function() use ($LIGAS, $filtroLiga,
         <a href="?liga=<?= e($filtroLiga) ?>&mes=<?= $mes_siguiente ?>" class="btn btn-gray btn-sm"><i class="bi bi-chevron-right"></i></a>
       </div>
     </div>
+    <div class="form-group" style="margin:0;flex:1;min-width:180px;">
+      <label class="form-label">Buscar nadador</label>
+      <input type="text" id="buscador" class="form-control" placeholder="Nombre…"
+             oninput="filtrarNadadores(this.value)">
+    </div>
     <div style="margin-left:auto;">
       <a href="/admin/asistencia?liga=<?= e($filtroLiga) ?>" class="btn btn-primary btn-sm"><i class="bi bi-clipboard-check"></i> Pasar lista</a>
     </div>
   </div>
 </div>
 
-<?php if (!$filtroLiga): ?>
-  <div class="card text-center" style="padding:32px;">
-    <div style="font-size:32px;color:var(--blue);margin-bottom:12px;"><i class="bi bi-arrow-up-circle"></i></div>
-    <p class="text-muted">Selecciona una categoría para ver el historial.</p>
-  </div>
-<?php elseif (!$nadadores): ?>
+<?php if (!$nadadores): ?>
   <div class="card text-center" style="padding:32px;">
     <p class="text-muted">No hay nadadores activos en esta categoría.</p>
   </div>
@@ -102,6 +107,9 @@ render_admin_layout('asistencia_historial', function() use ($LIGAS, $filtroLiga,
       <thead>
         <tr>
           <th style="position:sticky;left:0;background:white;z-index:1;min-width:140px;">Nadador</th>
+          <?php if ($showLiga): ?>
+            <th style="min-width:90px;">Categoría</th>
+          <?php endif; ?>
           <?php foreach ($dias_mes as $dia): ?>
             <th style="text-align:center;min-width:30px;padding:6px 4px;"><?= (int)date('d', strtotime($dia)) ?></th>
           <?php endforeach; ?>
@@ -114,8 +122,11 @@ render_admin_layout('asistencia_historial', function() use ($LIGAS, $filtroLiga,
           $total_presente = 0;
           $total_registrado = 0;
         ?>
-          <tr>
+          <tr data-nombre="<?= e(mb_strtolower($n['nombre'])) ?>">
             <td style="position:sticky;left:0;background:white;z-index:1;font-weight:600;white-space:nowrap;"><?= e($n['nombre']) ?></td>
+            <?php if ($showLiga): ?>
+              <td><span class="text-sm"><?= e(format_liga($n['liga'] ?? '')) ?></span></td>
+            <?php endif; ?>
             <?php foreach ($dias_mes as $dia):
               $registro = $asistencia_data[$n['id']][$dia] ?? null;
               if ($registro !== null) {
@@ -145,6 +156,16 @@ render_admin_layout('asistencia_historial', function() use ($LIGAS, $filtroLiga,
 </div>
 
 <?php endif; ?>
+
+<script>
+function filtrarNadadores(q) {
+  var term = q.toLowerCase().trim();
+  document.querySelectorAll('tbody tr').forEach(function(tr) {
+    var nombre = tr.getAttribute('data-nombre') || '';
+    tr.hidden = term && nombre.indexOf(term) === -1;
+  });
+}
+</script>
 
 <?php
 });
