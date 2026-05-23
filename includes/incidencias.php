@@ -251,19 +251,24 @@ function subir_adjunto(PDO $pdo, int $incidencia_id, array $file, int $user_id):
         throw new RuntimeException('No se pudo guardar el fichero');
     }
 
-    $stmt = $pdo->prepare('
-        INSERT INTO incidencia_adjuntos (incidencia_id, archivo, nombre_original, mime, tamano, subido_por)
-        VALUES (?, ?, ?, ?, ?, ?)
-    ');
-    $stmt->execute([
-        $incidencia_id,
-        $nombre,
-        substr($file['name'], 0, 255),
-        $mime,
-        (int)$file['size'],
-        $user_id,
-    ]);
-    return (int)$pdo->lastInsertId();
+    try {
+        $stmt = $pdo->prepare('
+            INSERT INTO incidencia_adjuntos (incidencia_id, archivo, nombre_original, mime, tamano, subido_por)
+            VALUES (?, ?, ?, ?, ?, ?)
+        ');
+        $stmt->execute([
+            $incidencia_id,
+            $nombre,
+            substr($file['name'], 0, 255),
+            $mime,
+            (int)$file['size'],
+            $user_id,
+        ]);
+        return (int)$pdo->lastInsertId();
+    } catch (Throwable $ex) {
+        if (is_file($destino)) @unlink($destino);
+        throw $ex;
+    }
 }
 
 function eliminar_adjunto(PDO $pdo, int $adjunto_id, array $user): void
