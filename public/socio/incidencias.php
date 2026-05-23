@@ -7,6 +7,54 @@ require_once dirname(__DIR__, 2) . '/includes/incidencias.php';
 require_login();
 $user = current_user();
 
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['accion'] ?? '') === 'comentar') {
+    csrf_verify();
+    $id = (int)$_POST['id'];
+    try {
+        $inc = obtener_incidencia($pdo, $id);
+        if (!$inc) throw new RuntimeException('Incidencia no encontrada');
+        if (!puede_comentar_incidencia($inc, $user)) throw new RuntimeException('No puedes comentar');
+        agregar_comentario($pdo, $id, (int)$user['id'], $_POST['contenido'] ?? '');
+        flash('Comentario añadido.', 'success');
+    } catch (Throwable $ex) {
+        flash('Error: ' . $ex->getMessage(), 'danger');
+    }
+    header('Location: /socio/incidencias?ver=' . $id);
+    exit;
+}
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['accion'] ?? '') === 'subir_adjunto') {
+    csrf_verify();
+    $id = (int)$_POST['id'];
+    try {
+        $inc = obtener_incidencia($pdo, $id);
+        if (!$inc) throw new RuntimeException('Incidencia no encontrada');
+        if (!puede_subir_adjunto($inc, $user)) throw new RuntimeException('No puedes subir adjuntos');
+        if (empty($_FILES['adjunto']) || ($_FILES['adjunto']['error'] ?? UPLOAD_ERR_NO_FILE) === UPLOAD_ERR_NO_FILE) {
+            throw new RuntimeException('No se seleccionó fichero');
+        }
+        subir_adjunto($pdo, $id, $_FILES['adjunto'], (int)$user['id']);
+        flash('Adjunto subido.', 'success');
+    } catch (Throwable $ex) {
+        flash('Error: ' . $ex->getMessage(), 'danger');
+    }
+    header('Location: /socio/incidencias?ver=' . $id);
+    exit;
+}
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['accion'] ?? '') === 'eliminar_adjunto') {
+    csrf_verify();
+    $id = (int)$_POST['id'];
+    try {
+        eliminar_adjunto($pdo, (int)$_POST['adjunto_id'], $user);
+        flash('Adjunto eliminado.', 'success');
+    } catch (Throwable $ex) {
+        flash('Error: ' . $ex->getMessage(), 'danger');
+    }
+    header('Location: /socio/incidencias?ver=' . $id);
+    exit;
+}
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['accion'] ?? '') === 'crear') {
     csrf_verify();
     try {
@@ -165,6 +213,111 @@ render_header('Incidencias', 'socio-incidencias');
       </div>
     </form>
   <?php endif; ?>
+
+  <?php if ($verId > 0):
+      $inc = obtener_incidencia($pdo, $verId);
+      if (!$inc || !puede_ver_incidencia($inc, $user)):
+  ?>
+    <div class="card" style="padding:32px;text-align:center;">
+      <h2 style="margin-top:0;">No tienes acceso a esta incidencia</h2>
+      <p class="text-muted">La incidencia no existe o ya no es visible.</p>
+      <a href="/socio/incidencias" class="btn btn-primary btn-sm">Volver a mis incidencias</a>
+    </div>
+  <?php else:
+      $adjuntos = listar_adjuntos($pdo, $verId);
+      $comentarios = listar_comentarios($pdo, $verId);
+  ?>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+      <h1 style="margin:0;">Incidencia</h1>
+      <a href="/socio/incidencias" class="btn btn-gray btn-sm">← Volver</a>
+    </div>
+    <?php render_flash(); ?>
+
+    <div class="card mb-6" style="padding:24px;">
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:12px;">
+        <span class="badge <?= badge_clase_tipo($inc['tipo']) ?>"><?= format_incidencia_tipo($inc['tipo']) ?></span>
+        <span class="badge <?= badge_clase_estado($inc['estado']) ?>"><?= format_incidencia_estado($inc['estado']) ?></span>
+      </div>
+      <h2 style="margin:0 0 12px;"><?= e($inc['titulo']) ?></h2>
+      <div class="text-muted text-sm" style="margin-bottom:16px;">
+        Fecha suceso: <?= date('d/m/Y', strtotime($inc['fecha_suceso'])) ?>
+        · Creada: <?= date('d/m/Y H:i', strtotime($inc['created_at'])) ?>
+      </div>
+      <div style="white-space:pre-wrap;line-height:1.6;"><?= e($inc['descripcion']) ?></div>
+    </div>
+
+    <div class="card mb-6" style="padding:24px;">
+      <h3>Adjuntos (<?= count($adjuntos) ?>)</h3>
+      <?php if ($adjuntos): ?>
+        <ul style="list-style:none;padding:0;">
+          <?php foreach ($adjuntos as $a): ?>
+            <li style="padding:8px 0;border-bottom:1px solid #eee;display:flex;justify-content:space-between;align-items:center;gap:8px;">
+              <div>
+                <a href="/socio/incidencia_descargar.php?id=<?= (int)$a['id'] ?>"><?= e($a['nombre_original']) ?></a>
+                <span class="text-muted text-sm">— <?= number_format($a['tamano'] / 1024, 0) ?> KB</span>
+              </div>
+              <?php if ((int)$a['subido_por'] === (int)$user['id'] && $inc['estado'] === 'abierta'): ?>
+                <form method="POST" action="/socio/incidencias">
+                  <?= csrf_field() ?>
+                  <input type="hidden" name="accion" value="eliminar_adjunto">
+                  <input type="hidden" name="id" value="<?= (int)$inc['id'] ?>">
+                  <input type="hidden" name="adjunto_id" value="<?= (int)$a['id'] ?>">
+                  <button type="submit" class="btn btn-gray btn-sm">Eliminar</button>
+                </form>
+              <?php endif; ?>
+            </li>
+          <?php endforeach; ?>
+        </ul>
+      <?php else: ?>
+        <p class="text-muted">Sin adjuntos.</p>
+      <?php endif; ?>
+
+      <?php if (puede_subir_adjunto($inc, $user) && count($adjuntos) < INCIDENCIA_MAX_ADJUNTOS): ?>
+        <form method="POST" action="/socio/incidencias" enctype="multipart/form-data" style="margin-top:16px;">
+          <?= csrf_field() ?>
+          <input type="hidden" name="accion" value="subir_adjunto">
+          <input type="hidden" name="id" value="<?= (int)$inc['id'] ?>">
+          <div class="form-group">
+            <label class="form-label">Añadir adjunto</label>
+            <input type="file" name="adjunto" class="form-control" accept=".pdf,.jpg,.jpeg,.png" required>
+          </div>
+          <button type="submit" class="btn btn-primary btn-sm">Subir</button>
+        </form>
+      <?php endif; ?>
+    </div>
+
+    <div class="card" style="padding:24px;">
+      <h3>Comentarios (<?= count($comentarios) ?>)</h3>
+      <?php if ($comentarios): ?>
+        <?php foreach ($comentarios as $c): ?>
+          <div style="border-left:3px solid var(--blue);padding:8px 12px;margin-bottom:12px;background:#f9fafb;">
+            <div class="text-sm">
+              <strong><?= e($c['autor_nombre']) ?></strong>
+              <span class="badge <?= $c['autor_rol'] === 'admin' ? 'badge-operativa' : 'badge-gray' ?>" style="font-size:10px;"><?= e($c['autor_rol']) ?></span>
+              <span class="text-muted">· <?= date('d/m/Y H:i', strtotime($c['created_at'])) ?></span>
+            </div>
+            <div style="white-space:pre-wrap;margin-top:6px;"><?= e($c['contenido']) ?></div>
+          </div>
+        <?php endforeach; ?>
+      <?php else: ?>
+        <p class="text-muted">Sin comentarios.</p>
+      <?php endif; ?>
+
+      <?php if (puede_comentar_incidencia($inc, $user)): ?>
+        <form method="POST" action="/socio/incidencias" style="margin-top:16px;">
+          <?= csrf_field() ?>
+          <input type="hidden" name="accion" value="comentar">
+          <input type="hidden" name="id" value="<?= (int)$inc['id'] ?>">
+          <div class="form-group">
+            <textarea name="contenido" class="form-control" rows="3" placeholder="Escribe un comentario…" required></textarea>
+          </div>
+          <button type="submit" class="btn btn-primary btn-sm">Comentar</button>
+        </form>
+      <?php else: ?>
+        <p class="text-muted text-sm">Comentarios bloqueados (incidencia cerrada).</p>
+      <?php endif; ?>
+    </div>
+  <?php endif; endif; ?>
 </main>
 
 <?php render_footer(); ?>
