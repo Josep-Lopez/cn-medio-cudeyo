@@ -7,6 +7,42 @@ require_once dirname(__DIR__, 2) . '/includes/incidencias.php';
 require_login();
 $user = current_user();
 
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['accion'] ?? '') === 'crear') {
+    csrf_verify();
+    try {
+        $data = [
+            'tipo' => $_POST['tipo'] ?? '',
+            'titulo' => $_POST['titulo'] ?? '',
+            'descripcion' => $_POST['descripcion'] ?? '',
+            'fecha_suceso' => $_POST['fecha_suceso'] ?? '',
+            'user_id' => (int)$user['id'],
+            'visible_socio' => 1,
+            'creado_por' => (int)$user['id'],
+        ];
+        $files = [];
+        if (!empty($_FILES['adjuntos']) && is_array($_FILES['adjuntos']['name'])) {
+            foreach ($_FILES['adjuntos']['name'] as $idx => $name) {
+                if (($_FILES['adjuntos']['error'][$idx] ?? UPLOAD_ERR_NO_FILE) === UPLOAD_ERR_NO_FILE) continue;
+                $files[] = [
+                    'name' => $name,
+                    'tmp_name' => $_FILES['adjuntos']['tmp_name'][$idx],
+                    'error' => $_FILES['adjuntos']['error'][$idx],
+                    'size' => $_FILES['adjuntos']['size'][$idx],
+                    'type' => $_FILES['adjuntos']['type'][$idx],
+                ];
+            }
+        }
+        $id = crear_incidencia($pdo, $data, $files);
+        flash('Incidencia creada.', 'success');
+        header('Location: /socio/incidencias?ver=' . $id);
+        exit;
+    } catch (Throwable $ex) {
+        flash('Error: ' . $ex->getMessage(), 'danger');
+        header('Location: /socio/incidencias?accion=nueva');
+        exit;
+    }
+}
+
 $accion = $_GET['accion'] ?? '';
 $verId = isset($_GET['ver']) ? (int)$_GET['ver'] : 0;
 
@@ -84,6 +120,50 @@ render_header('Incidencias', 'socio-incidencias');
         </div>
       </div>
     <?php endif; ?>
+  <?php endif; ?>
+
+  <?php if ($accion === 'nueva'): ?>
+    <h1>Nueva incidencia</h1>
+    <?php render_flash(); ?>
+    <form method="POST" action="/socio/incidencias" enctype="multipart/form-data" class="card" style="padding:24px;max-width:680px;">
+      <?= csrf_field() ?>
+      <input type="hidden" name="accion" value="crear">
+
+      <div class="form-group">
+        <label class="form-label">Tipo *</label>
+        <select name="tipo" class="form-control" required>
+          <option value="">— Selecciona —</option>
+          <?php foreach (INCIDENCIA_TIPOS as $t): ?>
+            <option value="<?= $t ?>"><?= format_incidencia_tipo($t) ?></option>
+          <?php endforeach; ?>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Título *</label>
+        <input type="text" name="titulo" class="form-control" required maxlength="200">
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Descripción *</label>
+        <textarea name="descripcion" class="form-control" rows="5" required></textarea>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Fecha del suceso *</label>
+        <input type="date" name="fecha_suceso" class="form-control" required max="<?= date('Y-m-d') ?>" value="<?= date('Y-m-d') ?>">
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Adjuntos (PDF, JPG, PNG — máx 5 MB, hasta 5)</label>
+        <input type="file" name="adjuntos[]" class="form-control" multiple accept=".pdf,.jpg,.jpeg,.png">
+      </div>
+
+      <div style="display:flex;gap:12px;">
+        <button type="submit" class="btn btn-primary">Crear</button>
+        <a href="/socio/incidencias" class="btn btn-gray">Cancelar</a>
+      </div>
+    </form>
   <?php endif; ?>
 </main>
 
