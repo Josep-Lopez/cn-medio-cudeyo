@@ -114,6 +114,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['accion'] ?? '') === 'elimi
     exit;
 }
 
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['accion'] ?? '') === 'eliminar') {
+    csrf_verify();
+    $id = (int)$_POST['id'];
+    try {
+        eliminar_incidencia($pdo, $id);
+        flash('Incidencia eliminada.', 'success');
+    } catch (Throwable $ex) {
+        flash('Error: ' . $ex->getMessage(), 'danger');
+    }
+    header('Location: /admin/incidencias');
+    exit;
+}
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['accion'] ?? '') === 'editar_campos') {
     csrf_verify();
     $id = (int)$_POST['id'];
@@ -396,6 +409,38 @@ function ajustarVisibleDefault(tipo) {
     <p class="text-muted text-sm">Comentarios bloqueados (incidencia cerrada).</p>
   <?php endif; ?>
 </div>
+
+<div style="margin-top:24px;text-align:right;">
+  <button type="button" class="btn btn-sm" onclick="abrirModalEliminar(<?= (int)$inc['id'] ?>)" style="background:#dc2626;color:white;">
+    <i class="bi bi-trash"></i> Eliminar incidencia
+  </button>
+</div>
+
+<div id="modal-eliminar" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:9999;align-items:center;justify-content:center;">
+  <div style="background:white;padding:24px;border-radius:8px;max-width:420px;width:90%;">
+    <h3 style="margin:0 0 12px;">¿Eliminar incidencia?</h3>
+    <p>Se eliminarán también todos los adjuntos y comentarios. Esta acción no se puede deshacer.</p>
+    <form method="POST" action="/admin/incidencias">
+      <?= csrf_field() ?>
+      <input type="hidden" name="accion" value="eliminar">
+      <input type="hidden" name="id" id="modal-eliminar-id">
+      <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:16px;">
+        <button type="button" class="btn btn-gray" onclick="cerrarModalEliminar()">Cancelar</button>
+        <button type="submit" class="btn" style="background:#dc2626;color:white;">Eliminar</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+function abrirModalEliminar(id) {
+  document.getElementById('modal-eliminar-id').value = id;
+  document.getElementById('modal-eliminar').style.display = 'flex';
+}
+function cerrarModalEliminar() {
+  document.getElementById('modal-eliminar').style.display = 'none';
+}
+</script>
 
 <?php
         return;
