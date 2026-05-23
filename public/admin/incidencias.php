@@ -66,7 +66,7 @@ $sociosStmt = $pdo->query("SELECT id, nombre FROM users WHERE rol='socio' AND es
 $socios = $sociosStmt->fetchAll();
 
 render_header('Incidencias', 'admin-incidencias');
-render_admin_layout('incidencias', function() use ($accion, $filtros, $incidencias, $total, $pagina, $totalPaginas, $socios) {
+render_admin_layout('incidencias', function() use ($accion, $verId, $filtros, $incidencias, $total, $pagina, $totalPaginas, $socios, $pdo) {
 
     if ($accion === 'nueva') {
         $hoy = date('Y-m-d');
@@ -138,6 +138,81 @@ function ajustarVisibleDefault(tipo) {
   else cb.checked = true;
 }
 </script>
+<?php
+        return;
+    }
+
+    if ($verId > 0) {
+        $inc = obtener_incidencia($pdo, $verId);
+        if (!$inc) {
+            echo '<div class="card" style="padding:24px;">Incidencia no encontrada. <a href="/admin/incidencias">Volver</a></div>';
+            return;
+        }
+        $adjuntos = listar_adjuntos($pdo, $verId);
+        $comentarios = listar_comentarios($pdo, $verId);
+        $socio = null;
+        if (!empty($inc['user_id'])) {
+            $s = $pdo->prepare('SELECT id, nombre FROM users WHERE id=?');
+            $s->execute([$inc['user_id']]);
+            $socio = $s->fetch();
+        }
+?>
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+  <h1 style="margin:0;">Incidencia #<?= (int)$inc['id'] ?></h1>
+  <a href="/admin/incidencias" class="btn btn-gray btn-sm">← Volver al listado</a>
+</div>
+<?php render_flash(); ?>
+
+<div class="card mb-6" style="padding:24px;">
+  <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:12px;">
+    <span class="badge <?= badge_clase_tipo($inc['tipo']) ?>"><?= format_incidencia_tipo($inc['tipo']) ?></span>
+    <span class="badge <?= badge_clase_estado($inc['estado']) ?>"><?= format_incidencia_estado($inc['estado']) ?></span>
+    <span class="text-muted text-sm">Visible socio: <?= (int)$inc['visible_socio'] === 1 ? '✓' : '✗' ?></span>
+  </div>
+  <h2 style="margin:0 0 12px;"><?= e($inc['titulo']) ?></h2>
+  <div class="text-muted text-sm" style="margin-bottom:16px;">
+    Fecha suceso: <?= date('d/m/Y', strtotime($inc['fecha_suceso'])) ?>
+    · Creada: <?= date('d/m/Y H:i', strtotime($inc['created_at'])) ?>
+    · Actualizada: <?= date('d/m/Y H:i', strtotime($inc['updated_at'])) ?>
+    <?php if ($socio): ?> · Socio: <?= e($socio['nombre']) ?><?php endif; ?>
+  </div>
+  <div style="white-space:pre-wrap;line-height:1.6;"><?= e($inc['descripcion']) ?></div>
+</div>
+
+<div class="card mb-6" style="padding:24px;">
+  <h3>Adjuntos (<?= count($adjuntos) ?>)</h3>
+  <?php if (!$adjuntos): ?>
+    <p class="text-muted">Sin adjuntos.</p>
+  <?php else: ?>
+    <ul style="list-style:none;padding:0;">
+      <?php foreach ($adjuntos as $a): ?>
+        <li style="padding:8px 0;border-bottom:1px solid #eee;">
+          <a href="/admin/incidencia_descargar.php?id=<?= (int)$a['id'] ?>"><?= e($a['nombre_original']) ?></a>
+          <span class="text-muted text-sm">— <?= number_format($a['tamano'] / 1024, 0) ?> KB · <?= e($a['mime']) ?></span>
+        </li>
+      <?php endforeach; ?>
+    </ul>
+  <?php endif; ?>
+</div>
+
+<div class="card" style="padding:24px;">
+  <h3>Comentarios (<?= count($comentarios) ?>)</h3>
+  <?php if (!$comentarios): ?>
+    <p class="text-muted">Sin comentarios.</p>
+  <?php else: ?>
+    <?php foreach ($comentarios as $c): ?>
+      <div style="border-left:3px solid var(--blue);padding:8px 12px;margin-bottom:12px;background:#f9fafb;">
+        <div class="text-sm">
+          <strong><?= e($c['autor_nombre']) ?></strong>
+          <span class="badge <?= $c['autor_rol'] === 'admin' ? 'badge-operativa' : 'badge-gray' ?>" style="font-size:10px;"><?= e($c['autor_rol']) ?></span>
+          <span class="text-muted">· <?= date('d/m/Y H:i', strtotime($c['created_at'])) ?></span>
+        </div>
+        <div style="white-space:pre-wrap;margin-top:6px;"><?= e($c['contenido']) ?></div>
+      </div>
+    <?php endforeach; ?>
+  <?php endif; ?>
+</div>
+
 <?php
         return;
     }
