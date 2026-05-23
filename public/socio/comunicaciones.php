@@ -130,6 +130,11 @@ render_header('Comunicaciones', 'socio-comunicaciones');
     </div>
     <h1 style="font-size:22px;margin-bottom:12px;"><?= e($detalle['titulo']) ?></h1>
     <div style="line-height:1.7;font-size:15px;"><?= nl2br(e($detalle['contenido'])) ?></div>
+    <?php if (!empty($detalle['link_url'])): ?>
+      <div style="margin-top:16px;">
+        <a href="<?= e($detalle['link_url']) ?>" class="btn btn-primary btn-sm">Ver detalle →</a>
+      </div>
+    <?php endif; ?>
 
     <?php if ($detalle['tipo'] === 'encuesta' && $preguntas_detalle): ?>
       <div style="margin-top:28px;padding-top:20px;border-top:1px solid #eee;">
