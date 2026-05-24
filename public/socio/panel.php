@@ -91,17 +91,24 @@ foreach ($club_best_stmt->fetchAll() as $cb) {
     $club_bests[$cb['prueba'] . '_' . $cb['piscina'] . '_' . $cb['sexo']] = (float)$cb['best_seg'];
 }
 
-$records_actuales_set = [];
-$records_batidos = 0;
+$records_actuales_set = ['25m' => [], '50m' => []];
+$records_batidos_p = ['25m' => 0, '50m' => 0];
 foreach ($user_records as $r) {
     $key = $r['prueba'] . '_' . $r['piscina'] . '_' . $r['sexo'];
+    $pisc = $r['piscina'];
+    if (!isset($records_actuales_set[$pisc])) continue;
     if (isset($club_bests[$key]) && (float)$r['tiempo_seg'] <= $club_bests[$key]) {
-        $records_actuales_set[$r['prueba']] = true;
+        $records_actuales_set[$pisc][$r['prueba']] = true;
     } else {
-        $records_batidos++;
+        $records_batidos_p[$pisc]++;
     }
 }
-$records_actuales = count($records_actuales_set);
+$records_actuales_p = [
+    '25m' => count($records_actuales_set['25m']),
+    '50m' => count($records_actuales_set['50m']),
+];
+$records_actuales = $records_actuales_p['25m'] + $records_actuales_p['50m'];
+$records_batidos = $records_batidos_p['25m'] + $records_batidos_p['50m'];
 
 // Top 10 absoluto: en cuántas prueba+piscina está este usuario en el top 10
 // Primero obtener las mejores marcas del usuario, luego contar posición por cada una
@@ -186,13 +193,16 @@ render_header('Mi panel', 'socio-panel');
         <div class="text-muted text-sm">AQUA, mínimas y parciales</div>
       </div>
     </a>
-    <div class="card" style="display:flex;align-items:center;gap:14px;padding:16px 20px;">
-      <div style="font-size:24px;color:#15803d;"><i class="bi bi-trophy-fill"></i></div>
-      <div>
-        <div style="font-weight:700;font-size:14px;">Récords del club</div>
-        <div style="display:flex;gap:12px;margin-top:2px;">
-          <span style="font-size:13px;font-weight:700;color:#15803d;" title="Récords vigentes"><?= $records_actuales ?> actual<?= $records_actuales !== 1 ? 'es' : '' ?></span>
-          <span style="font-size:13px;font-weight:700;color:#a16207;" title="Récords batidos"><?= $records_batidos ?> batido<?= $records_batidos !== 1 ? 's' : '' ?></span>
+    <div class="card" style="padding:16px 20px;position:relative;display:flex;flex-direction:column;justify-content:center;">
+      <span class="badge badge-blue" id="recordsPistBadge" style="cursor:pointer;font-size:11px;display:inline-flex;align-items:center;gap:4px;position:absolute;top:16px;right:20px;" onclick="toggleRecordsPiscina()" title="Cambiar piscina"><i class="bi bi-water"></i> 25m <i class="bi bi-arrow-left-right" style="font-size:10px;opacity:.8;"></i></span>
+      <div style="display:flex;align-items:center;gap:14px;">
+        <div style="font-size:24px;color:#15803d;flex-shrink:0;"><i class="bi bi-trophy-fill"></i></div>
+        <div>
+          <div style="font-weight:700;font-size:14px;">Récords del club</div>
+          <div style="display:flex;gap:12px;margin-top:2px;">
+            <span style="font-size:13px;font-weight:700;color:#15803d;" title="Récords vigentes" id="recActualNum" data-p25="<?= $records_actuales_p['25m'] ?>" data-p50="<?= $records_actuales_p['50m'] ?>"><?= $records_actuales_p['25m'] ?> actual<?= $records_actuales_p['25m'] !== 1 ? 'es' : '' ?></span>
+            <span style="font-size:13px;font-weight:700;color:#a16207;" title="Récords batidos" id="recBatidoNum" data-p25="<?= $records_batidos_p['25m'] ?>" data-p50="<?= $records_batidos_p['50m'] ?>"><?= $records_batidos_p['25m'] ?> batido<?= $records_batidos_p['25m'] !== 1 ? 's' : '' ?></span>
+          </div>
         </div>
       </div>
     </div>
@@ -376,6 +386,30 @@ document.addEventListener('DOMContentLoaded', function() {
   if (t3) paintRankNum(t3, parseInt(t3.dataset.p25, 10));
   if (t10) paintRankNum(t10, parseInt(t10.dataset.p25, 10));
 });
+
+let recPisc = '25';
+function paintRecord(el, val, singular, plural) {
+  el.textContent = val + ' ' + (val === 1 ? singular : plural);
+}
+function toggleRecordsPiscina() {
+  recPisc = recPisc === '25' ? '50' : '25';
+  const key = recPisc === '25' ? 'p25' : 'p50';
+  const actual = document.getElementById('recActualNum');
+  const batido = document.getElementById('recBatidoNum');
+  if (actual) paintRecord(actual, parseInt(actual.dataset[key], 10), 'actual', 'actuales');
+  if (batido) paintRecord(batido, parseInt(batido.dataset[key], 10), 'batido', 'batidos');
+  const badge = document.getElementById('recordsPistBadge');
+  badge.textContent = '';
+  const icon = document.createElement('i');
+  icon.className = 'bi bi-water';
+  badge.appendChild(icon);
+  badge.appendChild(document.createTextNode(' ' + recPisc + 'm '));
+  const arrow = document.createElement('i');
+  arrow.className = 'bi bi-arrow-left-right';
+  arrow.style.fontSize = '10px';
+  arrow.style.opacity = '.8';
+  badge.appendChild(arrow);
+}
 </script>
 
 <?php render_footer(); ?>
