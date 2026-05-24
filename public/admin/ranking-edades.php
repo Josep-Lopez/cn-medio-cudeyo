@@ -181,6 +181,7 @@ render_admin_layout('ranking', function() use ($PRUEBAS, $filterPrueba, $filterP
       <label class="form-label">Nadador</label>
       <div style="display:inline-flex;border:2px solid var(--blue);border-radius:8px;overflow:hidden;">
         <?php foreach ($nadador_opts as $nv => $nl):
+          $nv = (string)$nv;
           $np = $base_filters; $np['nadador'] = $nv;
           $active = $filterNadador === $nv;
         ?>
