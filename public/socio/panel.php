@@ -197,18 +197,19 @@ render_header('Mi panel', 'socio-panel');
       </div>
     </div>
     <div class="card" style="padding:16px 20px;">
-      <div style="font-weight:700;font-size:14px;margin-bottom:10px;"><i class="bi bi-star-fill" style="color:#d97706;"></i> Ranking del club</div>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;gap:8px;">
+        <div style="font-weight:700;font-size:14px;"><i class="bi bi-star-fill" style="color:#d97706;"></i> Ranking del club</div>
+        <span class="badge badge-blue" id="rankingPistBadge" style="cursor:pointer;font-size:11px;display:inline-flex;align-items:center;gap:4px;" onclick="toggleRankingPiscina()" title="Cambiar piscina"><i class="bi bi-water"></i> 25m <i class="bi bi-arrow-left-right" style="font-size:10px;opacity:.8;"></i></span>
+      </div>
       <div style="display:flex;gap:16px;">
         <div style="text-align:center;flex:1;">
-          <div style="font-size:26px;font-weight:800;color:<?= $user_top3_total > 0 ? '#b45309' : 'var(--gray)' ?>;"><?= $user_top3_total ?></div>
+          <div style="font-size:26px;font-weight:800;" data-p25="<?= $user_top3['25m'] ?>" data-p50="<?= $user_top3['50m'] ?>" id="rankTop3Num"><?= $user_top3['25m'] ?></div>
           <span style="display:inline-block;background:#fef3c7;color:#92400e;font-size:13px;font-weight:700;padding:3px 10px;border-radius:6px;border:1px solid #fde68a;margin-top:4px;">TOP 3</span>
-          <div class="text-muted text-sm" style="margin-top:6px;font-size:11px;">25m: <strong style="color:#111;"><?= $user_top3['25m'] ?></strong> · 50m: <strong style="color:#111;"><?= $user_top3['50m'] ?></strong></div>
         </div>
         <div style="width:1px;background:#e5e7eb;"></div>
         <div style="text-align:center;flex:1;">
-          <div style="font-size:26px;font-weight:800;color:<?= $user_top10_total > 0 ? '#d97706' : 'var(--gray)' ?>;"><?= $user_top10_total ?></div>
+          <div style="font-size:26px;font-weight:800;" data-p25="<?= $user_top10['25m'] ?>" data-p50="<?= $user_top10['50m'] ?>" id="rankTop10Num"><?= $user_top10['25m'] ?></div>
           <span style="display:inline-block;background:#fff7ed;color:#a16207;font-size:13px;font-weight:700;padding:3px 10px;border-radius:6px;border:1px solid #fed7aa;margin-top:4px;">TOP 10</span>
-          <div class="text-muted text-sm" style="margin-top:6px;font-size:11px;">25m: <strong style="color:#111;"><?= $user_top10['25m'] ?></strong> · 50m: <strong style="color:#111;"><?= $user_top10['50m'] ?></strong></div>
         </div>
       </div>
     </div>
@@ -226,7 +227,7 @@ render_header('Mi panel', 'socio-panel');
           <?php endforeach; ?>
           <option value="todas" <?= $show_all ? 'selected' : '' ?>>Todas</option>
         </select>
-        <span class="badge badge-blue" id="pistBadge" style="cursor:pointer;" onclick="togglePiscina()"><i class="bi bi-water"></i> 25m</span>
+        <span class="badge badge-blue" id="pistBadge" style="cursor:pointer;display:inline-flex;align-items:center;gap:4px;" onclick="togglePiscina()" title="Cambiar piscina"><i class="bi bi-water"></i> 25m <i class="bi bi-arrow-left-right" style="font-size:10px;opacity:.8;"></i></span>
       </div>
     </div>
 
@@ -335,8 +336,46 @@ function togglePiscina() {
   const icon = document.createElement('i');
   icon.className = 'bi bi-water';
   badge.appendChild(icon);
-  badge.appendChild(document.createTextNode(' ' + pisc + 'm'));
+  badge.appendChild(document.createTextNode(' ' + pisc + 'm '));
+  const arrow = document.createElement('i');
+  arrow.className = 'bi bi-arrow-left-right';
+  arrow.style.fontSize = '10px';
+  arrow.style.opacity = '.8';
+  badge.appendChild(arrow);
 }
+
+let rankPisc = '25';
+function paintRankNum(el, val) {
+  el.textContent = val;
+  const isTop3 = el.id === 'rankTop3Num';
+  const activeColor = isTop3 ? '#b45309' : '#d97706';
+  el.style.color = val > 0 ? activeColor : 'var(--gray)';
+}
+function toggleRankingPiscina() {
+  rankPisc = rankPisc === '25' ? '50' : '25';
+  const key = rankPisc === '25' ? 'p25' : 'p50';
+  const t3 = document.getElementById('rankTop3Num');
+  const t10 = document.getElementById('rankTop10Num');
+  paintRankNum(t3, parseInt(t3.dataset[key], 10));
+  paintRankNum(t10, parseInt(t10.dataset[key], 10));
+  const badge = document.getElementById('rankingPistBadge');
+  badge.textContent = '';
+  const icon = document.createElement('i');
+  icon.className = 'bi bi-water';
+  badge.appendChild(icon);
+  badge.appendChild(document.createTextNode(' ' + rankPisc + 'm '));
+  const arrow = document.createElement('i');
+  arrow.className = 'bi bi-arrow-left-right';
+  arrow.style.fontSize = '10px';
+  arrow.style.opacity = '.8';
+  badge.appendChild(arrow);
+}
+document.addEventListener('DOMContentLoaded', function() {
+  const t3 = document.getElementById('rankTop3Num');
+  const t10 = document.getElementById('rankTop10Num');
+  if (t3) paintRankNum(t3, parseInt(t3.dataset.p25, 10));
+  if (t10) paintRankNum(t10, parseInt(t10.dataset.p25, 10));
+});
 </script>
 
 <?php render_footer(); ?>
