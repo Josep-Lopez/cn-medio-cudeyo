@@ -166,6 +166,11 @@ render_header('Ranking liga', 'socio-ranking');
 <div class="container page-content">
   <?php $hasFilters = $filterPrueba || $filterLiga || $filterMejores || $filterTop10 || $filterTemporada !== $temporadas_disp[0] || $filterPiscina !== '25m'; ?>
   <h1 style="margin-bottom:6px;">Ranking — <?= $filterLiga ? e(format_liga($filterLiga)) : 'Todas las categorías' ?></h1>
+
+  <div class="ranking-tabs">
+    <a href="/socio/ranking" class="tab--active">Por liga</a>
+    <a href="/socio/ranking-edades" class="js-loading-link">Por edad</a>
+  </div>
   <style>
     @keyframes loading-spin {
       from { transform: rotate(0deg); }
