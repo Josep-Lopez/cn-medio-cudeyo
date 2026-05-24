@@ -284,6 +284,17 @@ function format_liga(string $liga): string
     return $mapa[$liga] ?? ucfirst($liga);
 }
 
+// Edad deportiva FINA/RFEN: año(fecha_marca) - año(fecha_nacimiento).
+// No depende de día/mes. Devuelve null si falta algún dato.
+function edad_deportiva(?string $fecha_marca, ?string $fecha_nacimiento): ?int
+{
+    if (!$fecha_marca || !$fecha_nacimiento) return null;
+    $y_m = (int)substr($fecha_marca, 0, 4);
+    $y_n = (int)substr($fecha_nacimiento, 0, 4);
+    if ($y_m <= 0 || $y_n <= 0) return null;
+    return $y_m - $y_n;
+}
+
 // Genera <optgroup> para un select de pruebas
 function render_prueba_options(string $selected = '', bool $show_all = false): void
 {
