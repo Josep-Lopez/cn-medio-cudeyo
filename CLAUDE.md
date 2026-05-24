@@ -54,7 +54,8 @@ cn-medio-cudeyo/
     │   ├── rfen_buscar.php ← API búsqueda deportistas RFEN
     │   ├── rfen_importar.php ← Importar marcas desde RFEN
     │   ├── incidencias.php ← Listado + nueva + detalle + edit + eliminar
-    │   └── incidencia_descargar.php ← Descarga de adjuntos
+    │   ├── incidencia_descargar.php ← Descarga de adjuntos
+    │   └── ranking-edades.php ← Ranking por edad (Vista A top-10 + Vista B matriz)
     ├── directiva/
     │   ├── socios.php      ← Lista socios + cuotas (directiva ver; tesorero edita)
     │   ├── actas.php       ← Actas (directiva ve publicadas; secretario edita)
@@ -64,7 +65,8 @@ cn-medio-cudeyo/
         ├── perfil.php      ← Perfil del socio + cambio contraseña
         ├── ranking.php     ← Ranking de la liga (con filtros)
         ├── incidencias.php ← Listado + nueva + detalle (solo propias visibles)
-        └── incidencia_descargar.php ← Descarga de adjuntos (con check)
+        ├── incidencia_descargar.php ← Descarga de adjuntos (con check)
+        └── ranking-edades.php ← Ranking por edad (Vista A top-10 + Vista B matriz)
 ```
 
 ## Convenciones PHP
@@ -207,6 +209,8 @@ Inter (Google Fonts) + Arial fallback
 | Directiva — Socios y cuotas | `public/directiva/socios.php` | ✅ |
 | Directiva — Actas | `public/directiva/actas.php` | ✅ |
 | Directiva — Cuestiones | `public/directiva/cuestiones.php` | ✅ |
+| Socio — Ranking por edad | `public/socio/ranking-edades.php` | ✅ |
+| Admin — Ranking por edad | `public/admin/ranking-edades.php` | ✅ |
 
 ## Pendiente / futuro
 - [ ] Calendari: confirmar que el Google Calendar embed funciona
