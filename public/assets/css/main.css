@@ -945,3 +945,97 @@ table tbody tr:hover td { background: #fafcff; }
   .auth-card    { padding: 24px 20px; }
   .calc-tabs    { flex-direction: column; }
 }
+
+/* === Ranking edades === */
+.ranking-tabs {
+  display: inline-flex;
+  border: 2px solid var(--blue);
+  border-radius: 10px;
+  overflow: hidden;
+  margin-bottom: 18px;
+}
+.ranking-tabs a {
+  padding: 8px 18px;
+  font-weight: 600;
+  color: var(--blue);
+  background: #fff;
+  text-decoration: none;
+  font-size: 14px;
+  transition: background .15s, color .15s;
+}
+.ranking-tabs a.tab--active {
+  background: var(--blue);
+  color: #fff;
+}
+.ranking-tabs a:not(.tab--active):hover {
+  background: #eef4ff;
+}
+
+.edad-block {
+  margin-bottom: 28px;
+}
+.edad-block h2 {
+  font-size: 18px;
+  margin: 0 0 10px;
+  padding-bottom: 6px;
+  border-bottom: 2px solid var(--blue);
+  color: var(--blue);
+}
+.edad-block .empty {
+  color: #888;
+  font-style: italic;
+  padding: 12px 0;
+}
+
+.matriz-edades {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+.matriz-edades th,
+.matriz-edades td {
+  border: 1px solid #e5e7eb;
+  padding: 6px 8px;
+  text-align: center;
+  vertical-align: middle;
+}
+.matriz-edades thead th {
+  background: var(--blue);
+  color: #fff;
+  font-weight: 700;
+  position: sticky;
+  top: 0;
+}
+.matriz-edades th.row-edad {
+  background: #eef4ff;
+  font-weight: 700;
+  color: var(--blue);
+}
+.matriz-edades td.cell-record {
+  padding: 4px 6px;
+}
+.matriz-edades td.cell-record a {
+  display: block;
+  text-decoration: none;
+  color: var(--text);
+}
+.matriz-edades td.cell-record a:hover {
+  background: #f0f7ff;
+}
+.matriz-edades .cell-time {
+  font-family: monospace;
+  font-weight: 700;
+  color: var(--blue);
+  font-size: 13px;
+}
+.matriz-edades .cell-name {
+  font-size: 11px;
+  color: #555;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 90px;
+}
+.matriz-edades .cell-empty {
+  color: #ccc;
+}
