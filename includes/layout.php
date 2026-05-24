@@ -359,6 +359,18 @@ function render_admin_layout(string $activePage, callable $content): void
       </a>
     </div>
     <div class="admin-sidebar-section">
+      <div class="admin-sidebar-title">Directiva</div>
+      <a href="/directiva/socios" class="<?= $activePage === 'directiva-socios' ? 'active' : '' ?>">
+        <i class="bi bi-people-fill"></i> Socios y cuotas
+      </a>
+      <a href="/directiva/actas" class="<?= $activePage === 'directiva-actas' ? 'active' : '' ?>">
+        <i class="bi bi-journal-text"></i> Actas
+      </a>
+      <a href="/directiva/cuestiones" class="<?= $activePage === 'directiva-cuestiones' ? 'active' : '' ?>">
+        <i class="bi bi-question-circle-fill"></i> Cuestiones
+      </a>
+    </div>
+    <div class="admin-sidebar-section">
       <div class="admin-sidebar-title">Sistema</div>
       <a href="/admin/config" class="<?= $activePage === 'config' ? 'active' : '' ?>">
         <i class="bi bi-sliders"></i> Configuración
