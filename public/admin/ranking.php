@@ -171,6 +171,11 @@ render_admin_layout('ranking', function() use ($PRUEBAS, $ranking, $filterLiga, 
 <?php $hasFilters = $filterPrueba || $filterLiga || $filterMejores || $filterTop10 || $filterTemporada !== $temporadas_disp[0] || $filterPiscina !== '25m'; ?>
 <h1>Ranking general</h1>
 
+<div class="ranking-tabs">
+  <a href="/admin/ranking" class="tab--active">Por liga</a>
+  <a href="/admin/ranking-edades" class="js-loading-link">Por edad</a>
+</div>
+
 <style>
   @keyframes loading-spin {
     from { transform: rotate(0deg); }
