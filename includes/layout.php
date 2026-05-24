@@ -61,6 +61,9 @@ function render_header(string $title, string $activePage = '', string $extraHead
           <?php else: ?>
             <a href="/socio/panel" <?= str_starts_with($activePage, 'socio') ? 'class="active"' : '' ?>>Mi panel</a>
           <?php endif; ?>
+          <?php if (!empty(cargos_activos())): ?>
+            <a href="/directiva/socios" <?= str_starts_with($activePage, 'directiva') ? 'class="active"' : '' ?>>Directiva</a>
+          <?php endif; ?>
         <?php endif; ?>
         <a href="/noticias/" <?= $activePage === 'noticias' ? 'class="active"' : '' ?>>Noticias</a>
         <?php if ($user && is_nadador_activo()): ?>
@@ -69,7 +72,9 @@ function render_header(string $title, string $activePage = '', string $extraHead
         <?php elseif (!$user): ?>
           <a href="/sobre-nosotros" <?= $activePage === 'sobre' ? 'class="active"' : '' ?>>Sobre nosotros</a>
         <?php endif; ?>
-        <a href="/contacto" <?= $activePage === 'contacto' ? 'class="active"' : '' ?>>Contacto</a>
+        <?php if (!$user): ?>
+          <a href="/contacto" <?= $activePage === 'contacto' ? 'class="active"' : '' ?>>Contacto</a>
+        <?php endif; ?>
       </div>
 
       <div class="navbar-auth">
@@ -96,6 +101,7 @@ function render_header(string $title, string $activePage = '', string $extraHead
                 <a href="/socio/comunicaciones"><i class="bi bi-bell"></i> Comunicaciones<?= $notif_count > 0 ? ' <span class="badge badge-blue" style="font-size:11px;padding:2px 6px;margin-left:4px;">' . $notif_count . '</span>' : '' ?></a>
                 <a href="/socio/incidencias" <?= $activePage === 'socio-incidencias' ? 'class="active"' : '' ?>><i class="bi bi-exclamation-triangle"></i> Incidencias</a>
               <?php endif; ?>
+              <a href="/directiva/cuestiones" <?= $activePage === 'directiva-cuestiones' ? 'class="active"' : '' ?>><i class="bi bi-question-circle"></i> Cuestiones</a>
               <a href="/logout"><i class="bi bi-box-arrow-right"></i> Cerrar sesión</a>
             </div>
           </div>
@@ -123,6 +129,9 @@ function render_header(string $title, string $activePage = '', string $extraHead
           <a href="/socio/ranking">Ranking mi liga</a>
         <?php endif; ?>
       <?php endif; ?>
+      <?php if (!empty(cargos_activos())): ?>
+        <a href="/directiva/socios">Directiva</a>
+      <?php endif; ?>
     <?php endif; ?>
     <a href="/noticias/">Noticias</a>
     <?php if ($user && is_nadador_activo()): ?>
@@ -131,7 +140,9 @@ function render_header(string $title, string $activePage = '', string $extraHead
     <?php elseif (!$user): ?>
       <a href="/sobre-nosotros">Sobre nosotros</a>
     <?php endif; ?>
-    <a href="/contacto">Contacto</a>
+    <?php if (!$user): ?>
+      <a href="/contacto">Contacto</a>
+    <?php endif; ?>
     <div class="mobile-auth">
       <?php if ($user): ?>
         <span style="font-size:14px;color:#888;">Hola, <strong><?= e($user['nombre']) ?></strong></span>
@@ -265,6 +276,44 @@ document.addEventListener('click', function(e) {
 <?php
 }
 
+// Layout para el área de directiva. Sidebar paralelo al de admin.
+// Admin también ve estos enlaces (le sirve para auditar).
+function render_directiva_layout(string $activePage, callable $content): void
+{
+    ?>
+<div class="admin-layout">
+  <aside class="admin-sidebar">
+    <div class="admin-sidebar-section">
+      <div class="admin-sidebar-title">Directiva</div>
+      <a href="/directiva/socios" class="<?= $activePage === 'socios' ? 'active' : '' ?>">
+        <i class="bi bi-people-fill"></i> Socios y cuotas
+      </a>
+      <a href="/directiva/actas" class="<?= $activePage === 'actas' ? 'active' : '' ?>">
+        <i class="bi bi-journal-text"></i> Actas
+      </a>
+      <a href="/directiva/cuestiones" class="<?= $activePage === 'cuestiones' ? 'active' : '' ?>">
+        <i class="bi bi-question-circle-fill"></i> Cuestiones
+      </a>
+    </div>
+    <?php if (is_admin()): ?>
+      <div class="admin-sidebar-section">
+        <div class="admin-sidebar-title">Volver</div>
+        <a href="/admin/usuarios"><i class="bi bi-arrow-left"></i> Panel admin</a>
+      </div>
+    <?php else: ?>
+      <div class="admin-sidebar-section">
+        <div class="admin-sidebar-title">Mi cuenta</div>
+        <a href="/socio/panel"><i class="bi bi-house-fill"></i> Mi panel</a>
+      </div>
+    <?php endif; ?>
+  </aside>
+  <main class="admin-main">
+    <?php $content(); ?>
+  </main>
+</div>
+<?php
+}
+
 function render_admin_layout(string $activePage, callable $content): void
 {
     ?>
@@ -274,6 +323,9 @@ function render_admin_layout(string $activePage, callable $content): void
       <div class="admin-sidebar-title">Usuarios</div>
       <a href="/admin/usuarios" class="<?= $activePage === 'usuarios' ? 'active' : '' ?>">
         <i class="bi bi-people-fill"></i> Gestión de usuarios
+      </a>
+      <a href="/admin/cargos" class="<?= $activePage === 'cargos' ? 'active' : '' ?>">
+        <i class="bi bi-person-badge-fill"></i> Cargos directiva
       </a>
       <a href="/admin/asistencia" class="<?= $activePage === 'asistencia' ? 'active' : '' ?>">
         <i class="bi bi-clipboard-check-fill"></i> Pasar lista

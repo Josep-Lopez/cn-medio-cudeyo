@@ -10,9 +10,12 @@ CREATE TABLE IF NOT EXISTS users (
     email      VARCHAR(150)  NOT NULL UNIQUE,
     password   VARCHAR(255)  NOT NULL,
     rol        ENUM('socio','admin') NOT NULL DEFAULT 'socio',
+    tipo_socio ENUM('numerario','deportivo') DEFAULT NULL,
     estado     ENUM('pendiente','activo','rechazado') NOT NULL DEFAULT 'pendiente',
     liga       ENUM('benjamin','alevin','infantil','junior','absoluto','master') DEFAULT NULL,
     sexo       ENUM('M','F') NOT NULL,
+    fecha_nacimiento DATE DEFAULT NULL,
+    tutor_user_id INT DEFAULT NULL,
     rfen_id    VARCHAR(100) DEFAULT NULL,
     rfen_nombre VARCHAR(200) DEFAULT NULL,
     nadador_activo TINYINT(1) NOT NULL DEFAULT 1,
@@ -20,7 +23,91 @@ CREATE TABLE IF NOT EXISTS users (
     must_change_pwd TINYINT(1) NOT NULL DEFAULT 0,
     tutor_email VARCHAR(150) DEFAULT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    CONSTRAINT fk_users_tutor FOREIGN KEY (tutor_user_id) REFERENCES users(id) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS cargos (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT NOT NULL,
+    cargo ENUM(
+        'presidente',
+        'secretario',
+        'tesorero',
+        'vocal',
+        'responsable_menores',
+        'encargado_redes'
+    ) NOT NULL,
+    fecha_inicio DATE NOT NULL,
+    fecha_fin DATE NULL,
+    notas VARCHAR(255) NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    INDEX idx_cargo_activo (cargo, fecha_fin),
+    INDEX idx_user (user_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS cuotas (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT NOT NULL,
+    temporada VARCHAR(10) NOT NULL,
+    importe DECIMAL(8,2) NOT NULL DEFAULT 0,
+    estado ENUM('pendiente','pagada','exenta') NOT NULL DEFAULT 'pendiente',
+    fecha_pago DATE NULL,
+    metodo ENUM('transferencia','efectivo','domiciliacion','otro') NULL,
+    notas VARCHAR(255) NULL,
+    creado_por INT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (creado_por) REFERENCES users(id) ON DELETE SET NULL,
+    UNIQUE KEY uq_user_temporada (user_id, temporada),
+    INDEX idx_estado_temporada (estado, temporada),
+    INDEX idx_temporada (temporada)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS actas (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    fecha DATE NOT NULL,
+    titulo VARCHAR(200) NOT NULL,
+    contenido MEDIUMTEXT NOT NULL,
+    autor_id INT NULL,
+    publicada TINYINT(1) NOT NULL DEFAULT 0,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (autor_id) REFERENCES users(id) ON DELETE SET NULL,
+    INDEX idx_fecha (fecha),
+    INDEX idx_publicada (publicada)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS cuestiones (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    autor_id INT NOT NULL,
+    titulo VARCHAR(200) NOT NULL,
+    descripcion TEXT NOT NULL,
+    estado ENUM('propuesta','aprobada','rechazada') NOT NULL DEFAULT 'propuesta',
+    decision_por INT NULL,
+    decision_fecha DATETIME NULL,
+    decision_motivo VARCHAR(500) NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (autor_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (decision_por) REFERENCES users(id) ON DELETE SET NULL,
+    INDEX idx_estado (estado),
+    INDEX idx_autor (autor_id),
+    INDEX idx_created (created_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS cuestion_comentarios (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    cuestion_id INT NOT NULL,
+    user_id INT NOT NULL,
+    contenido TEXT NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (cuestion_id) REFERENCES cuestiones(id) ON DELETE CASCADE,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    INDEX idx_cuestion (cuestion_id, created_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS noticias (

@@ -132,6 +132,99 @@ function is_nadador_activo(): bool
     return !empty($_SESSION['user']['nadador_activo']);
 }
 
+// ── Cargos directiva ────────────────────────────────────────────────────────
+
+// Devuelve cargos activos del usuario (['vocal','tesorero', ...]).
+// Si $user_id es null, usa el usuario en sesión. Caché estático por request.
+function cargos_activos(?int $user_id = null): array
+{
+    static $cache = [];
+    global $pdo;
+
+    if ($user_id === null) {
+        $u = current_user();
+        if (!$u) return [];
+        $user_id = (int)$u['id'];
+    }
+
+    if (isset($cache[$user_id])) return $cache[$user_id];
+    if (!$pdo) return [];
+
+    $stmt = $pdo->prepare(
+        'SELECT cargo FROM cargos
+         WHERE user_id = ?
+           AND (fecha_fin IS NULL OR fecha_fin > CURDATE())'
+    );
+    $stmt->execute([$user_id]);
+    $cache[$user_id] = $stmt->fetchAll(PDO::FETCH_COLUMN);
+    return $cache[$user_id];
+}
+
+function user_tiene_cargo(string $cargo, ?int $user_id = null): bool
+{
+    return in_array($cargo, cargos_activos($user_id), true);
+}
+
+// Pertenece a la junta directiva (presidente/secretario/tesorero/vocal)
+function es_directiva(?int $user_id = null): bool
+{
+    $cargos = cargos_activos($user_id);
+    foreach (['presidente', 'secretario', 'tesorero', 'vocal'] as $c) {
+        if (in_array($c, $cargos, true)) return true;
+    }
+    return false;
+}
+
+// Restringe a usuarios con alguno de los cargos dados. Admin pasa siempre.
+function require_cargo(array $cargos_validos): void
+{
+    require_login();
+    if (is_admin()) return;
+    $cargos = cargos_activos();
+    foreach ($cargos_validos as $c) {
+        if (in_array($c, $cargos, true)) return;
+    }
+    http_response_code(403);
+    render_header('Acceso denegado');
+    echo '<div class="container page-content"><div class="alert alert-danger">No tienes permiso para acceder a esta página.</div></div>';
+    render_footer();
+    exit;
+}
+
+// Límite máximo de titulares activos por cargo
+function cargos_limites(): array
+{
+    return [
+        'presidente'          => 1,
+        'secretario'          => 1,
+        'tesorero'            => 1,
+        'responsable_menores' => 1,
+        'vocal'               => 5,
+        'encargado_redes'     => 3,
+    ];
+}
+
+// Lista de todos los cargos válidos
+function cargos_disponibles(): array
+{
+    return array_keys(cargos_limites());
+}
+
+// Nombre legible del cargo
+function cargo_label(string $cargo): string
+{
+    return match ($cargo) {
+        'presidente'          => 'Presidente',
+        'secretario'          => 'Secretario',
+        'tesorero'            => 'Tesorero',
+        'vocal'               => 'Vocal',
+        'responsable_menores' => 'Responsable de protección del menor',
+        'encargado_redes'     => 'Encargado de redes sociales',
+        default               => ucfirst($cargo),
+    };
+}
+
+
 function require_nadador_activo(): void
 {
     require_login();

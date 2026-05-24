@@ -9,14 +9,15 @@ if (current_user()) {
 }
 
 $errors = [];
-$data   = ['nombre' => '', 'email' => '', 'sexo' => '', 'liga' => ''];
+$data   = ['nombre' => '', 'email' => '', 'sexo' => '', 'liga' => '', 'fecha_nacimiento' => ''];
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     csrf_verify();
-    $data['nombre']   = trim($_POST['nombre'] ?? '');
-    $data['email'] = trim($_POST['email'] ?? '');
-    $data['sexo']  = $_POST['sexo'] ?? '';
-    $data['liga'] = $_POST['liga'] ?? '';
+    $data['nombre']           = trim($_POST['nombre'] ?? '');
+    $data['email']            = trim($_POST['email'] ?? '');
+    $data['sexo']             = $_POST['sexo'] ?? '';
+    $data['liga']             = $_POST['liga'] ?? '';
+    $data['fecha_nacimiento'] = trim($_POST['fecha_nacimiento'] ?? '');
     $pass1 = $_POST['password'] ?? '';
     $pass2 = $_POST['password2'] ?? '';
 
@@ -29,6 +30,27 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!in_array($data['liga'], ['benjamin','alevin','infantil','junior','absoluto','master']))
         $errors[] = 'Selecciona una categoría.';
 
+    // Validar fecha de nacimiento
+    $fecha_nac_dt = null;
+    if (!$data['fecha_nacimiento']) {
+        $errors[] = 'La fecha de nacimiento es obligatoria.';
+    } else {
+        $fecha_nac_dt = DateTime::createFromFormat('Y-m-d', $data['fecha_nacimiento']);
+        if (!$fecha_nac_dt || $fecha_nac_dt->format('Y-m-d') !== $data['fecha_nacimiento']) {
+            $errors[] = 'La fecha de nacimiento no es válida.';
+            $fecha_nac_dt = null;
+        } else {
+            $hoy = new DateTime('today');
+            if ($fecha_nac_dt > $hoy) {
+                $errors[] = 'La fecha de nacimiento no puede ser futura.';
+                $fecha_nac_dt = null;
+            } elseif ((int)$fecha_nac_dt->diff($hoy)->y > 110) {
+                $errors[] = 'La fecha de nacimiento no es plausible.';
+                $fecha_nac_dt = null;
+            }
+        }
+    }
+
     if (!$errors) {
         // Verificar email único
         $check = $pdo->prepare('SELECT id FROM users WHERE email = ?');
@@ -39,11 +61,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     if (!$errors) {
+        // Derivar tipo de socio según edad (>= 18: numerario, < 18: deportivo)
+        $edad = (int)$fecha_nac_dt->diff(new DateTime('today'))->y;
+        $tipo_socio = $edad >= 18 ? 'numerario' : 'deportivo';
+
         $hash = password_hash($pass1, PASSWORD_BCRYPT);
         $stmt = $pdo->prepare(
-            'INSERT INTO users (nombre, email, password, rol, estado, liga, sexo) VALUES (?,?,?,\'socio\',\'pendiente\',?,?)'
+            'INSERT INTO users (nombre, email, password, rol, tipo_socio, estado, liga, sexo, fecha_nacimiento)
+             VALUES (?,?,?,\'socio\',?,\'pendiente\',?,?,?)'
         );
-        $stmt->execute([$data['nombre'], $data['email'], $hash, $data['liga'], $data['sexo']]);
+        $stmt->execute([
+            $data['nombre'], $data['email'], $hash, $tipo_socio,
+            $data['liga'], $data['sexo'], $data['fecha_nacimiento'],
+        ]);
 
         flash('Registro completado. Tu cuenta está pendiente de aprobación por el administrador. Te avisaremos cuando esté activa.', 'info');
         header('Location: /login');
@@ -79,6 +109,11 @@ render_header('Registro', 'registro');
         <label class="form-label" for="email">Email</label>
         <input type="email" id="email" name="email" class="form-control"
                value="<?= e($data['email']) ?>" required>
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="fecha_nacimiento">Fecha de nacimiento</label>
+        <input type="date" id="fecha_nacimiento" name="fecha_nacimiento" class="form-control"
+               value="<?= e($data['fecha_nacimiento']) ?>" max="<?= date('Y-m-d') ?>" required>
       </div>
       <div class="form-row">
         <div class="form-group">

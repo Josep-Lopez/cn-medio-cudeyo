@@ -45,6 +45,7 @@ cn-medio-cudeyo/
     │   └── detall.php      ← Detalle noticia (?id=X)
     ├── admin/
     │   ├── usuarios.php    ← CRUD usuarios + aprobar/rechazar
+    │   ├── cargos.php      ← Asignar/revocar cargos directiva (presidente, etc.)
     │   ├── marcas.php      ← Gestión marcas por liga > nadador
     │   ├── ranking.php     ← Ranking con filtros liga/prueba/piscina
     │   ├── noticias.php    ← CRUD noticias
@@ -54,6 +55,10 @@ cn-medio-cudeyo/
     │   ├── rfen_importar.php ← Importar marcas desde RFEN
     │   ├── incidencias.php ← Listado + nueva + detalle + edit + eliminar
     │   └── incidencia_descargar.php ← Descarga de adjuntos
+    ├── directiva/
+    │   ├── socios.php      ← Lista socios + cuotas (directiva ver; tesorero edita)
+    │   ├── actas.php       ← Actas (directiva ve publicadas; secretario edita)
+    │   └── cuestiones.php  ← Propuestas (cualquier socio crea; presidente decide)
     └── socio/
         ├── panel.php       ← Marcas personales + calendario
         ├── perfil.php      ← Perfil del socio + cambio contraseña
@@ -81,8 +86,14 @@ require_once dirname(__DIR__, 2) . '/includes/layout.php';
 ```php
 require_login()           // Redirige a /login.php si no logueado
 require_admin()           // 403 si no es admin
+require_cargo(['presidente','vocal',...]) // 403 si no tiene cargo (admin pasa)
 current_user()            // Array de sesión o null
 is_admin()                // bool
+cargos_activos($uid=null) // ['vocal','tesorero',...]
+user_tiene_cargo($cargo)  // bool
+es_directiva()            // bool (presidente|secretario|tesorero|vocal)
+cargo_label($cargo)       // 'Tesorero', etc.
+cargos_limites()          // ['presidente'=>1, 'vocal'=>5, ...]
 
 tiempo_a_segundos("1:05.43") // → 65.43 (float)
 segundos_a_tiempo(65.43)     // → "1:05.43" (string)
@@ -97,9 +108,10 @@ e($string)                     // htmlspecialchars() shorthand
 
 ### Layout helpers (`includes/layout.php`)
 ```php
-render_header($title, $activePage)    // HTML head + navbar
-render_footer()                        // footer + mobile menu JS
-render_admin_layout($activePage, fn)  // Sidebar admin + main
+render_header($title, $activePage)        // HTML head + navbar
+render_footer()                            // footer + mobile menu JS
+render_admin_layout($activePage, fn)       // Sidebar admin + main
+render_directiva_layout($activePage, fn)   // Sidebar directiva + main
 ```
 
 ### $pdo (PDO global de config/db.php)
@@ -113,7 +125,7 @@ render_admin_layout($activePage, fn)  // Sidebar admin + main
 
 | Tabla | Descripción |
 |-------|-------------|
-| `users` | Socios y admins (bcrypt, estado, liga, sexo) |
+| `users` | Socios y admins (bcrypt, estado, liga, sexo, **tipo_socio**, **fecha_nacimiento**, **tutor_user_id**) |
 | `noticias` | Noticias publicables |
 | `biblioteca` | Documentos por categoría |
 | `marcas` | Marcas de natación (UNIQUE: user+prueba+piscina+temporada) |
@@ -122,6 +134,11 @@ render_admin_layout($activePage, fn)  // Sidebar admin + main
 | `incidencias` | Incidencias del club (lesiones/conducta/operativas/justificantes) con estados y visibilidad por socio |
 | `incidencia_adjuntos` | Ficheros adjuntos por incidencia (PDF/JPG/PNG, máx 5 MB, máx 5/incidencia) |
 | `incidencia_comentarios` | Hilo de comentarios bidireccional (admin + socio asociado) |
+| `cargos` | Cargos directiva (presidente/secretario/tesorero/vocal/responsable_menores/encargado_redes) con fecha_inicio/fin |
+| `cuotas` | Cuotas socio por temporada (importe, estado: pendiente/pagada/exenta, fecha_pago, método) |
+| `actas` | Actas de reuniones (fecha, título, contenido, autor, publicada) |
+| `cuestiones` | Propuestas de socios (estado: propuesta/aprobada/rechazada, decision_por presidente) |
+| `cuestion_comentarios` | Hilo de comentarios por cuestión |
 
 **Tiempo format:** Almacenado como `mm:ss.cc` string + `tiempo_seg` float para ordenar.
 
@@ -185,7 +202,11 @@ Inter (Google Fonts) + Arial fallback
 | Socio — Ranking | `public/socio/ranking.php` | ✅ |
 | Socio — Perfil | `public/socio/perfil.php` | ✅ |
 | Admin — Incidencias | `public/admin/incidencias.php` | ✅ |
+| Admin — Cargos | `public/admin/cargos.php` | ✅ |
 | Socio — Incidencias | `public/socio/incidencias.php` | ✅ |
+| Directiva — Socios y cuotas | `public/directiva/socios.php` | ✅ |
+| Directiva — Actas | `public/directiva/actas.php` | ✅ |
+| Directiva — Cuestiones | `public/directiva/cuestiones.php` | ✅ |
 
 ## Pendiente / futuro
 - [ ] Calendari: confirmar que el Google Calendar embed funciona

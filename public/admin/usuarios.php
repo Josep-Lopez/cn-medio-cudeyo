@@ -35,6 +35,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $liga   = in_array($_POST['liga']   ?? '', array_keys($LIGAS))                                   ? $_POST['liga']   : '';
         $rol    = in_array($_POST['rol']    ?? '', ['socio','admin'])                                     ? $_POST['rol']    : 'socio';
         $estado = in_array($_POST['estado'] ?? '', ['pendiente','activo','rechazado'])                   ? $_POST['estado'] : 'activo';
+        $fecha_nac_in = trim($_POST['fecha_nacimiento'] ?? '');
+        $tipo_socio_in = $_POST['tipo_socio'] ?? '';
+
+        // Validar fecha_nacimiento (opcional, pero si viene tiene que ser válida)
+        $fecha_nac = null;
+        if ($fecha_nac_in !== '') {
+            $dt = DateTime::createFromFormat('Y-m-d', $fecha_nac_in);
+            if ($dt && $dt->format('Y-m-d') === $fecha_nac_in && $dt <= new DateTime('today')) {
+                $fecha_nac = $fecha_nac_in;
+            }
+        }
+        // Derivar tipo_socio: si admin no eligió y hay fecha, calcular por edad
+        $tipo_socio = in_array($tipo_socio_in, ['numerario','deportivo'], true) ? $tipo_socio_in : null;
+        if (!$tipo_socio && $fecha_nac) {
+            $edad = (int)(new DateTime($fecha_nac))->diff(new DateTime('today'))->y;
+            $tipo_socio = $edad >= 18 ? 'numerario' : 'deportivo';
+        }
 
         if (!$nombre || !filter_var($email, FILTER_VALIDATE_EMAIL) || strlen($pass) < 8) {
             flash('Datos incorrectos. Nombre, email válido y contraseña de al menos 8 caracteres son obligatorios.', 'danger');
@@ -46,8 +63,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             } else {
                 $nadador_activo = isset($_POST['nadador_activo']) ? 1 : 0;
                 $must_change_pwd = isset($_POST['must_change_pwd']) ? 1 : 0;
-                $pdo->prepare('INSERT INTO users (nombre, email, password, sexo, liga, rol, estado, nadador_activo, must_change_pwd) VALUES (?,?,?,?,?,?,?,?,?)')
-                    ->execute([$nombre, $email, password_hash($pass, PASSWORD_DEFAULT), $sexo, $liga ?: null, $rol, $estado, $nadador_activo, $must_change_pwd]);
+                $pdo->prepare('INSERT INTO users (nombre, email, password, sexo, liga, rol, estado, fecha_nacimiento, tipo_socio, nadador_activo, must_change_pwd) VALUES (?,?,?,?,?,?,?,?,?,?,?)')
+                    ->execute([$nombre, $email, password_hash($pass, PASSWORD_DEFAULT), $sexo, $liga ?: null, $rol, $estado, $fecha_nac, $tipo_socio, $nadador_activo, $must_change_pwd]);
                 flash('Usuario creado correctamente.', 'success');
             }
         }
@@ -61,6 +78,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $liga   = in_array($_POST['liga']   ?? '', array_keys($LIGAS))                ? $_POST['liga']   : '';
                 $rol    = in_array($_POST['rol']    ?? '', ['socio','admin'])                  ? $_POST['rol']    : 'socio';
                 $estado = in_array($_POST['estado'] ?? '', ['pendiente','activo','rechazado'])? $_POST['estado'] : 'activo';
+                $fecha_nac_in = trim($_POST['fecha_nacimiento'] ?? '');
+                $tipo_socio_in = $_POST['tipo_socio'] ?? '';
+
+                $fecha_nac = null;
+                if ($fecha_nac_in !== '') {
+                    $dt = DateTime::createFromFormat('Y-m-d', $fecha_nac_in);
+                    if ($dt && $dt->format('Y-m-d') === $fecha_nac_in && $dt <= new DateTime('today')) {
+                        $fecha_nac = $fecha_nac_in;
+                    }
+                }
+                $tipo_socio = in_array($tipo_socio_in, ['numerario','deportivo'], true) ? $tipo_socio_in : null;
+                if (!$tipo_socio && $fecha_nac) {
+                    $edad = (int)(new DateTime($fecha_nac))->diff(new DateTime('today'))->y;
+                    $tipo_socio = $edad >= 18 ? 'numerario' : 'deportivo';
+                }
 
                 if (!$nombre || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
                     flash('Nombre y email válido son obligatorios.', 'danger');
@@ -74,11 +106,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 }
                 $force_pwd = isset($_POST['must_change_pwd']) ? 1 : 0;
                 if ($pass) {
-                    $pdo->prepare('UPDATE users SET nombre=?,email=?,password=?,sexo=?,liga=?,rol=?,estado=?,must_change_pwd=?,updated_at=NOW() WHERE id=?')
-                        ->execute([$nombre, $email, password_hash($pass, PASSWORD_DEFAULT), $sexo, $liga ?: null, $rol, $estado, $force_pwd, $user_id]);
+                    $pdo->prepare('UPDATE users SET nombre=?,email=?,password=?,sexo=?,liga=?,rol=?,estado=?,fecha_nacimiento=?,tipo_socio=?,must_change_pwd=?,updated_at=NOW() WHERE id=?')
+                        ->execute([$nombre, $email, password_hash($pass, PASSWORD_DEFAULT), $sexo, $liga ?: null, $rol, $estado, $fecha_nac, $tipo_socio, $force_pwd, $user_id]);
                 } else {
-                    $pdo->prepare('UPDATE users SET nombre=?,email=?,sexo=?,liga=?,rol=?,estado=?,must_change_pwd=?,updated_at=NOW() WHERE id=?')
-                        ->execute([$nombre, $email, $sexo, $liga ?: null, $rol, $estado, $force_pwd, $user_id]);
+                    $pdo->prepare('UPDATE users SET nombre=?,email=?,sexo=?,liga=?,rol=?,estado=?,fecha_nacimiento=?,tipo_socio=?,must_change_pwd=?,updated_at=NOW() WHERE id=?')
+                        ->execute([$nombre, $email, $sexo, $liga ?: null, $rol, $estado, $fecha_nac, $tipo_socio, $force_pwd, $user_id]);
                 }
                 flash('Usuario actualizado.', 'success');
                 break;
@@ -186,7 +218,7 @@ if ($filtroBuscar !== '') {
     $where[]  = 'nombre LIKE ?';
     $params[] = '%' . $filtroBuscar . '%';
 }
-$sql = 'SELECT id,nombre,email,rol,estado,liga,sexo,rfen_id,rfen_nombre,nadador_activo,must_change_pwd,tutor_email,created_at FROM users';
+$sql = 'SELECT id,nombre,email,rol,estado,liga,sexo,fecha_nacimiento,tipo_socio,rfen_id,rfen_nombre,nadador_activo,must_change_pwd,tutor_email,created_at FROM users';
 if ($where) $sql .= ' WHERE ' . implode(' AND ', $where);
 $sql .= ' ORDER BY created_at DESC';
 $stmt = $pdo->prepare($sql);
@@ -372,7 +404,7 @@ render_admin_layout('usuarios', function() use ($users, $filtroEstado, $filtroLi
             <div style="display:flex;align-items:center;gap:4px;">
               <!-- Editar -->
               <button class="btn btn-secondary btn-sm" title="Editar"
-                onclick="abrirModalEditar(<?= $u['id'] ?>, <?= htmlspecialchars(json_encode($u['nombre']), ENT_QUOTES) ?>, <?= htmlspecialchars(json_encode($u['email']), ENT_QUOTES) ?>, '<?= e($u['sexo']) ?>', '<?= e($u['liga'] ?? '') ?>', '<?= e($u['rol']) ?>', '<?= e($u['estado']) ?>', <?= (int)$u['must_change_pwd'] ?>)">
+                onclick="abrirModalEditar(<?= $u['id'] ?>, <?= htmlspecialchars(json_encode($u['nombre']), ENT_QUOTES) ?>, <?= htmlspecialchars(json_encode($u['email']), ENT_QUOTES) ?>, '<?= e($u['sexo']) ?>', '<?= e($u['liga'] ?? '') ?>', '<?= e($u['rol']) ?>', '<?= e($u['estado']) ?>', <?= (int)$u['must_change_pwd'] ?>, '<?= e($u['fecha_nacimiento'] ?? '') ?>', '<?= e($u['tipo_socio'] ?? '') ?>')">
                 <i class="bi bi-pencil-fill"></i>
               </button>
               <?php if ($u['rol'] !== 'admin'): ?>
@@ -529,6 +561,21 @@ render_admin_layout('usuarios', function() use ($users, $filtroEstado, $filtroLi
             </select>
           </div>
         </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Fecha de nacimiento</label>
+            <input type="date" name="fecha_nacimiento" class="form-control" max="<?= date('Y-m-d') ?>">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Tipo de socio</label>
+            <select name="tipo_socio" class="form-control">
+              <option value="">Auto (según edad)</option>
+              <option value="numerario">Numerario (mayor edad)</option>
+              <option value="deportivo">Deportivo (menor edad)</option>
+            </select>
+            <div class="form-hint">Si dejas "Auto", se calcula según la fecha de nacimiento (≥18 → numerario).</div>
+          </div>
+        </div>
         <div class="form-group">
           <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
             <input type="checkbox" name="nadador_activo" value="1" checked>
@@ -623,6 +670,21 @@ render_admin_layout('usuarios', function() use ($users, $filtroEstado, $filtroLi
               <option value="pendiente">Pendiente</option>
               <option value="rechazado">Rechazado</option>
             </select>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Fecha de nacimiento</label>
+            <input type="date" name="fecha_nacimiento" id="edit-fecha-nacimiento" class="form-control" max="<?= date('Y-m-d') ?>">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Tipo de socio</label>
+            <select name="tipo_socio" id="edit-tipo-socio" class="form-control">
+              <option value="">Auto (según edad)</option>
+              <option value="numerario">Numerario (mayor edad)</option>
+              <option value="deportivo">Deportivo (menor edad)</option>
+            </select>
+            <div class="form-hint">Si dejas "Auto", se calcula según la fecha de nacimiento (≥18 → numerario).</div>
           </div>
         </div>
       </div>
@@ -750,7 +812,7 @@ function abrirModalCrear() {
   document.getElementById('modal-crear').style.display = 'flex';
   document.body.style.overflow = 'hidden';
 }
-function abrirModalEditar(id, nombre, email, sexo, liga, rol, estado, mustChangePwd) {
+function abrirModalEditar(id, nombre, email, sexo, liga, rol, estado, mustChangePwd, fechaNac, tipoSocio) {
   document.getElementById('edit-user-id').value = id;
   document.getElementById('edit-nombre').value  = nombre;
   document.getElementById('edit-email').value   = email;
@@ -760,6 +822,8 @@ function abrirModalEditar(id, nombre, email, sexo, liga, rol, estado, mustChange
   document.getElementById('edit-estado').value  = estado;
   document.getElementById('edit-password').value = '';
   document.getElementById('edit-must-change-pwd').checked = !!mustChangePwd;
+  document.getElementById('edit-fecha-nacimiento').value = fechaNac || '';
+  document.getElementById('edit-tipo-socio').value       = tipoSocio || '';
   document.getElementById('modal-editar').style.display = 'flex';
   document.body.style.overflow = 'hidden';
 }
