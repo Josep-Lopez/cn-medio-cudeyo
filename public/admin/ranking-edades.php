@@ -204,7 +204,7 @@ render_admin_layout('ranking', function() use ($PRUEBAS, $filterPrueba, $filterP
 
     <?php for ($edad = 10; $edad <= 18; $edad++): ?>
       <section class="edad-block" id="edad-<?= $edad ?>">
-        <h2>Edad <?= $edad ?></h2>
+        <h2>Edad <?= $edad ?> · <?= $current_year - $edad ?></h2>
         <?php $filas = $vista_a_grupos[$edad] ?? []; ?>
         <?php if (!$filas): ?>
           <div class="empty">Sin marcas registradas a esta edad.</div>
