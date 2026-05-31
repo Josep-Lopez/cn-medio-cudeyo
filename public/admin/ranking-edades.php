@@ -258,17 +258,17 @@ render_admin_layout('ranking', function() use ($PRUEBAS, $filterPrueba, $filterP
       <table class="matriz-edades">
         <thead>
           <tr>
-            <th>Edad</th>
-            <?php foreach ($PRUEBAS as $p): ?>
-              <th><?= e($p) ?></th>
-            <?php endforeach; ?>
+            <th>Prueba</th>
+            <?php for ($edad = 10; $edad <= 18; $edad++): ?>
+              <th><?= $edad ?></th>
+            <?php endfor; ?>
           </tr>
         </thead>
         <tbody>
-          <?php for ($edad = 10; $edad <= 18; $edad++): ?>
+          <?php foreach ($PRUEBAS as $p): ?>
             <tr>
-              <th class="row-edad"><?= $edad ?></th>
-              <?php foreach ($PRUEBAS as $p):
+              <th class="row-edad"><?= e($p) ?></th>
+              <?php for ($edad = 10; $edad <= 18; $edad++):
                 $row = $vista_b_matriz[$edad][$p] ?? null;
                 if (!$row):
               ?>
@@ -288,9 +288,9 @@ render_admin_layout('ranking', function() use ($PRUEBAS, $filterPrueba, $filterP
                     <span class="cell-name"><?= e($row['nombre']) ?> '<?= str_pad((string)((int)$row['anio_nac'] % 100), 2, '0', STR_PAD_LEFT) ?></span>
                   </a>
                 </td>
-              <?php endif; endforeach; ?>
+              <?php endif; endfor; ?>
             </tr>
-          <?php endfor; ?>
+          <?php endforeach; ?>
         </tbody>
       </table>
     </div>
