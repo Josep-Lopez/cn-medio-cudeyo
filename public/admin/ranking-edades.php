@@ -103,7 +103,7 @@ if ($filterPrueba !== '') {
 }
 
 render_header('Ranking por edad', 'admin-ranking');
-render_admin_layout('ranking', function() use ($PRUEBAS, $filterPrueba, $filterPiscina, $filterSexo, $filterNadador, $filterTemporada, $temporadas_disp, $vista_a_grupos, $vista_b_matriz) {
+render_admin_layout('ranking', function() use ($PRUEBAS, $filterPrueba, $filterPiscina, $filterSexo, $filterNadador, $filterTemporada, $temporadas_disp, $vista_a_grupos, $vista_b_matriz, $current_year) {
 ?>
 
 <h1 style="margin-bottom:6px;">Ranking por edad</h1>
