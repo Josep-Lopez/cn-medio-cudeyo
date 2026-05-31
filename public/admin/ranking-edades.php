@@ -290,7 +290,7 @@ render_admin_layout('ranking', function() use ($PRUEBAS, $filterPrueba, $filterP
                 <td class="cell-record">
                   <a href="<?= e($link) ?>" class="js-loading-link" title="Top-10 edad <?= $edad ?> · <?= e(format_prueba($p)) ?>">
                     <span class="cell-time"><?= e($row['tiempo']) ?></span><br>
-                    <span class="cell-name"><?= e($row['nombre']) ?> (<?= (int)$row['anio_nac'] ?>)</span>
+                    <span class="cell-name"><?= e($row['nombre']) ?></span>
                   </a>
                 </td>
               <?php endif; endfor; ?>
