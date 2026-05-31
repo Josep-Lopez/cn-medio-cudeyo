@@ -1040,3 +1040,15 @@ table tbody tr:hover td { background: #fafcff; }
 .matriz-edades .cell-empty {
   color: #ccc;
 }
+.matriz-edades .cell-line {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  line-height: 1.15;
+  padding: 1px 0;
+}
+.matriz-edades .cell-line + .cell-line {
+  border-top: 1px dashed #e5e7eb;
+  margin-top: 2px;
+  padding-top: 3px;
+}

@@ -77,12 +77,13 @@ if ($filterPrueba !== '') {
         WITH ranked AS (
             SELECT
                 m.prueba, m.tiempo, m.tiempo_seg, m.fecha_marca,
-                u.id AS uid, u.nombre, YEAR(u.fecha_nacimiento) AS anio_nac,
+                u.id AS uid, u.nombre, u.sexo, YEAR(u.fecha_nacimiento) AS anio_nac,
                 (YEAR(m.fecha_marca) - YEAR(u.fecha_nacimiento)) AS edad,
                 ROW_NUMBER() OVER (
                     PARTITION BY
                         (YEAR(m.fecha_marca) - YEAR(u.fecha_nacimiento)),
-                        m.prueba
+                        m.prueba,
+                        u.sexo
                     ORDER BY m.tiempo_seg ASC, m.fecha_marca ASC, u.nombre ASC
                 ) AS rn
             FROM marcas m
@@ -98,7 +99,7 @@ if ($filterPrueba !== '') {
     $stmt = $pdo->prepare($sql_b);
     $stmt->execute($params_b);
     foreach ($stmt->fetchAll() as $row) {
-        $vista_b_matriz[(int)$row['edad']][$row['prueba']] = $row;
+        $vista_b_matriz[(int)$row['edad']][$row['prueba']][$row['sexo']] = $row;
     }
 }
 
@@ -274,8 +275,17 @@ render_admin_layout('ranking', function() use ($PRUEBAS, $filterPrueba, $filterP
             <tr>
               <th class="row-edad"><?= e($p) ?></th>
               <?php for ($edad = 10; $edad <= 18; $edad++):
-                $row = $vista_b_matriz[$edad][$p] ?? null;
-                if (!$row):
+                $cell = $vista_b_matriz[$edad][$p] ?? [];
+                if ($filterSexo === 'M')      $sexos_show = ['M'];
+                elseif ($filterSexo === 'F')  $sexos_show = ['F'];
+                else                          $sexos_show = ['M', 'F'];
+
+                $rows_in_cell = [];
+                foreach ($sexos_show as $sx) {
+                    if (isset($cell[$sx])) $rows_in_cell[$sx] = $cell[$sx];
+                }
+
+                if (!$rows_in_cell):
               ?>
                 <td class="cell-empty">—</td>
               <?php else:
@@ -289,8 +299,12 @@ render_admin_layout('ranking', function() use ($PRUEBAS, $filterPrueba, $filterP
               ?>
                 <td class="cell-record">
                   <a href="<?= e($link) ?>" class="js-loading-link" title="Top-10 edad <?= $edad ?> · <?= e(format_prueba($p)) ?>">
-                    <span class="cell-time"><?= e($row['tiempo']) ?></span><br>
-                    <span class="cell-name"><?= e($row['nombre']) ?></span>
+                    <?php foreach ($rows_in_cell as $sx => $r): ?>
+                      <div class="cell-line cell-line-<?= strtolower($sx) ?>">
+                        <span class="cell-time"><?= e($r['tiempo']) ?></span>
+                        <span class="cell-name"><?= e($r['nombre']) ?></span>
+                      </div>
+                    <?php endforeach; ?>
                   </a>
                 </td>
               <?php endif; endfor; ?>
