@@ -269,7 +269,12 @@ render_header('Ranking por edad', 'socio-ranking');
         Cada celda es la mejor marca a esa edad y prueba. Click para ver el top-10 completo.
       </p>
 
-      <div class="table-wrapper">
+      <div style="display:flex;justify-content:flex-end;gap:8px;margin-bottom:8px;">
+        <button type="button" class="btn btn-sm btn-gray" onclick="scrollMatriz(-300)" title="Desplazar a la izquierda"><i class="bi bi-chevron-left"></i></button>
+        <button type="button" class="btn btn-sm btn-gray" onclick="scrollMatriz(300)" title="Desplazar a la derecha"><i class="bi bi-chevron-right"></i></button>
+      </div>
+
+      <div class="table-wrapper" id="matriz-wrapper">
         <table class="matriz-edades">
           <thead>
             <tr>
@@ -313,9 +318,9 @@ render_header('Ranking por edad', 'socio-ranking');
                         'temporada' => $filterTemporada,
                       ], static fn($v) => $v !== '' && $v !== null)) . '#edad-' . $edad;
                     ?>
-                      <a href="<?= e($link) ?>" class="cell-line cell-line-<?= strtolower($sx) ?> js-loading-link" title="Top-10 edad <?= $edad ?> · <?= e(format_prueba($p)) ?> · <?= $sx === 'M' ? 'Masculino' : 'Femenino' ?>">
+                      <a href="<?= e($link) ?>" class="cell-line cell-line-<?= strtolower($sx) ?> js-loading-link" title="<?= e($r['nombre']) ?> · Top-10 edad <?= $edad ?> · <?= e(format_prueba($p)) ?> · <?= $sx === 'M' ? 'Masculino' : 'Femenino' ?>">
                         <span class="cell-time"><?= e($r['tiempo']) ?></span>
-                        <span class="cell-name"><?= e($r['nombre']) ?></span>
+                        <span class="cell-name"><?= e(nombre_corto($r['nombre'])) ?></span>
                       </a>
                     <?php endforeach; ?>
                   </td>
@@ -332,6 +337,10 @@ render_header('Ranking por edad', 'socio-ranking');
   document.querySelectorAll('.js-loading-form select').forEach(select => {
     select.addEventListener('change', function () { this.form.requestSubmit(); });
   });
+  function scrollMatriz(delta) {
+    const w = document.getElementById('matriz-wrapper');
+    if (w) w.scrollBy({ left: delta, behavior: 'smooth' });
+  }
   </script>
 </div>
 

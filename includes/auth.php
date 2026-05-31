@@ -295,6 +295,15 @@ function edad_deportiva(?string $fecha_marca, ?string $fecha_nacimiento): ?int
     return $y_m - $y_n;
 }
 
+// Quita el último apellido (segundo apellido en formato español).
+// "Sergio Ordoñez Zamora" -> "Sergio Ordoñez". Si <=2 palabras, devuelve igual.
+function nombre_corto(string $nombre): string
+{
+    $words = preg_split('/\s+/', trim($nombre)) ?: [];
+    if (count($words) <= 2) return $nombre;
+    return implode(' ', array_slice($words, 0, -1));
+}
+
 // Genera <optgroup> para un select de pruebas
 function render_prueba_options(string $selected = '', bool $show_all = false): void
 {
