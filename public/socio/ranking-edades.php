@@ -273,8 +273,13 @@ render_header('Ranking por edad', 'socio-ranking');
           <thead>
             <tr>
               <th>Prueba</th>
-              <?php for ($edad = 10; $edad <= 18; $edad++): ?>
-                <th><?= $edad ?></th>
+              <?php for ($edad = 10; $edad <= 18; $edad++):
+                $anio_nac_col = $current_year - $edad;
+              ?>
+                <th>
+                  <div style="font-size:11px;font-weight:500;opacity:.85;">'<?= str_pad((string)($anio_nac_col % 100), 2, '0', STR_PAD_LEFT) ?></div>
+                  <div><?= $edad ?> años</div>
+                </th>
               <?php endfor; ?>
             </tr>
           </thead>
