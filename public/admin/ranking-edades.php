@@ -288,24 +288,22 @@ render_admin_layout('ranking', function() use ($PRUEBAS, $filterPrueba, $filterP
                 if (!$rows_in_cell):
               ?>
                 <td class="cell-empty">—</td>
-              <?php else:
-                $link = '?' . http_build_query(array_filter([
-                  'prueba'    => $p,
-                  'piscina'   => $filterPiscina,
-                  'sexo'      => $filterSexo,
-                  'nadador'   => $filterNadador,
-                  'temporada' => $filterTemporada,
-                ], static fn($v) => $v !== '' && $v !== null)) . '#edad-' . $edad;
-              ?>
+              <?php else: ?>
                 <td class="cell-record">
-                  <a href="<?= e($link) ?>" class="js-loading-link" title="Top-10 edad <?= $edad ?> · <?= e(format_prueba($p)) ?>">
-                    <?php foreach ($rows_in_cell as $sx => $r): ?>
-                      <div class="cell-line cell-line-<?= strtolower($sx) ?>">
-                        <span class="cell-time"><?= e($r['tiempo']) ?></span>
-                        <span class="cell-name"><?= e($r['nombre']) ?></span>
-                      </div>
-                    <?php endforeach; ?>
-                  </a>
+                  <?php foreach ($rows_in_cell as $sx => $r):
+                    $link = '?' . http_build_query(array_filter([
+                      'prueba'    => $p,
+                      'piscina'   => $filterPiscina,
+                      'sexo'      => $sx,
+                      'nadador'   => $filterNadador,
+                      'temporada' => $filterTemporada,
+                    ], static fn($v) => $v !== '' && $v !== null)) . '#edad-' . $edad;
+                  ?>
+                    <a href="<?= e($link) ?>" class="cell-line cell-line-<?= strtolower($sx) ?> js-loading-link" title="Top-10 edad <?= $edad ?> · <?= e(format_prueba($p)) ?> · <?= $sx === 'M' ? 'Masculino' : 'Femenino' ?>">
+                      <span class="cell-time"><?= e($r['tiempo']) ?></span>
+                      <span class="cell-name"><?= e($r['nombre']) ?></span>
+                    </a>
+                  <?php endforeach; ?>
                 </td>
               <?php endif; endfor; ?>
             </tr>
