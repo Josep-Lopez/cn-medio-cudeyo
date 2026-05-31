@@ -214,7 +214,7 @@ render_header('Ranking por edad', 'socio-ranking');
       </h2>
 
       <?php for ($edad = 10; $edad <= 18; $edad++): ?>
-        <section class="edad-block">
+        <section class="edad-block" id="edad-<?= $edad ?>">
           <h2>Edad <?= $edad ?></h2>
           <?php $filas = $vista_a_grupos[$edad] ?? []; ?>
           <?php if (!$filas): ?>
@@ -299,7 +299,7 @@ render_header('Ranking por edad', 'socio-ranking');
                     'sexo'      => $filterSexo,
                     'nadador'   => $filterNadador,
                     'temporada' => $filterTemporada,
-                  ], static fn($v) => $v !== '' && $v !== null));
+                  ], static fn($v) => $v !== '' && $v !== null)) . '#edad-' . $edad;
                 ?>
                   <td class="cell-record">
                     <a href="<?= e($link) ?>" class="js-loading-link" title="Top-10 edad <?= $edad ?> · <?= e(format_prueba($p)) ?>">
