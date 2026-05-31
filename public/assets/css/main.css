@@ -1016,7 +1016,6 @@ table tbody tr:hover td { background: #fafcff; }
   padding: 4px 6px;
 }
 .matriz-edades td.cell-record a {
-  display: block;
   text-decoration: none;
   color: var(--text);
 }
