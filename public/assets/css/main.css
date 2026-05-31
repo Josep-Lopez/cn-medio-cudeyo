@@ -1039,10 +1039,19 @@ table tbody tr:hover td { background: #fafcff; }
 }
 .matriz-edades .cell-line {
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
   align-items: center;
+  gap: 8px;
   line-height: 1.15;
-  padding: 1px 0;
+  padding: 1px 4px;
+}
+.matriz-edades .cell-line .cell-time {
+  order: 2;
+  margin-left: auto;
+}
+.matriz-edades .cell-line .cell-name {
+  order: 1;
+  text-align: left;
 }
 .matriz-edades .cell-line + .cell-line {
   border-top: 1px dashed #e5e7eb;

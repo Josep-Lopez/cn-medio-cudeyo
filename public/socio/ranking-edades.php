@@ -12,7 +12,7 @@ $PRUEBAS = ['50L', '100L', '200L', '400L', '800L', '1500L', '50E', '100E', '200E
 // --- Filtros ---
 $filterPrueba    = $_GET['prueba']   ?? '';
 $filterPiscina   = $_GET['piscina']  ?? '25m';
-$filterSexo      = array_key_exists('sexo', $_GET) ? $_GET['sexo'] : ($user['sexo'] ?? '');
+$filterSexo      = $_GET['sexo'] ?? '';
 $filterNadador   = $_GET['nadador']  ?? '1';
 
 $current_year    = (int)date('n') >= 9 ? (int)date('Y') : (int)date('Y') - 1;
