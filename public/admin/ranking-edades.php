@@ -255,7 +255,7 @@ render_admin_layout('ranking', function() use ($PRUEBAS, $filterPrueba, $filterP
       Cada celda es la mejor marca a esa edad y prueba. Click para ver el top-10 completo.
     </p>
 
-    <div style="display:flex;justify-content:flex-end;gap:8px;margin-bottom:8px;">
+    <div id="matriz-scroll-ctrls" style="display:flex;justify-content:flex-end;gap:8px;margin-bottom:8px;">
       <button type="button" class="btn btn-sm btn-gray" onclick="scrollMatriz(-300)" title="Desplazar a la izquierda"><i class="bi bi-chevron-left"></i></button>
       <button type="button" class="btn btn-sm btn-gray" onclick="scrollMatriz(300)" title="Desplazar a la derecha"><i class="bi bi-chevron-right"></i></button>
     </div>
@@ -327,6 +327,14 @@ function scrollMatriz(delta) {
   const w = document.getElementById('matriz-wrapper');
   if (w) w.scrollBy({ left: delta, behavior: 'smooth' });
 }
+function toggleMatrizScrollCtrls() {
+  const w = document.getElementById('matriz-wrapper');
+  const c = document.getElementById('matriz-scroll-ctrls');
+  if (!w || !c) return;
+  c.style.display = w.scrollWidth > w.clientWidth + 1 ? 'flex' : 'none';
+}
+window.addEventListener('load', toggleMatrizScrollCtrls);
+window.addEventListener('resize', toggleMatrizScrollCtrls);
 </script>
 
 <?php
