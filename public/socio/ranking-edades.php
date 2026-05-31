@@ -277,7 +277,7 @@ render_header('Ranking por edad', 'socio-ranking');
                 $anio_nac_col = $current_year - $edad;
               ?>
                 <th>
-                  <div style="font-size:11px;font-weight:500;opacity:.85;">'<?= str_pad((string)($anio_nac_col % 100), 2, '0', STR_PAD_LEFT) ?></div>
+                  <div style="font-size:11px;font-weight:500;opacity:.85;"><?= $anio_nac_col ?></div>
                   <div><?= $edad ?> años</div>
                 </th>
               <?php endfor; ?>
@@ -304,7 +304,7 @@ render_header('Ranking por edad', 'socio-ranking');
                   <td class="cell-record">
                     <a href="<?= e($link) ?>" class="js-loading-link" title="Top-10 edad <?= $edad ?> · <?= e(format_prueba($p)) ?>">
                       <span class="cell-time"><?= e($row['tiempo']) ?></span><br>
-                      <span class="cell-name"><?= e($row['nombre']) ?> '<?= str_pad((string)((int)$row['anio_nac'] % 100), 2, '0', STR_PAD_LEFT) ?></span>
+                      <span class="cell-name"><?= e($row['nombre']) ?> (<?= (int)$row['anio_nac'] ?>)</span>
                     </a>
                   </td>
                 <?php endif; endfor; ?>
