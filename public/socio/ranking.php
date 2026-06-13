@@ -168,8 +168,8 @@ render_header('Ranking liga', 'socio-ranking');
   <h1 style="margin-bottom:6px;">Ranking — <?= $filterLiga ? e(format_liga($filterLiga)) : 'Todas las categorías' ?></h1>
 
   <div class="ranking-tabs">
-    <a href="/socio/ranking" class="tab--active">Por liga</a>
-    <a href="/socio/ranking-edades" class="js-loading-link">Por edad</a>
+    <a href="/socio/ranking" class="tab--active">Ranking</a>
+    <a href="/socio/ranking-edades" class="js-loading-link">Marcas de Edad</a>
   </div>
   <style>
     @keyframes loading-spin {

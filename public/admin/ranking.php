@@ -172,8 +172,8 @@ render_admin_layout('ranking', function() use ($PRUEBAS, $ranking, $filterLiga, 
 <h1>Ranking general</h1>
 
 <div class="ranking-tabs">
-  <a href="/admin/ranking" class="tab--active">Por liga</a>
-  <a href="/admin/ranking-edades" class="js-loading-link">Por edad</a>
+  <a href="/admin/ranking" class="tab--active">Ranking</a>
+  <a href="/admin/ranking-edades" class="js-loading-link">Marcas de Edad</a>
 </div>
 
 <style>

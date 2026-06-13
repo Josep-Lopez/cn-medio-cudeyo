@@ -117,8 +117,8 @@ render_header('Ranking por edad', 'socio-ranking');
   <h1 style="margin-bottom:6px;">Ranking por edad</h1>
 
   <div class="ranking-tabs">
-    <a href="/socio/ranking" class="js-loading-link">Por liga</a>
-    <a href="/socio/ranking-edades" class="tab--active">Por edad</a>
+    <a href="/socio/ranking" class="js-loading-link">Ranking</a>
+    <a href="/socio/ranking-edades" class="tab--active">Marcas de Edad</a>
   </div>
 
   <!-- Filtros -->
