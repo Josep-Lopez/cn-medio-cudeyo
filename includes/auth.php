@@ -270,6 +270,30 @@ function format_prueba(string $codigo): string
     return $mapa[$codigo] ?? $codigo;
 }
 
+// Baremo FINA (tiempos base World Aquatics) desde config. Cacheado por request.
+// Clave: "<prueba legible en minúsculas>_<sexo>_<piscina>"  p.ej. "50 libre_M_25m".
+function aqua_baremo(): array
+{
+    static $cache = null;
+    if ($cache !== null) return $cache;
+    global $pdo;
+    $json = $pdo->query("SELECT valor FROM config WHERE clave='fina_times' LIMIT 1")->fetchColumn();
+    $cache = $json ? (json_decode($json, true) ?: []) : [];
+    return $cache;
+}
+
+// Puntos AQUA (World Aquatics) de una marca. Misma fórmula que calculadora.js:
+//   puntos = round(1000 * (tiempo_base / tiempo)^3)
+// Devuelve null si no hay tiempo base para esa combinación prueba/sexo/piscina.
+function calcular_aqua(float $tiempo_seg, string $prueba, string $piscina, string $sexo): ?int
+{
+    if ($tiempo_seg <= 0) return null;
+    $clave = strtolower(format_prueba($prueba)) . '_' . $sexo . '_' . $piscina;
+    $base  = aqua_baremo()[$clave] ?? null;
+    if (!$base) return null;
+    return (int) round(1000 * pow($base / $tiempo_seg, 3));
+}
+
 // Nombre legible de la liga
 function format_liga(string $liga): string
 {

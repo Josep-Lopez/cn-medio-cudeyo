@@ -44,16 +44,16 @@ if ($filterPrueba !== '') {
     if ($filterNadador !== '')        { $where_extra .= ' AND u.nadador_activo = ?';  $params[] = (int)$filterNadador; }
 
     $sql_a = "
-        WITH ranked AS (
+        WITH per_swimmer AS (
             SELECT
                 m.id, m.tiempo, m.tiempo_seg, m.fecha_marca, m.lugar, m.piscina,
                 u.id AS uid, u.nombre, u.sexo, u.fecha_nacimiento,
                 YEAR(u.fecha_nacimiento) AS anio_nac,
                 (YEAR(m.fecha_marca) - YEAR(u.fecha_nacimiento)) AS edad,
                 ROW_NUMBER() OVER (
-                    PARTITION BY (YEAR(m.fecha_marca) - YEAR(u.fecha_nacimiento))
-                    ORDER BY m.tiempo_seg ASC, m.fecha_marca ASC, u.nombre ASC
-                ) AS rn
+                    PARTITION BY (YEAR(m.fecha_marca) - YEAR(u.fecha_nacimiento)), u.id
+                    ORDER BY m.tiempo_seg ASC, m.fecha_marca ASC
+                ) AS srn
             FROM marcas m
             JOIN users u ON u.id = m.user_id
             WHERE u.estado = 'activo'
@@ -62,6 +62,14 @@ if ($filterPrueba !== '') {
               AND m.prueba  = ?
               $where_extra
               AND (YEAR(m.fecha_marca) - YEAR(u.fecha_nacimiento)) BETWEEN 10 AND 18
+        ),
+        ranked AS (
+            SELECT *,
+                ROW_NUMBER() OVER (
+                    PARTITION BY edad
+                    ORDER BY tiempo_seg ASC, fecha_marca ASC, nombre ASC
+                ) AS rn
+            FROM per_swimmer WHERE srn = 1
         )
         SELECT * FROM ranked WHERE rn <= 10
         ORDER BY edad ASC, rn ASC
@@ -119,6 +127,7 @@ render_header('Ranking por edad', 'socio-ranking');
   <div class="ranking-tabs">
     <a href="/socio/ranking" class="js-loading-link">Ranking</a>
     <a href="/socio/ranking-edades" class="tab--active">Marcas de Edad</a>
+    <a href="/socio/records" class="js-loading-link">Récords del Club</a>
   </div>
 
   <!-- Filtros -->

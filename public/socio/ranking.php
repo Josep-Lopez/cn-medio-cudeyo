@@ -82,11 +82,16 @@ if ($filterMejores) {
         FROM marcas m
         JOIN users u ON u.id = m.user_id
         INNER JOIN (
-            SELECT m2.user_id, m2.prueba, MIN(m2.tiempo_seg) AS best_seg
-            FROM marcas m2
-            $sub_where
-            GROUP BY m2.user_id, m2.prueba
-        ) best ON best.user_id = m.user_id AND best.prueba = m.prueba AND best.best_seg = m.tiempo_seg
+            SELECT id AS keep_id FROM (
+                SELECT m2.id,
+                       ROW_NUMBER() OVER (
+                           PARTITION BY m2.user_id, m2.prueba
+                           ORDER BY m2.tiempo_seg ASC, m2.id ASC
+                       ) AS rn
+                FROM marcas m2
+                $sub_where
+            ) ranked WHERE rn = 1
+        ) best ON best.keep_id = m.id
         $where
         ORDER BY $orderSql
     ";
@@ -138,8 +143,11 @@ $records_stmt = $pdo->query("
           AND m2.piscina = m.piscina
           AND u2.sexo = u.sexo
           AND u2.estado = 'activo'
-          AND m2.fecha_marca < m.fecha_marca
-          AND m2.tiempo_seg <= m.tiempo_seg
+          AND (
+                (m2.tiempo_seg <  m.tiempo_seg AND m2.fecha_marca <= m.fecha_marca)
+             OR (m2.tiempo_seg =  m.tiempo_seg AND m2.fecha_marca <  m.fecha_marca)
+             OR (m2.tiempo_seg =  m.tiempo_seg AND m2.fecha_marca =  m.fecha_marca AND m2.id < m.id)
+          )
       )
 ");
 $current_best_stmt = $pdo->query("
@@ -170,6 +178,7 @@ render_header('Ranking liga', 'socio-ranking');
   <div class="ranking-tabs">
     <a href="/socio/ranking" class="tab--active">Ranking</a>
     <a href="/socio/ranking-edades" class="js-loading-link">Marcas de Edad</a>
+    <a href="/socio/records" class="js-loading-link">Récords del Club</a>
   </div>
   <style>
     @keyframes loading-spin {
@@ -369,6 +378,7 @@ render_header('Ranking liga', 'socio-ranking');
             <th><a href="<?= e($sortUrl('liga')) ?>">Categoría<?= $sortIcon('liga') ?></a></th>
             <th><a href="<?= e($sortUrl('sexo')) ?>">Sexo<?= $sortIcon('sexo') ?></a></th>
             <th><a href="<?= e($sortUrl('tiempo')) ?>">Tiempo<?= $sortIcon('tiempo') ?></a></th>
+            <th><span style="color:var(--blue);font-weight:700;">WA</span></th>
             <th><a href="<?= e($sortUrl('lugar')) ?>">Lugar<?= $sortIcon('lugar') ?></a></th>
             <th><a href="<?= e($sortUrl('fecha')) ?>">Fecha<?= $sortIcon('fecha') ?></a></th>
             <?php if ($filterMejores): ?><th><a href="<?= e($sortUrl('temporada')) ?>">Temporada<?= $sortIcon('temporada') ?></a></th><?php endif; ?>
@@ -376,7 +386,7 @@ render_header('Ranking liga', 'socio-ranking');
         </thead>
         <tbody>
           <?php
-          $colspan = 7 + (!$filterPrueba ? 1 : 0) + ($filterMejores ? 1 : 0);
+          $colspan = 8 + (!$filterPrueba ? 1 : 0) + ($filterMejores ? 1 : 0);
           if (!$ranking): ?>
             <tr>
               <td colspan="<?= $colspan ?>" class="text-center text-muted" style="padding:40px;">
@@ -418,6 +428,7 @@ render_header('Ranking liga', 'socio-ranking');
                   </div>
                 <?php endif; ?>
               </td>
+              <td class="text-sm"><?php $wa = calcular_aqua((float)$row['tiempo_seg'], $row['prueba'], $row['piscina'], $row['sexo']); echo $wa !== null ? (int)$wa : '—'; ?></td>
               <td class="text-sm text-muted"><?= e($row['lugar'] ?? '') ?></td>
               <td class="text-sm text-muted"><?= date('d/m/Y', strtotime($row['fecha_marca'])) ?></td>
               <?php if ($filterMejores): ?>
