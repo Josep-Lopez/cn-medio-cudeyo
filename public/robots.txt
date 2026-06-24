@@ -1,6 +1,6 @@
 User-agent: *
 Disallow: /admin/
-Disallow: /soci/
+Disallow: /socio/
 Disallow: /login
 Disallow: /logout
 Disallow: /register

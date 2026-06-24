@@ -18,6 +18,10 @@ if (!in_array($filterPrueba, $PRUEBAS, true))         $filterPrueba = '';
 if (!in_array($filterPiscina, ['25m', '50m'], true))  $filterPiscina = '25m';
 if (!in_array($filterNadador, ['1', '0', ''], true))  $filterNadador = '';
 
+// Temporada actual (mm>=9 => YYYY-YY+1)
+$cy_now = (int)date('n') >= 9 ? (int)date('Y') : (int)date('Y') - 1;
+$temporada_actual = $cy_now . '-' . substr((string)($cy_now + 1), 2);
+
 // --- Récord = mejor marca vigente por prueba × piscina × sexo (el último récord) ---
 // El récord real se calcula sobre TODAS las temporadas. El filtro Nadador se
 // aplica al titular del récord (post-filtro): no recalcula el récord.
@@ -56,20 +60,21 @@ foreach ($stmt->fetchAll() as $row) {
 /**
  * Renderiza una tabla de récords para un sexo concreto.
  */
-function celdas_lado(?array $r, string $p, string $piscina, string $sexo, bool $reverse): string
+function celdas_lado(?array $r, string $p, string $piscina, string $sexo, bool $reverse, string $temporada_actual): string
 {
     if (!$r) {
         return str_repeat('<td class="text-sm" style="text-align:center;color:#ccc;">—</td>', 6);
     }
     $wa   = calcular_aqua((float)$r['tiempo_seg'], $p, $piscina, $sexo);
     $anio = $r['fecha_nacimiento'] ? substr($r['fecha_nacimiento'], 0, 4) : '';
+    $bg   = (($r['temporada'] ?? '') === $temporada_actual) ? 'background:#dcfce7;' : '';
     $cells = [
-        'fecha'  => '<td class="text-sm text-muted">' . date('d/m/Y', strtotime($r['fecha_marca'])) . '</td>',
-        'lugar'  => '<td class="text-sm text-muted">' . e($r['lugar'] ?? '') . '</td>',
-        'anio'   => '<td>' . e($anio) . '</td>',
-        'nombre' => '<td>' . e(nombre_corto($r['nombre'])) . '</td>',
-        'wa'     => '<td class="text-sm">' . ($wa !== null ? (int)$wa : '—') . '</td>',
-        'tiempo' => '<td><span class="mark-time">' . e($r['tiempo']) . '</span></td>',
+        'fecha'  => '<td class="text-sm text-muted" style="' . $bg . '">' . date('d/m/Y', strtotime($r['fecha_marca'])) . '</td>',
+        'lugar'  => '<td class="text-sm text-muted" style="' . $bg . '">' . e($r['lugar'] ?? '') . '</td>',
+        'anio'   => '<td style="' . $bg . '">' . e($anio) . '</td>',
+        'nombre' => '<td style="' . $bg . '">' . e(nombre_corto($r['nombre'])) . '</td>',
+        'wa'     => '<td class="text-sm" style="' . $bg . '">' . ($wa !== null ? (int)$wa : '—') . '</td>',
+        'tiempo' => '<td style="' . $bg . '"><span class="mark-time">' . e($r['tiempo']) . '</span></td>',
     ];
     $order = ['fecha', 'lugar', 'anio', 'nombre', 'wa', 'tiempo'];
     if ($reverse) $order = array_reverse($order);
@@ -82,7 +87,7 @@ function celdas_lado(?array $r, string $p, string $piscina, string $sexo, bool $
  * Tabla única de récords con columna Prueba central compartida (Masculino | Prueba | Femenino).
  * El lado femenino se renderiza en espejo, como en el Excel del club.
  */
-function tabla_records_unica(array $records, array $PRUEBAS, string $piscina): void
+function tabla_records_unica(array $records, array $PRUEBAS, string $piscina, string $temporada_actual): void
 {
     $any = false;
     foreach ($PRUEBAS as $p) if (isset($records['M'][$p]) || isset($records['F'][$p])) { $any = true; break; }
@@ -112,9 +117,9 @@ function tabla_records_unica(array $records, array $PRUEBAS, string $piscina): v
             <?php else: foreach ($PRUEBAS as $p):
               if (!isset($records['M'][$p]) && !isset($records['F'][$p])) continue; ?>
               <tr>
-                <?= celdas_lado($records['M'][$p] ?? null, $p, $piscina, 'M', false) ?>
+                <?= celdas_lado($records['M'][$p] ?? null, $p, $piscina, 'M', false, $temporada_actual) ?>
                 <td style="text-align:center;background:#eef2ff;"><strong><?= e(format_prueba($p)) ?></strong></td>
-                <?= celdas_lado($records['F'][$p] ?? null, $p, $piscina, 'F', true) ?>
+                <?= celdas_lado($records['F'][$p] ?? null, $p, $piscina, 'F', true, $temporada_actual) ?>
               </tr>
             <?php endforeach; endif; ?>
           </tbody>
@@ -125,7 +130,7 @@ function tabla_records_unica(array $records, array $PRUEBAS, string $piscina): v
 }
 
 render_header('Récords del club', 'admin-ranking');
-render_admin_layout('ranking', function () use ($PRUEBAS, $records, $filterPrueba, $filterPiscina, $filterNadador) {
+render_admin_layout('ranking', function () use ($PRUEBAS, $records, $filterPrueba, $filterPiscina, $filterNadador, $temporada_actual) {
 ?>
 
 <h1 style="margin-bottom:6px;">Récords del club</h1>
@@ -134,6 +139,7 @@ render_admin_layout('ranking', function () use ($PRUEBAS, $records, $filterPrueb
   <a href="/admin/ranking" class="js-loading-link">Ranking</a>
   <a href="/admin/ranking-edades" class="js-loading-link">Marcas de Edad</a>
   <a href="/admin/records" class="tab--active">Récords del Club</a>
+  <a href="/admin/puntos-aqua" class="js-loading-link">Puntos AQUA</a>
 </div>
 
 <?php
@@ -195,7 +201,7 @@ $base_filters = [
   Puntos <strong>WA</strong> calculados con el baremo World Aquatics.
 </p>
 
-<?php tabla_records_unica($records, $PRUEBAS, $filterPiscina); ?>
+<?php tabla_records_unica($records, $PRUEBAS, $filterPiscina, $temporada_actual); ?>
 
 <script>
 document.querySelectorAll('.js-loading-form select').forEach(select => {

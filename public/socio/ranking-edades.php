@@ -128,6 +128,7 @@ render_header('Ranking por edad', 'socio-ranking');
     <a href="/socio/ranking" class="js-loading-link">Ranking</a>
     <a href="/socio/ranking-edades" class="tab--active">Marcas de Edad</a>
     <a href="/socio/records" class="js-loading-link">Récords del Club</a>
+    <a href="/socio/puntos-aqua" class="js-loading-link">Puntos AQUA</a>
   </div>
 
   <!-- Filtros -->

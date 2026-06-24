@@ -179,8 +179,13 @@ render_header('Ranking liga', 'socio-ranking');
     <a href="/socio/ranking" class="tab--active">Ranking</a>
     <a href="/socio/ranking-edades" class="js-loading-link">Marcas de Edad</a>
     <a href="/socio/records" class="js-loading-link">Récords del Club</a>
+    <a href="/socio/puntos-aqua" class="js-loading-link">Puntos AQUA</a>
   </div>
   <style>
+    tbody tr.row-actual td { background:#dcfce7; }
+    tbody tr.row-actual:hover td { background:#bbf7d0; }
+    tbody tr.row-tu td { background:#eef2ff; }
+    tbody tr.row-tu:hover td { background:#dde6ff; }
     @keyframes loading-spin {
       from { transform: rotate(0deg); }
       to { transform: rotate(360deg); }
@@ -394,8 +399,11 @@ render_header('Ranking liga', 'socio-ranking');
               </td>
             </tr>
           <?php endif; ?>
-          <?php foreach ($ranking as $i => $row): ?>
-            <tr <?= $row['uid'] == $user['id'] ? 'style="background:#eef2ff;"' : '' ?>>
+          <?php foreach ($ranking as $i => $row):
+            $es_actual = ($row['temporada'] ?? '') === $temporadas_disp[0];
+            $row_class = $es_actual ? 'row-actual' : ($row['uid'] == $user['id'] ? 'row-tu' : '');
+          ?>
+            <tr<?= $row_class ? ' class="' . $row_class . '"' : '' ?>>
               <td>
                 <span class="rank-pos <?= $i === 0 ? 'top1' : ($i === 1 ? 'top2' : ($i === 2 ? 'top3' : '')) ?>">
                   <?= $i + 1 ?>
@@ -416,9 +424,9 @@ render_header('Ranking liga', 'socio-ranking');
                 <?php
                 if (isset($club_records[(int)$row['id']])):
                   $is_actual = $club_records[(int)$row['id']] === 'actual';
-                  $rec_bg    = $is_actual ? '#dcfce7' : '#fef9c3';
-                  $rec_color = $is_actual ? '#15803d' : '#a16207';
-                  $rec_border = $is_actual ? '#86efac' : '#fde047';
+                  $rec_bg    = $is_actual ? '#16a34a' : '#fef9c3';
+                  $rec_color = $is_actual ? '#fff' : '#a16207';
+                  $rec_border = $is_actual ? '#15803d' : '#fde047';
                   $rec_label = $is_actual ? 'Récord del club' : 'Récord histórico';
                 ?>
                   <div style="margin-top:4px;">

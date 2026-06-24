@@ -56,7 +56,8 @@ cn-medio-cudeyo/
     │   ├── incidencias.php ← Listado + nueva + detalle + edit + eliminar
     │   ├── incidencia_descargar.php ← Descarga de adjuntos
     │   ├── ranking-edades.php ← Ranking por edad (Vista A top-10 + Vista B matriz)
-    │   └── records.php        ← Récords del club (mejor marca vigente por prueba×piscina×sexo)
+    │   ├── records.php        ← Récords del club (mejor marca vigente por prueba×piscina×sexo)
+    │   └── puntos-aqua.php    ← Ranking equipo por puntos AQUA (suma N mejores; filtro 1/2/3/4/8/18)
     ├── directiva/
     │   ├── socios.php      ← Lista socios + cuotas (directiva ver; tesorero edita)
     │   ├── actas.php       ← Actas (directiva ve publicadas; secretario edita)
@@ -68,7 +69,8 @@ cn-medio-cudeyo/
         ├── incidencias.php ← Listado + nueva + detalle (solo propias visibles)
         ├── incidencia_descargar.php ← Descarga de adjuntos (con check)
         ├── ranking-edades.php ← Ranking por edad (Vista A top-10 + Vista B matriz)
-        └── records.php        ← Récords del club (mejor marca vigente por prueba×piscina×sexo)
+        ├── records.php        ← Récords del club (mejor marca vigente por prueba×piscina×sexo)
+        └── puntos-aqua.php    ← Ranking equipo por puntos AQUA (suma N mejores; filtro 1/2/3/4/8/18)
 ```
 
 ## Convenciones PHP
@@ -215,6 +217,8 @@ Inter (Google Fonts) + Arial fallback
 | Admin — Ranking por edad | `public/admin/ranking-edades.php` | ✅ |
 | Socio — Récords del club | `public/socio/records.php` | ✅ |
 | Admin — Récords del club | `public/admin/records.php` | ✅ |
+| Socio — Puntos AQUA | `public/socio/puntos-aqua.php` | ✅ |
+| Admin — Puntos AQUA | `public/admin/puntos-aqua.php` | ✅ |
 
 ## Pendiente / futuro
 - [ ] Calendari: confirmar que el Google Calendar embed funciona

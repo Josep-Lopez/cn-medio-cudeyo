@@ -121,6 +121,7 @@ render_admin_layout('ranking', function() use ($PRUEBAS, $filterPrueba, $filterP
   <a href="/admin/ranking" class="js-loading-link">Ranking</a>
   <a href="/admin/ranking-edades" class="tab--active">Marcas de Edad</a>
   <a href="/admin/records" class="js-loading-link">Récords del Club</a>
+  <a href="/admin/puntos-aqua" class="js-loading-link">Puntos AQUA</a>
 </div>
 
 <div class="filters-bar" style="flex-direction:column;gap:16px;">

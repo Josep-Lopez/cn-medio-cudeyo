@@ -63,15 +63,15 @@ render_header('Inicio', 'inicio', '', 'Club de Natación Medio Cudeyo, en Cantab
   <div class="container">
     <div class="stats-grid">
       <div class="stat-card">
-        <div class="stat-number">60</div>
+        <div class="stat-number">+60</div>
         <div class="stat-label">Nadadores activos</div>
       </div>
       <div class="stat-card">
-        <div class="stat-number">5</div>
+        <div class="stat-number">7</div>
         <div class="stat-label">Categorías de competición</div>
       </div>
       <div class="stat-card">
-        <div class="stat-number">+20</div>
+        <div class="stat-number">+10</div>
         <div class="stat-label">Competiciones por temporada</div>
       </div>
     </div>

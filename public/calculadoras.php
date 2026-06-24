@@ -3,8 +3,8 @@ require_once dirname(__DIR__) . '/config/db.php';
 require_once dirname(__DIR__) . '/includes/auth.php';
 require_once dirname(__DIR__) . '/includes/layout.php';
 
-require_login();
-require_nadador_activo();
+//require_login();
+//require_nadador_activo();
 
 // Cargar config desde BD (con fallback a null si no existe)
 $finaTimesJson = $pdo->query("SELECT valor FROM config WHERE clave='fina_times' LIMIT 1")->fetchColumn() ?: null;

@@ -585,7 +585,7 @@ table tbody tr:hover td { background: #fafcff; }
 
 /* === Sobre nosotros === */
 .sobre-eyebrow {
-  font-size: 12px; font-weight: 700; color: var(--blue);
+  font-size: 15px; font-weight: 700; color: var(--blue);
   text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 12px;
 }
 .sobre-h2 {
@@ -593,7 +593,7 @@ table tbody tr:hover td { background: #fafcff; }
   line-height: 1.2; color: var(--text);
 }
 .sobre-two-col {
-  display: grid; grid-template-columns: 1fr 1fr;
+  display: grid; grid-template-columns: 0.5fr 1fr;
   gap: 48px; align-items: center;
 }
 .sobre-photo {
@@ -807,6 +807,7 @@ table tbody tr:hover td { background: #fafcff; }
   padding: 48px 0 24px;
   margin-top: 60px;
 }
+.cta-section + .footer { margin-top: 0; }
 .footer-inner {
   display: grid;
   grid-template-columns: 2fr 1fr 1fr;

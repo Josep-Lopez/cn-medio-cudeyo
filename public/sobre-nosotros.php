@@ -10,8 +10,8 @@ render_header('Sobre nosotros', 'sobre', '', 'Conoce el Club de Natación Medio 
 <section class="hero hero-sm hero-sobre">
   <div class="container">
     <div class="hero-eyebrow">El club</div>
-    <h1>Agua, esfuerzo y equipo</h1>
-    <p>Conoce quiénes somos, nuestros equipos y todo lo que hace especial a nuestra familia de nadadores.</p>
+    <h1>Club natación medio cudeyo</h1>
+    <p>Conoce quiénes somos, nuestros equipos y todo lo que hace especial a nuestra grupo de deportistas.</p>
   </div>
 </section>
 
@@ -20,77 +20,112 @@ render_header('Sobre nosotros', 'sobre', '', 'Conoce el Club de Natación Medio 
   <div class="container">
     <div class="sobre-two-col">
       <div>
-        <div class="sobre-eyebrow">Nuestra historia</div>
-        <h2 class="sobre-h2">Un club construido generación a generación</h2>
+        <div class="sobre-eyebrow">Equipo de natación</div>
+        <h2 class="sobre-h2">Ven a entrenar con nosotros</h2>
         <p style="font-size:16px;line-height:1.8;" class="text-muted">
-          Desde nuestros inicios, el Club de Natación Medio Cudeyo ha sido un referente deportivo en la comarca, formando nadadores, creando amistades y construyendo una comunidad unida por el agua.
+          Desde las categorias inferiores hasta los más veteranos, nuestro equipo acoge a todos aquellos que quieran compertir y disfrutar del deporte acuático en el municipio.
         </p>
+        <p style="font-size:16px;line-height:1.8;" class="text-muted">Se acepta la inscripción desde prebenjamín hasta master</p>
       </div>
       <div>
         <img src="/assets/images/fotoequipo3.jpg"
-             alt="CN Medio Cudeyo"
-             class="sobre-photo">
+          alt="CN Medio Cudeyo"
+          class="sobre-photo">
       </div>
     </div>
   </div>
 </section>
 
-<!-- Equipo de natación -->
+<!-- Categorias -->
 <section id="equipo-natacion" class="section">
   <div class="container">
-    <div class="sobre-eyebrow" style="text-align:center;">Equipo de natación</div>
-    <h2 class="section-title">Entrenar con propósito, competir con orgullo</h2>
-    <p class="section-sub">Nuestro equipo de competición abarca desde benjamines hasta absolutos.</p>
+    <div class="sobre-eyebrow" style="text-align:center;">Categorias y horarios de entreno</div>
 
-    <div class="services-grid" style="margin-bottom:40px;">
-      <div class="service-card">
-        <div class="service-icon"><i class="bi bi-water"></i></div>
-        <div class="service-title">Benjamines &amp; Alevines</div>
-        <div class="service-desc">Los más jóvenes aprenden los fundamentos técnicos en un ambiente lúdico y motivador.</div>
+    <!-- Horario de la piscina -->
+    <div style="max-width:540px;margin:0 auto 48px;background:#fff;border-top:4px solid var(--blue);border-radius:12px;padding:24px;box-shadow:0 8px 24px rgba(9,63,180,0.08);">
+      <h3 style="font-size:16px;font-weight:700;margin-bottom:16px;text-align:center;"><i class="bi bi-water" style="color:var(--blue);"></i> Horario del club de la piscina</h3>
+      <table style="width:100%;font-size:14px;border-collapse:collapse;border-radius:8px;overflow:hidden;">
+        <thead>
+          <tr style="background:#f5f7ff;">
+            <th style="padding:10px 14px;text-align:left;font-size:11px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:0.05em;">Día</th>
+            <th style="padding:10px 14px;text-align:right;font-size:11px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:0.05em;">Hora</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr style="border-bottom:1px solid #f0f0f0;">
+            <td style="padding:11px 14px;" class="text-muted">Lunes a Jueves</td>
+            <td style="padding:11px 14px;text-align:right;font-weight:600;font-family:monospace;">19:00 – 21:45</td>
+          </tr>
+          <tr style="border-bottom:1px solid #f0f0f0;">
+            <td style="padding:11px 14px;" class="text-muted">Viernes</td>
+            <td style="padding:11px 14px;text-align:right;font-weight:600;font-family:monospace;">19:15 – 21:45</td>
+          </tr>
+          <tr>
+            <td style="padding:11px 14px;" class="text-muted">Sábados</td>
+            <td style="padding:11px 14px;text-align:right;font-weight:600;font-family:monospace;">Competiciones</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Grupo 1: Prebenjamín, Benjamín, Alevín -->
+    <div class="sobre-two-col" style="margin-bottom:32px;">
+      <div style="background:linear-gradient(135deg,#093FB4,#2563eb);border-radius:12px;padding:24px;color:#fff;box-shadow:0 8px 24px rgba(9,63,180,0.25);">
+        <div style="font-size:11px;font-weight:700;color:rgba(255,255,255,0.75);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:8px;"><i class="bi bi-clock-fill"></i> Horario</div>
+        <div style="font-size:28px;font-weight:800;font-family:monospace;">19:00 – 20:00</div>
+        <div style="margin-top:6px;font-size:14px;color:rgba(255,255,255,0.85);">Mínimo 3 días a la semana</div>
       </div>
-      <div class="service-card">
-        <div class="service-icon"><i class="bi bi-trophy-fill"></i></div>
-        <div class="service-title">Infantil &amp; Junior</div>
-        <div class="service-desc">Especialización técnica y participación en competiciones regionales y nacionales.</div>
-      </div>
-      <div class="service-card">
-        <div class="service-icon"><i class="bi bi-award-fill"></i></div>
-        <div class="service-title">Absolutos</div>
-        <div class="service-desc">Nuestros nadadores de élite, representando al club en las competiciones de mayor nivel.</div>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px;">
+        <div class="service-card" style="border-top:4px solid #093FB4;">
+          <div class="service-title">Prebenjamín</div>
+          <div class="service-desc">2019 / 2018</div>
+        </div>
+        <div class="service-card" style="border-top:4px solid #093FB4;">
+          <div class="service-title">Benjamín</div>
+          <div class="service-desc">2017 / 2016</div>
+        </div>
+        <div class="service-card" style="border-top:4px solid #093FB4;">
+          <div class="service-title">Alevín</div>
+          <div class="service-desc">2015 / 2014</div>
+        </div>
       </div>
     </div>
 
-    <div class="sobre-two-col" style="align-items:start;">
-      <div>
-        <h3 style="font-size:16px;font-weight:700;margin-bottom:16px;">Horarios de entrenamiento</h3>
-        <table style="width:100%;font-size:14px;border-collapse:collapse;border-radius:8px;overflow:hidden;">
-          <thead>
-            <tr style="background:#f5f7ff;">
-              <th style="padding:10px 14px;text-align:left;font-size:11px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:0.05em;">Día</th>
-              <th style="padding:10px 14px;text-align:right;font-size:11px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:0.05em;">Hora</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr style="border-bottom:1px solid #f0f0f0;">
-              <td style="padding:11px 14px;" class="text-muted">Lunes a Jueves</td>
-              <td style="padding:11px 14px;text-align:right;font-weight:600;font-family:monospace;">19:00 – 21:45</td>
-            </tr>
-            <tr style="border-bottom:1px solid #f0f0f0;">
-              <td style="padding:11px 14px;" class="text-muted">Viernes</td>
-              <td style="padding:11px 14px;text-align:right;font-weight:600;font-family:monospace;">19:15 – 21:45</td>
-            </tr>
-            <tr>
-              <td style="padding:11px 14px;" class="text-muted">Sábados</td>
-              <td style="padding:11px 14px;text-align:right;font-weight:600;font-family:monospace;">Competiciones</td>
-            </tr>
-          </tbody>
-        </table>
+    <!-- Grupo 2: Infantil, Junior, Absoluto -->
+    <div class="sobre-two-col" style="margin-bottom:32px;">
+      <div style="background:linear-gradient(135deg,#0891b2,#06b6d4);border-radius:12px;padding:24px;color:#fff;box-shadow:0 8px 24px rgba(8,145,178,0.25);">
+        <div style="font-size:11px;font-weight:700;color:rgba(255,255,255,0.75);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:8px;"><i class="bi bi-clock-fill"></i> Horario</div>
+        <div style="font-size:28px;font-weight:800;font-family:monospace;">20:00 – 21:45</div>
+        <div style="margin-top:6px;font-size:14px;color:rgba(255,255,255,0.85);">Mínimo 5 días a la semana</div>
       </div>
-      <div>
-        <h3 style="font-size:16px;font-weight:700;margin-bottom:12px;">¿Quieres unirte al equipo?</h3>
-        <p class="text-muted" style="line-height:1.7;margin-bottom:20px;">Realizamos pruebas de nivel para nadadores nuevos cada inicio de temporada.</p>
-        <a href="/register" class="btn btn-primary">Registrarse ahora</a>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px;">
+        <div class="service-card" style="border-top:4px solid #0891b2;">
+          <div class="service-title">Infantil</div>
+          <div class="service-desc">2013 / 2012</div>
+        </div>
+        <div class="service-card" style="border-top:4px solid #0891b2;">
+          <div class="service-title">Junior</div>
+          <div class="service-desc">2011 / 2010 / 2009</div>
+        </div>
+        <div class="service-card" style="border-top:4px solid #0891b2;">
+          <div class="service-title">Absoluto</div>
+          <div class="service-desc">2008 y mayores</div>
+        </div>
       </div>
+    </div>
+
+    <!-- Master -->
+    <div style="display:flex;justify-content:center;margin-bottom:40px;">
+      <div class="service-card" style="max-width:280px;text-align:center;border-top:4px solid #f59e0b;">
+        <div class="service-title">Master</div>
+        <div class="service-desc">A partir de +20 años</div>
+      </div>
+    </div>
+
+    <div style="text-align:center;background:linear-gradient(135deg,#093FB4,#2563eb);color:#fff;border-radius:16px;padding:40px 24px;box-shadow:0 12px 32px rgba(9,63,180,0.25);">
+      <h3 style="font-size:22px;font-weight:800;margin-bottom:12px;">¿Quieres unirte al equipo?</h3>
+      <p style="line-height:1.7;margin-bottom:24px;color:rgba(255,255,255,0.9);">Realizamos pruebas de nivel para nadadores nuevos cada inicio de temporada.</p>
+      <a href="/contacto" class="btn btn-lg" style="background:#fff;color:var(--blue);font-weight:700;">Contactanos ahora</a>
     </div>
   </div>
 </section>
@@ -108,9 +143,9 @@ render_header('Sobre nosotros', 'sobre', '', 'Conoce el Club de Natación Medio 
           <span style="font-size:36px;font-weight:800;color:var(--blue);">+15</span>
           <span class="text-muted" style="font-size:14px;font-weight:500;">nadadores máster</span>
         </div>
-        <img src="/assets/images/fotoequipo2.jpg"
-             alt="Equipo máster CN Medio Cudeyo"
-             class="sobre-photo">
+        <img src="/assets/images/fotomaster.jpg"
+          alt="Equipo máster CN Medio Cudeyo"
+          class="sobre-photo">
       </div>
       <div class="master-features">
         <!-- <div class="card" style="padding:20px;">
@@ -120,8 +155,13 @@ render_header('Sobre nosotros', 'sobre', '', 'Conoce el Club de Natación Medio 
         </div> -->
         <div class="card" style="padding:20px;">
           <div style="font-size:28px;margin-bottom:10px;color:var(--blue);"><i class="bi bi-trophy-fill"></i></div>
-          <div style="font-weight:700;margin-bottom:6px;">Competiciones máster</div>
-          <div class="text-muted text-sm">Circuito regional FNC y campeonatos nacionales RFEN</div>
+          <div style="font-weight:700;margin-bottom:6px;">Competiciones regionales</div>
+          <div class="text-muted text-sm">Circuito Liga promoción Norte </div>
+        </div>
+        <div class="card" style="padding:20px;">
+          <div style="font-size:28px;margin-bottom:10px;color:var(--blue);"><i class="bi bi-trophy-fill"></i></div>
+          <div style="font-weight:700;margin-bottom:6px;">Competiciones nacionales</div>
+          <div class="text-muted text-sm">Campeonatos de españa</div>
         </div>
         <div class="card" style="padding:20px;">
           <div style="font-size:28px;margin-bottom:10px;color:var(--blue);"><i class="bi bi-people-fill"></i></div>
@@ -139,7 +179,7 @@ render_header('Sobre nosotros', 'sobre', '', 'Conoce el Club de Natación Medio 
 </section>
 
 <!-- Encuentros sociales -->
-<section id="encuentros" class="section">
+<!-- <section id="encuentros" class="section">
   <div class="container">
     <div class="sobre-eyebrow" style="text-align:center;">Encuentros sociales y de equipo</div>
     <h2 class="section-title">Más que natación, una familia</h2>
@@ -194,7 +234,7 @@ render_header('Sobre nosotros', 'sobre', '', 'Conoce el Club de Natación Medio 
       </div>
     </div>
   </div>
-</section>
+</section> -->
 
 <!-- CTA -->
 <section class="cta-section">

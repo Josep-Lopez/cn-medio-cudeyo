@@ -183,9 +183,12 @@ render_admin_layout('ranking', function() use ($PRUEBAS, $ranking, $filterLiga, 
   <a href="/admin/ranking" class="tab--active">Ranking</a>
   <a href="/admin/ranking-edades" class="js-loading-link">Marcas de Edad</a>
   <a href="/admin/records" class="js-loading-link">Récords del Club</a>
+  <a href="/admin/puntos-aqua" class="js-loading-link">Puntos AQUA</a>
 </div>
 
 <style>
+  tbody tr.row-actual td { background:#dcfce7; }
+  tbody tr.row-actual:hover td { background:#bbf7d0; }
   @keyframes loading-spin {
     from { transform: rotate(0deg); }
     to { transform: rotate(360deg); }
@@ -389,8 +392,10 @@ window.addEventListener('pageshow', () => {
             </td>
           </tr>
         <?php endif; ?>
-        <?php foreach ($ranking as $i => $row): ?>
-        <tr>
+        <?php foreach ($ranking as $i => $row):
+          $es_actual = ($row['temporada'] ?? '') === $temporadas_disp[0];
+        ?>
+        <tr<?= $es_actual ? ' class="row-actual"' : '' ?>>
           <td>
             <span class="rank-pos <?= $i === 0 ? 'top1' : ($i === 1 ? 'top2' : ($i === 2 ? 'top3' : '')) ?>">
               <?= $i + 1 ?>
@@ -408,9 +413,9 @@ window.addEventListener('pageshow', () => {
             <?php
             if (isset($club_records[(int)$row['id']])):
               $is_actual = $club_records[(int)$row['id']] === 'actual';
-              $rec_bg    = $is_actual ? '#dcfce7' : '#fef9c3';
-              $rec_color = $is_actual ? '#15803d' : '#a16207';
-              $rec_border = $is_actual ? '#86efac' : '#fde047';
+              $rec_bg    = $is_actual ? '#16a34a' : '#fef9c3';
+              $rec_color = $is_actual ? '#fff' : '#a16207';
+              $rec_border = $is_actual ? '#15803d' : '#fde047';
               $rec_label = $is_actual ? 'Récord del club' : 'Récord histórico';
             ?>
               <div style="margin-top:4px;">
