@@ -139,6 +139,7 @@ CREATE TABLE IF NOT EXISTS marcas (
     tiempo_seg FLOAT       NOT NULL,
     fecha_marca DATE       NOT NULL,
     lugar      VARCHAR(255) NOT NULL DEFAULT '',
+    es_parcial TINYINT(1)  NOT NULL DEFAULT 0,
     temporada  VARCHAR(10) GENERATED ALWAYS AS (
         IF(
             MONTH(fecha_marca) >= 9,

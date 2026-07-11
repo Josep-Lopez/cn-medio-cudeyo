@@ -24,20 +24,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         if ($user_id && in_array($prueba, $PRUEBAS) && in_array($piscina, ['25m','50m']) && $tiempo) {
             $secs = tiempo_a_segundos($tiempo);
+            $es_parcial = isset($_POST['es_parcial']) ? 1 : 0;
             if ($secs > 0) {
                 if ($marca_id > 0) {
                     $stmt = $pdo->prepare('
                         UPDATE marcas
-                        SET prueba=?, piscina=?, tiempo=?, tiempo_seg=?, fecha_marca=?, lugar=?, updated_at=NOW()
+                        SET prueba=?, piscina=?, tiempo=?, tiempo_seg=?, fecha_marca=?, lugar=?, es_parcial=?, updated_at=NOW()
                         WHERE id=? AND user_id=?
                     ');
-                    $stmt->execute([$prueba, $piscina, $tiempo, $secs, $fecha_m, $lugar, $marca_id, $user_id]);
+                    $stmt->execute([$prueba, $piscina, $tiempo, $secs, $fecha_m, $lugar, $es_parcial, $marca_id, $user_id]);
                 } else {
                     $stmt = $pdo->prepare('
-                        INSERT INTO marcas (user_id, prueba, piscina, tiempo, tiempo_seg, fecha_marca, lugar)
-                        VALUES (?,?,?,?,?,?,?)
+                        INSERT INTO marcas (user_id, prueba, piscina, tiempo, tiempo_seg, fecha_marca, lugar, es_parcial)
+                        VALUES (?,?,?,?,?,?,?,?)
                     ');
-                    $stmt->execute([$user_id, $prueba, $piscina, $tiempo, $secs, $fecha_m, $lugar]);
+                    $stmt->execute([$user_id, $prueba, $piscina, $tiempo, $secs, $fecha_m, $lugar, $es_parcial]);
                 }
                 flash('Marca guardada correctamente.', 'success');
             } else {
@@ -253,13 +254,18 @@ render_admin_layout('marcas', function() use ($PRUEBAS, $selectedUserId, $select
           <tbody>
             <?php foreach ($marks_historial as $marca): ?>
               <tr>
-                <td><strong><?= e(format_prueba($marca['prueba'])) ?></strong></td>
+                <td>
+                  <strong><?= e(format_prueba($marca['prueba'])) ?></strong>
+                  <?php if ($marca['es_parcial']): ?>
+                    <span style="font-size:11px;background:#f3f4f6;color:#6b7280;border-radius:4px;padding:1px 6px;margin-left:4px;">parcial</span>
+                  <?php endif; ?>
+                </td>
                 <td><span class="mark-time"><?= e($marca['tiempo']) ?></span></td>
                 <td class="text-sm text-muted"><?= e($marca['lugar'] ?? '') ?></td>
                 <td class="text-sm text-muted"><?= date('d/m/Y', strtotime($marca['fecha_marca'])) ?></td>
                 <td>
                   <button class="btn btn-secondary btn-sm"
-                          onclick="openForm('<?= e($marca['prueba']) ?>', '<?= e($marca['tiempo']) ?>', '<?= e($marca['fecha_marca']) ?>', <?= (int)$marca['id'] ?>, <?= htmlspecialchars(json_encode($marca['lugar'] ?? ''), ENT_QUOTES) ?>)">
+                          onclick="openForm('<?= e($marca['prueba']) ?>', '<?= e($marca['tiempo']) ?>', '<?= e($marca['fecha_marca']) ?>', <?= (int)$marca['id'] ?>, <?= htmlspecialchars(json_encode($marca['lugar'] ?? ''), ENT_QUOTES) ?>, <?= (int)$marca['es_parcial'] ?>)">
                     Editar
                   </button>
                   <form method="POST" style="display:inline;"
@@ -320,6 +326,13 @@ render_admin_layout('marcas', function() use ($PRUEBAS, $selectedUserId, $select
         <label class="form-label">Fecha de la marca</label>
         <input type="date" name="fecha_marca" id="modalFecha" class="form-control" required>
       </div>
+      <div class="form-group" style="margin-bottom:4px;">
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:14px;">
+          <input type="checkbox" name="es_parcial" id="modalEsParcial" value="1">
+          Es tiempo parcial (split)
+        </label>
+        <div class="form-hint">Marcarlo excluye este tiempo de rankings, récords y gráficas.</div>
+      </div>
       <div class="d-flex gap-2" style="margin-top:8px;">
         <button type="submit" class="btn btn-primary">Guardar</button>
         <button type="button" class="btn btn-gray" onclick="closeForm()">Cancelar</button>
@@ -354,7 +367,7 @@ window.addEventListener('pageshow', () => {
   if (overlay) overlay.style.display = 'none';
 });
 
-function openForm(prueba, tiempo, fecha, marcaId, lugar) {
+function openForm(prueba, tiempo, fecha, marcaId, lugar, esParcial) {
   const isEdit = !!marcaId;
   const pruebaInput = document.getElementById('modalPrueba');
   const pruebaDisplay = document.getElementById('modalPruebaDisplay');
@@ -368,6 +381,7 @@ function openForm(prueba, tiempo, fecha, marcaId, lugar) {
   document.getElementById('modalTiempo').value = tiempo;
   document.getElementById('modalLugar').value = lugar || '';
   document.getElementById('modalFecha').value = fecha;
+  document.getElementById('modalEsParcial').checked = !!esParcial;
   document.getElementById('modalTitle').textContent = isEdit ? ('Editar marca — ' + prueba) : 'Añadir marca';
   const modal = document.getElementById('marcaModal');
   modal.style.display = 'flex';

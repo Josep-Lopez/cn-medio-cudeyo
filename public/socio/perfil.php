@@ -117,11 +117,11 @@ $user_db = $stmt->fetch();
 $avatar_url = $user_db['avatar_url'];
 
 // ── Estadísticas ─────────────────────────────────────────────────────────────
-$stmt = $pdo->prepare('SELECT COUNT(*) FROM marcas WHERE user_id=?');
+$stmt = $pdo->prepare('SELECT COUNT(*) FROM marcas WHERE user_id=? AND es_parcial=0');
 $stmt->execute([$user['id']]);
 $total_marcas = (int)$stmt->fetchColumn();
 
-$stmt = $pdo->prepare('SELECT COUNT(DISTINCT temporada) FROM marcas WHERE user_id=?');
+$stmt = $pdo->prepare('SELECT COUNT(DISTINCT temporada) FROM marcas WHERE user_id=? AND es_parcial=0');
 $stmt->execute([$user['id']]);
 $total_temporadas = (int)$stmt->fetchColumn();
 
@@ -131,7 +131,7 @@ $temporada_actual = $current_year . '-' . substr((string)($current_year + 1), 2)
 $mejor_posicion = null;
 $stmt = $pdo->prepare('
     SELECT prueba, piscina, MIN(tiempo_seg) as mejor
-    FROM marcas WHERE user_id=? AND temporada=?
+    FROM marcas WHERE user_id=? AND temporada=? AND es_parcial=0
     GROUP BY prueba, piscina
 ');
 $stmt->execute([$user['id'], $temporada_actual]);
@@ -144,7 +144,7 @@ foreach ($mis_mejores as $mm) {
         JOIN users u ON u.id = m.user_id
         WHERE m.prueba=? AND m.piscina=? AND m.temporada=?
           AND u.liga = ? AND u.sexo = ?
-          AND m.tiempo_seg < ?
+          AND m.tiempo_seg < ? AND m.es_parcial = 0
     ');
     $stmtR->execute([$mm['prueba'], $mm['piscina'], $temporada_actual, $user['liga'], $user['sexo'], $mm['mejor']]);
     $pos = (int)$stmtR->fetchColumn();
@@ -159,10 +159,10 @@ $stmt = $pdo->prepare('
     FROM marcas m
     INNER JOIN (
         SELECT prueba, piscina, MIN(tiempo_seg) AS min_seg
-        FROM marcas WHERE user_id=?
+        FROM marcas WHERE user_id=? AND es_parcial=0
         GROUP BY prueba, piscina
     ) best ON m.prueba = best.prueba AND m.piscina = best.piscina AND m.tiempo_seg = best.min_seg
-    WHERE m.user_id=?
+    WHERE m.user_id=? AND m.es_parcial=0
     ORDER BY m.prueba, m.piscina
     LIMIT 100
 ');
@@ -179,7 +179,7 @@ $mejores_marcas = array_values($mejores_marcas);
 // ── Datos para gráfico de progresión (una sola query) ────────────────────────
 $stmt = $pdo->prepare('
     SELECT prueba, fecha_marca, tiempo_seg, tiempo, piscina
-    FROM marcas WHERE user_id=?
+    FROM marcas WHERE user_id=? AND es_parcial=0
     ORDER BY prueba, fecha_marca ASC
 ');
 $stmt->execute([$user['id']]);

@@ -11,7 +11,7 @@ $PRUEBAS = ['50L', '100L', '200L', '400L', '800L', '1500L', '50E', '100E', '200E
 $filterPrueba    = $_GET['prueba']   ?? '';
 $filterPiscina   = $_GET['piscina']  ?? '25m';
 $filterSexo      = $_GET['sexo'] ?? '';
-$filterNadador   = $_GET['nadador']  ?? '1';
+$filterNadador   = $_GET['nadador']  ?? '';
 
 $current_year    = (int)date('n') >= 9 ? (int)date('Y') : (int)date('Y') - 1;
 $temporadas_disp = [];
@@ -23,7 +23,7 @@ $filterTemporada = $_GET['temporada'] ?? 'todas';
 if (!in_array($filterPrueba, $PRUEBAS, true)) $filterPrueba = '';
 if (!in_array($filterPiscina, ['25m', '50m'], true)) $filterPiscina = '25m';
 if (!in_array($filterSexo, ['M', 'F', ''], true)) $filterSexo = '';
-if (!in_array($filterNadador, ['1', '0', ''], true)) $filterNadador = '1';
+if (!in_array($filterNadador, ['1', '0', ''], true)) $filterNadador = '';
 if ($filterTemporada !== 'todas' && !in_array($filterTemporada, $temporadas_disp, true)) {
     $filterTemporada = 'todas';
 }
@@ -55,6 +55,7 @@ if ($filterPrueba !== '') {
               AND u.fecha_nacimiento IS NOT NULL
               AND m.piscina = ?
               AND m.prueba  = ?
+              AND m.es_parcial = 0
               $where_extra
               AND (YEAR(m.fecha_marca) - YEAR(u.fecha_nacimiento)) BETWEEN 10 AND 18
         ),
@@ -99,6 +100,7 @@ if ($filterPrueba !== '') {
             WHERE u.estado = 'activo'
               AND u.fecha_nacimiento IS NOT NULL
               AND m.piscina = ?
+              AND m.es_parcial = 0
               $where_extra_b
               AND (YEAR(m.fecha_marca) - YEAR(u.fecha_nacimiento)) BETWEEN 10 AND 18
         )
@@ -112,7 +114,7 @@ if ($filterPrueba !== '') {
 }
 
 render_header('Ranking por edad', 'admin-ranking');
-render_admin_layout('ranking', function() use ($PRUEBAS, $filterPrueba, $filterPiscina, $filterSexo, $filterNadador, $filterTemporada, $temporadas_disp, $vista_a_grupos, $vista_b_matriz, $current_year) {
+render_admin_layout('ranking', function() use ($PRUEBAS, $filterPrueba, $filterPiscina, $filterSexo, $filterTemporada, $temporadas_disp, $vista_a_grupos, $vista_b_matriz, $current_year) {
 ?>
 
 <h1 style="margin-bottom:6px;">Ranking por edad</h1>
@@ -127,7 +129,6 @@ render_admin_layout('ranking', function() use ($PRUEBAS, $filterPrueba, $filterP
 <div class="filters-bar" style="flex-direction:column;gap:16px;">
   <form method="GET" class="filters-form js-loading-form">
     <input type="hidden" name="sexo" value="<?= e($filterSexo) ?>">
-    <input type="hidden" name="nadador" value="<?= e($filterNadador) ?>">
 
     <div class="form-group">
       <label class="form-label">Prueba</label>
@@ -168,7 +169,6 @@ render_admin_layout('ranking', function() use ($PRUEBAS, $filterPrueba, $filterP
       'prueba'    => $filterPrueba,
       'piscina'   => $filterPiscina,
       'sexo'      => $filterSexo,
-      'nadador'   => $filterNadador,
       'temporada' => $filterTemporada,
     ];
     $sexo_opts = ['M' => 'Masc.', 'F' => 'Fem.', '' => 'Todos'];
@@ -187,21 +187,6 @@ render_admin_layout('ranking', function() use ($PRUEBAS, $filterPrueba, $filterP
       </div>
     </div>
 
-    <?php $nadador_opts = ['1' => 'Activos', '0' => 'No activos', '' => 'Todos']; ?>
-    <div class="form-group" style="margin:0;">
-      <label class="form-label">Nadador</label>
-      <div style="display:inline-flex;border:2px solid var(--blue);border-radius:8px;overflow:hidden;">
-        <?php foreach ($nadador_opts as $nv => $nl):
-          $nv = (string)$nv;
-          $np = $base_filters; $np['nadador'] = $nv;
-          $active = $filterNadador === $nv;
-        ?>
-          <a href="?<?= http_build_query($np) ?>"
-            class="js-loading-link"
-            style="padding:5px 12px;font-size:13px;font-weight:<?= $active ? '700' : '500' ?>;text-decoration:none;color:<?= $active ? '#fff' : 'var(--blue)' ?>;background:<?= $active ? 'var(--blue)' : '#fff' ?>;"><?= $nl ?></a>
-        <?php endforeach; ?>
-      </div>
-    </div>
   </div>
 </div>
 
@@ -310,7 +295,6 @@ render_admin_layout('ranking', function() use ($PRUEBAS, $filterPrueba, $filterP
                       'prueba'    => $p,
                       'piscina'   => $filterPiscina,
                       'sexo'      => $sx,
-                      'nadador'   => $filterNadador,
                       'temporada' => $filterTemporada,
                     ], static fn($v) => $v !== '' && $v !== null)) . '#edad-' . $edad;
                   ?>

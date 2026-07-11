@@ -7,7 +7,7 @@ require_login();
 require_nadador_activo();
 $user = current_user();
 
-$N_OPCIONES = [1, 2, 3, 4, 8, 18];
+$N_OPCIONES = [1, 2, 3, 4, 8, 16, 18];
 
 // --- Filtros ---
 $filterN       = (int)($_GET['n'] ?? 4);
@@ -15,8 +15,8 @@ if (!in_array($filterN, $N_OPCIONES, true)) $filterN = 4;
 $filterSexo = $_GET['sexo'] ?? '';
 if (!in_array($filterSexo, ['M', 'F', ''], true)) $filterSexo = '';
 
-// --- Datos: todas las marcas de socios activos ---
-$where  = "WHERE u.estado = 'activo'";
+// --- Datos: todas las marcas (piscina 25m) de todos los socios, activos e inactivos ---
+$where  = "WHERE u.estado = 'activo' AND m.piscina = '25m' AND m.es_parcial = 0";
 $params = [];
 if ($filterSexo !== '') { $where .= ' AND u.sexo = ?'; $params[] = $filterSexo; }
 
@@ -59,6 +59,7 @@ foreach ($nadadores as $nad) {
     $nad['suma_n'] = $sumaTop($filterN);
     $nad['suma4']  = $sumaTop(4);
     $nad['suma8']  = $sumaTop(8);
+    $nad['suma16'] = $sumaTop(16);
     $nad['top']    = array_slice($nad['pruebas'], 0, $filterN, true); // [prueba=>pts] top N
     $filas[] = $nad;
 }
@@ -133,12 +134,13 @@ render_header('Puntos AQUA', 'socio-ranking');
             <th style="color:var(--blue);">SUMA <?= $filterN === 18 ? 'Todas' : $filterN ?></th>
             <th>SUMA 4</th>
             <th>SUMA 8</th>
+            <th>SUMA 16</th>
             <th>Mejores pruebas (puntos)</th>
           </tr>
         </thead>
         <tbody>
           <?php if (!$filas): ?>
-            <tr><td colspan="7" class="text-center text-muted" style="padding:40px;">No hay marcas con puntos AQUA para esta selección.</td></tr>
+            <tr><td colspan="8" class="text-center text-muted" style="padding:40px;">No hay marcas con puntos AQUA para esta selección.</td></tr>
           <?php else: foreach ($filas as $i => $f): ?>
             <tr <?= $f['uid'] == $user['id'] ? 'style="background:#eef2ff;"' : '' ?>>
               <td>
@@ -154,6 +156,7 @@ render_header('Puntos AQUA', 'socio-ranking');
               <td><strong style="color:var(--blue);font-size:15px;"><?= $f['suma_n'] ?></strong></td>
               <td class="text-sm"><?= $f['suma4'] ?></td>
               <td class="text-sm"><?= $f['suma8'] ?></td>
+              <td class="text-sm"><?= $f['suma16'] ?></td>
               <td style="white-space:normal;">
                 <?php foreach ($f['top'] as $p => $pts): ?>
                   <span style="display:inline-block;background:#f1f5ff;border:1px solid #dbe4ff;border-radius:6px;padding:1px 7px;margin:2px 3px 2px 0;font-size:12px;white-space:nowrap;">

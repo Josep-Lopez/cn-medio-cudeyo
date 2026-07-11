@@ -28,10 +28,10 @@ $temporada = $_GET['temporada'] ?? ($nadador_activo ? $temporada_activa : ($temp
 $show_all = $temporada === 'todas';
 
 if ($show_all) {
-    $stmt = $pdo->prepare('SELECT * FROM marcas WHERE user_id=? ORDER BY prueba, piscina');
+    $stmt = $pdo->prepare('SELECT * FROM marcas WHERE user_id=? AND es_parcial=0 ORDER BY prueba, piscina');
     $stmt->execute([$user['id']]);
 } else {
-    $stmt = $pdo->prepare('SELECT * FROM marcas WHERE user_id=? AND temporada=? ORDER BY prueba, piscina');
+    $stmt = $pdo->prepare('SELECT * FROM marcas WHERE user_id=? AND temporada=? AND es_parcial=0 ORDER BY prueba, piscina');
     $stmt->execute([$user['id'], $temporada]);
 }
 $all_marks = $stmt->fetchAll();
@@ -61,10 +61,10 @@ foreach ($all_marks as $m) {
 // Actual = marca que sigue siendo la mejor del club (prueba+piscina+sexo)
 // Batido = marca que fue récord en su momento pero ya fue superada
 $records_stmt = $pdo->prepare("
-    SELECT m.id, m.prueba, m.piscina, m.tiempo_seg, u.sexo
+    SELECT m.id, m.prueba, m.piscina, m.tiempo, m.tiempo_seg, m.fecha_marca, u.sexo
     FROM marcas m
     JOIN users u ON u.id = m.user_id
-    WHERE m.user_id = ? AND u.estado = 'activo'
+    WHERE m.user_id = ? AND u.estado = 'activo' AND m.es_parcial = 0
       AND NOT EXISTS (
         SELECT 1 FROM marcas m2
         JOIN users u2 ON u2.id = m2.user_id
@@ -72,8 +72,10 @@ $records_stmt = $pdo->prepare("
           AND m2.piscina = m.piscina
           AND u2.sexo = u.sexo
           AND u2.estado = 'activo'
-          AND m2.fecha_marca < m.fecha_marca
-          AND m2.tiempo_seg <= m.tiempo_seg
+          AND m2.es_parcial = 0
+          AND m2.id != m.id
+          AND m2.fecha_marca <= m.fecha_marca
+          AND m2.tiempo_seg < m.tiempo_seg
       )
 ");
 $records_stmt->execute([$user['id']]);
@@ -83,7 +85,7 @@ $club_best_stmt = $pdo->query("
     SELECT m.prueba, m.piscina, u.sexo, MIN(m.tiempo_seg) AS best_seg
     FROM marcas m
     JOIN users u ON u.id = m.user_id
-    WHERE u.estado = 'activo'
+    WHERE u.estado = 'activo' AND m.es_parcial = 0
     GROUP BY m.prueba, m.piscina, u.sexo
 ");
 $club_bests = [];
@@ -91,21 +93,37 @@ foreach ($club_best_stmt->fetchAll() as $cb) {
     $club_bests[$cb['prueba'] . '_' . $cb['piscina'] . '_' . $cb['sexo']] = (float)$cb['best_seg'];
 }
 
-$records_actuales_set = ['25m' => [], '50m' => []];
-$records_batidos_p = ['25m' => 0, '50m' => 0];
+$records_actuales_set  = ['25m' => [], '50m' => []];
+$records_historicos_set = ['25m' => [], '50m' => []];
+$actuales_modal  = []; // [pisc][prueba] = row del récord vigente
+$historicos_modal = []; // [pisc][prueba] = row con mejor tiempo histórico
 foreach ($user_records as $r) {
     $key = $r['prueba'] . '_' . $r['piscina'] . '_' . $r['sexo'];
     $pisc = $r['piscina'];
     if (!isset($records_actuales_set[$pisc])) continue;
     if (isset($club_bests[$key]) && (float)$r['tiempo_seg'] <= $club_bests[$key]) {
         $records_actuales_set[$pisc][$r['prueba']] = true;
+        // Guardar mejor marca actual por prueba
+        if (!isset($actuales_modal[$pisc][$r['prueba']]) || (float)$r['tiempo_seg'] < (float)$actuales_modal[$pisc][$r['prueba']]['tiempo_seg']) {
+            $actuales_modal[$pisc][$r['prueba']] = $r;
+        }
     } else {
-        $records_batidos_p[$pisc]++;
+        // Guardar solo la mejor marca histórica por prueba (menor tiempo_seg)
+        if (!isset($records_historicos_set[$pisc][$r['prueba']])) {
+            $records_historicos_set[$pisc][$r['prueba']] = true;
+            $historicos_modal[$pisc][$r['prueba']] = $r + ['club_best_seg' => $club_bests[$key] ?? null];
+        } elseif (isset($historicos_modal[$pisc][$r['prueba']]) && (float)$r['tiempo_seg'] < (float)$historicos_modal[$pisc][$r['prueba']]['tiempo_seg']) {
+            $historicos_modal[$pisc][$r['prueba']] = $r + ['club_best_seg' => $club_bests[$key] ?? null];
+        }
     }
 }
 $records_actuales_p = [
     '25m' => count($records_actuales_set['25m']),
     '50m' => count($records_actuales_set['50m']),
+];
+$records_batidos_p = [
+    '25m' => count($records_historicos_set['25m']),
+    '50m' => count($records_historicos_set['50m']),
 ];
 $records_actuales = $records_actuales_p['25m'] + $records_actuales_p['50m'];
 $records_batidos = $records_batidos_p['25m'] + $records_batidos_p['50m'];
@@ -115,7 +133,7 @@ $records_batidos = $records_batidos_p['25m'] + $records_batidos_p['50m'];
 $user_best_stmt = $pdo->prepare("
     SELECT prueba, piscina, MIN(tiempo_seg) AS best_seg
     FROM marcas
-    WHERE user_id = ?
+    WHERE user_id = ? AND es_parcial = 0
     GROUP BY prueba, piscina
 ");
 $user_best_stmt->execute([$user['id']]);
@@ -130,7 +148,7 @@ if ($user_bests) {
         JOIN users u ON u.id = m.user_id
         WHERE u.estado = 'activo' AND u.sexo = ?
           AND m.prueba = ? AND m.piscina = ?
-          AND m.tiempo_seg < ?
+          AND m.tiempo_seg < ? AND m.es_parcial = 0
     ");
     foreach ($user_bests as $ub) {
         $rank_stmt->execute([$user['sexo'], $ub['prueba'], $ub['piscina'], $ub['best_seg']]);
@@ -200,8 +218,16 @@ render_header('Mi panel', 'socio-panel');
         <div>
           <div style="font-weight:700;font-size:14px;">Récords del club</div>
           <div style="display:flex;gap:12px;margin-top:2px;">
-            <span style="font-size:13px;font-weight:700;color:#15803d;" title="Récords vigentes" id="recActualNum" data-p25="<?= $records_actuales_p['25m'] ?>" data-p50="<?= $records_actuales_p['50m'] ?>"><?= $records_actuales_p['25m'] ?> actual<?= $records_actuales_p['25m'] !== 1 ? 'es' : '' ?></span>
-            <span style="font-size:13px;font-weight:700;color:#a16207;" title="Récords batidos" id="recBatidoNum" data-p25="<?= $records_batidos_p['25m'] ?>" data-p50="<?= $records_batidos_p['50m'] ?>"><?= $records_batidos_p['25m'] ?> batido<?= $records_batidos_p['25m'] !== 1 ? 's' : '' ?></span>
+            <?php if ($records_actuales > 0): ?>
+            <span style="font-size:13px;font-weight:700;color:#15803d;cursor:pointer;text-decoration:underline dotted;" title="Ver récords vigentes" id="recActualNum" data-p25="<?= $records_actuales_p['25m'] ?>" data-p50="<?= $records_actuales_p['50m'] ?>" onclick="openActualesModal()"><?= $records_actuales_p['25m'] ?> actual<?= $records_actuales_p['25m'] !== 1 ? 'es' : '' ?></span>
+            <?php else: ?>
+            <span style="font-size:13px;font-weight:700;color:#15803d;" id="recActualNum" data-p25="0" data-p50="0">0 actuales</span>
+            <?php endif; ?>
+            <?php if ($records_batidos > 0): ?>
+            <span style="font-size:13px;font-weight:700;color:#a16207;cursor:pointer;text-decoration:underline dotted;" title="Ver récords históricos" id="recBatidoNum" data-p25="<?= $records_batidos_p['25m'] ?>" data-p50="<?= $records_batidos_p['50m'] ?>" onclick="openHistoricosModal()"><?= $records_batidos_p['25m'] ?> histórico<?= $records_batidos_p['25m'] !== 1 ? 's' : '' ?></span>
+            <?php else: ?>
+            <span style="font-size:13px;font-weight:700;color:#a16207;" id="recBatidoNum" data-p25="0" data-p50="0">0 históricos</span>
+            <?php endif; ?>
           </div>
         </div>
       </div>
@@ -397,7 +423,7 @@ function toggleRecordsPiscina() {
   const actual = document.getElementById('recActualNum');
   const batido = document.getElementById('recBatidoNum');
   if (actual) paintRecord(actual, parseInt(actual.dataset[key], 10), 'actual', 'actuales');
-  if (batido) paintRecord(batido, parseInt(batido.dataset[key], 10), 'batido', 'batidos');
+  if (batido) paintRecord(batido, parseInt(batido.dataset[key], 10), 'histórico', 'históricos');
   const badge = document.getElementById('recordsPistBadge');
   badge.textContent = '';
   const icon = document.createElement('i');
@@ -410,6 +436,121 @@ function toggleRecordsPiscina() {
   arrow.style.opacity = '.8';
   badge.appendChild(arrow);
 }
+function openActualesModal() {
+  document.getElementById('actualesModal').style.display = 'flex';
+}
+function closeActualesModal() {
+  document.getElementById('actualesModal').style.display = 'none';
+}
+function openHistoricosModal() {
+  document.getElementById('historicosModal').style.display = 'flex';
+}
+function closeHistoricosModal() {
+  document.getElementById('historicosModal').style.display = 'none';
+}
+document.addEventListener('keydown', function(e) {
+  if (e.key === 'Escape') { closeActualesModal(); closeHistoricosModal(); }
+});
 </script>
+
+<!-- Modal Récords Actuales -->
+<div id="actualesModal" class="modal-overlay" style="display:none;" onclick="if(event.target===this)closeActualesModal()">
+  <div class="modal-box" style="max-width:480px;width:95%;">
+    <div class="modal-header">
+      <h3><i class="bi bi-trophy-fill" style="color:#15803d;margin-right:8px;"></i>Récords vigentes del club</h3>
+      <button class="modal-close" onclick="closeActualesModal()"><i class="bi bi-x-lg"></i></button>
+    </div>
+    <div class="modal-body" style="padding:16px 24px;">
+      <p class="text-sm text-muted" style="margin:0 0 14px;">Pruebas donde actualmente tienes el mejor tiempo del club.</p>
+      <?php
+      $pisc_labels = ['25m' => '25m (piscina corta)', '50m' => '50m (piscina larga)'];
+      $any_a = false;
+      foreach (['25m', '50m'] as $pisc):
+        if (empty($actuales_modal[$pisc])) continue;
+        $any_a = true;
+      ?>
+      <div style="margin-bottom:18px;">
+        <div style="font-weight:700;font-size:13px;color:var(--gray);margin-bottom:8px;text-transform:uppercase;letter-spacing:.5px;"><?= $pisc_labels[$pisc] ?></div>
+        <table style="width:100%;border-collapse:collapse;font-size:13px;">
+          <thead>
+            <tr style="border-bottom:2px solid #e5e7eb;">
+              <th style="text-align:left;padding:4px 6px;font-weight:600;">Prueba</th>
+              <th style="text-align:center;padding:4px 6px;font-weight:600;">Tu marca</th>
+              <th style="text-align:center;padding:4px 6px;font-weight:600;">Fecha</th>
+            </tr>
+          </thead>
+          <tbody>
+            <?php foreach ($actuales_modal[$pisc] as $prueba => $a): ?>
+            <tr style="border-bottom:1px solid #f0f0f0;">
+              <td style="padding:6px 6px;font-weight:600;"><?= e(format_prueba($prueba)) ?></td>
+              <td style="padding:6px 6px;text-align:center;color:#15803d;font-weight:700;"><?= e($a['tiempo']) ?></td>
+              <td style="padding:6px 6px;text-align:center;color:var(--gray);"><?= date('d/m/Y', strtotime($a['fecha_marca'])) ?></td>
+            </tr>
+            <?php endforeach; ?>
+          </tbody>
+        </table>
+      </div>
+      <?php endforeach; ?>
+      <?php if (!$any_a): ?>
+        <p class="text-muted text-sm" style="text-align:center;padding:16px 0;">Sin datos.</p>
+      <?php endif; ?>
+    </div>
+    <div class="modal-footer" style="justify-content:flex-end;">
+      <a href="/socio/records" class="btn btn-secondary js-loading-link" style="font-size:13px;">Ver tabla de récords</a>
+      <button class="btn btn-primary" onclick="closeActualesModal()">Cerrar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Récords Históricos -->
+<div id="historicosModal" class="modal-overlay" style="display:none;" onclick="if(event.target===this)closeHistoricosModal()">
+  <div class="modal-box" style="max-width:560px;width:95%;">
+    <div class="modal-header">
+      <h3><i class="bi bi-trophy" style="color:#a16207;margin-right:8px;"></i>Récords históricos del club</h3>
+      <button class="modal-close" onclick="closeHistoricosModal()"><i class="bi bi-x-lg"></i></button>
+    </div>
+    <div class="modal-body" style="padding:16px 24px;">
+      <p class="text-sm text-muted" style="margin:0 0 14px;">Marcas tuyas que fueron récord del club en su momento pero han sido superadas.</p>
+      <?php
+      $pisc_labels = ['25m' => '25m (piscina corta)', '50m' => '50m (piscina larga)'];
+      $any_h = false;
+      foreach (['25m', '50m'] as $pisc):
+        if (empty($historicos_modal[$pisc])) continue;
+        $any_h = true;
+      ?>
+      <div style="margin-bottom:18px;">
+        <div style="font-weight:700;font-size:13px;color:var(--gray);margin-bottom:8px;text-transform:uppercase;letter-spacing:.5px;"><?= $pisc_labels[$pisc] ?></div>
+        <table style="width:100%;border-collapse:collapse;font-size:13px;">
+          <thead>
+            <tr style="border-bottom:2px solid #e5e7eb;">
+              <th style="text-align:left;padding:4px 6px;font-weight:600;">Prueba</th>
+              <th style="text-align:center;padding:4px 6px;font-weight:600;">Tu marca</th>
+              <th style="text-align:center;padding:4px 6px;font-weight:600;">Fecha</th>
+              <th style="text-align:center;padding:4px 6px;font-weight:600;">Récord actual</th>
+            </tr>
+          </thead>
+          <tbody>
+            <?php foreach ($historicos_modal[$pisc] as $prueba => $h): ?>
+            <tr style="border-bottom:1px solid #f0f0f0;">
+              <td style="padding:6px 6px;font-weight:600;"><?= e(format_prueba($prueba)) ?></td>
+              <td style="padding:6px 6px;text-align:center;color:#a16207;font-weight:700;"><?= e($h['tiempo']) ?></td>
+              <td style="padding:6px 6px;text-align:center;color:var(--gray);"><?= date('d/m/Y', strtotime($h['fecha_marca'])) ?></td>
+              <td style="padding:6px 6px;text-align:center;color:#15803d;font-weight:700;"><?= $h['club_best_seg'] ? e(segundos_a_tiempo((float)$h['club_best_seg'])) : '—' ?></td>
+            </tr>
+            <?php endforeach; ?>
+          </tbody>
+        </table>
+      </div>
+      <?php endforeach; ?>
+      <?php if (!$any_h): ?>
+        <p class="text-muted text-sm" style="text-align:center;padding:16px 0;">Sin datos.</p>
+      <?php endif; ?>
+    </div>
+    <div class="modal-footer" style="justify-content:flex-end;">
+      <a href="/socio/records" class="btn btn-secondary js-loading-link" style="font-size:13px;">Ver récords vigentes</a>
+      <button class="btn btn-primary" onclick="closeHistoricosModal()">Cerrar</button>
+    </div>
+  </div>
+</div>
 
 <?php render_footer(); ?>

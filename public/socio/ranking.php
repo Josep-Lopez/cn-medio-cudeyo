@@ -15,9 +15,9 @@ $filterPrueba  = $_GET['prueba']  ?? '';
 $filterPiscina = $_GET['piscina'] ?? '25m';
 $filterSexo    = array_key_exists('sexo', $_GET) ? $_GET['sexo'] : ($user['sexo'] ?? '');
 if (!in_array($filterSexo, ['M', 'F', ''], true)) $filterSexo = '';
-$filterNadador = $_GET['nadador'] ?? '1';
-if (!in_array($filterNadador, ['1', '0', ''], true)) $filterNadador = '1';
-$filterMejores = isset($_GET['mejores']);
+$filterNadador = $_GET['nadador'] ?? '';
+if (!in_array($filterNadador, ['1', '0', ''], true)) $filterNadador = '';
+$filterMejores = !array_key_exists('mejores', $_GET) || $_GET['mejores'] !== '0';
 $filterTop10   = isset($_GET['top10']);
 $sort         = $_GET['sort']    ?? 'tiempo';
 $dir          = strtolower($_GET['dir'] ?? 'asc');
@@ -27,8 +27,8 @@ $current_year    = (int)date('n') >= 9 ? (int)date('Y') : (int)date('Y') - 1;
 $temporadas_disp = [];
 for ($y = $current_year; $y >= 2012; $y--)
   $temporadas_disp[] = $y . '-' . substr((string)($y + 1), 2);
-$filterTemporada = $_GET['temporada'] ?? $temporadas_disp[0];
-if ($filterTemporada !== 'todas' && !in_array($filterTemporada, $temporadas_disp)) $filterTemporada = $temporadas_disp[0];
+$filterTemporada = $_GET['temporada'] ?? 'todas';
+if ($filterTemporada !== 'todas' && !in_array($filterTemporada, $temporadas_disp)) $filterTemporada = 'todas';
 
 if (!in_array($filterPrueba, $PRUEBAS)) $filterPrueba = '';
 if (!in_array($filterPiscina, ['25m', '50m'])) $filterPiscina = '25m';
@@ -56,9 +56,9 @@ $orderSql = $sortable[$sort] . ' ' . strtoupper($dir) . ', m.prueba ASC, m.tiemp
 
 if ($filterMejores) {
   // Mejores marcas: mejor tiempo por nadador y prueba
-  $where  = "WHERE m.piscina=? AND u.estado='activo'";
+  $where  = "WHERE m.piscina=? AND u.estado='activo' AND m.es_parcial=0";
   $params = [$filterPiscina];
-  $sub_where = "WHERE m2.piscina=?";
+  $sub_where = "WHERE m2.piscina=? AND m2.es_parcial=0";
   $sub_params = [$filterPiscina];
   if ($filterTemporada !== 'todas') {
     $where .= ' AND m.temporada=?'; $params[] = $filterTemporada;
@@ -97,7 +97,7 @@ if ($filterMejores) {
     ";
   $params = array_merge($sub_params, $params);
 } else {
-  $where  = "WHERE m.piscina=? AND u.estado='activo'";
+  $where  = "WHERE m.piscina=? AND u.estado='activo' AND m.es_parcial=0";
   $params = [$filterPiscina];
   if ($filterTemporada !== 'todas') { $where .= ' AND m.temporada=?'; $params[] = $filterTemporada; }
   if ($filterPrueba) {
@@ -136,6 +136,7 @@ $records_stmt = $pdo->query("
     FROM marcas m
     JOIN users u ON u.id = m.user_id
     WHERE u.estado = 'activo'
+      AND m.es_parcial = 0
       AND NOT EXISTS (
         SELECT 1 FROM marcas m2
         JOIN users u2 ON u2.id = m2.user_id
@@ -143,6 +144,7 @@ $records_stmt = $pdo->query("
           AND m2.piscina = m.piscina
           AND u2.sexo = u.sexo
           AND u2.estado = 'activo'
+          AND m2.es_parcial = 0
           AND (
                 (m2.tiempo_seg <  m.tiempo_seg AND m2.fecha_marca <= m.fecha_marca)
              OR (m2.tiempo_seg =  m.tiempo_seg AND m2.fecha_marca <  m.fecha_marca)
@@ -154,7 +156,7 @@ $current_best_stmt = $pdo->query("
     SELECT m.prueba, m.piscina, u.sexo, MIN(m.tiempo_seg) AS best_seg
     FROM marcas m
     JOIN users u ON u.id = m.user_id
-    WHERE u.estado = 'activo'
+    WHERE u.estado = 'activo' AND m.es_parcial = 0
     GROUP BY m.prueba, m.piscina, u.sexo
 ");
 $current_bests = [];
@@ -172,7 +174,7 @@ render_header('Ranking liga', 'socio-ranking');
 ?>
 
 <div class="container page-content">
-  <?php $hasFilters = $filterPrueba || $filterLiga || $filterMejores || $filterTop10 || $filterTemporada !== $temporadas_disp[0] || $filterPiscina !== '25m'; ?>
+  <?php $hasFilters = $filterPrueba || $filterLiga || !$filterMejores || $filterTop10 || $filterTemporada !== 'todas' || $filterPiscina !== '25m' || $filterNadador !== ''; ?>
   <h1 style="margin-bottom:6px;">Ranking — <?= $filterLiga ? e(format_liga($filterLiga)) : 'Todas las categorías' ?></h1>
 
   <div class="ranking-tabs">
@@ -214,7 +216,7 @@ render_header('Ranking liga', 'socio-ranking');
       'sort' => $column,
       'dir' => ($sort === $column && $dir === 'asc') ? 'desc' : 'asc',
     ];
-    if ($filterMejores) $params['mejores'] = '1';
+    if (!$filterMejores) $params['mejores'] = '0';
     if ($filterTop10) $params['top10'] = '1';
     return '?' . http_build_query(array_filter($params, static fn($v) => $v !== '' && $v !== null));
   };
@@ -235,12 +237,12 @@ render_header('Ranking liga', 'socio-ranking');
     'sort'      => $sort,
     'dir'       => $dir,
   ];
-  if ($filterMejores) $base_filters['mejores'] = '1';
+  if (!$filterMejores) $base_filters['mejores'] = '0';
   if ($filterTop10) $base_filters['top10'] = '1';
   ?>
   <div class="filters-bar" style="flex-direction:column;gap:16px;">
     <form method="GET" class="filters-form js-loading-form">
-      <?php if ($filterMejores): ?><input type="hidden" name="mejores" value="1"><?php endif; ?>
+      <?php if (!$filterMejores): ?><input type="hidden" name="mejores" value="0"><?php endif; ?>
       <?php if ($filterTop10): ?><input type="hidden" name="top10" value="1"><?php endif; ?>
       <input type="hidden" name="sexo" value="<?= e($filterSexo) ?>">
       <input type="hidden" name="nadador" value="<?= e($filterNadador) ?>">
@@ -286,10 +288,9 @@ render_header('Ranking liga', 'socio-ranking');
       <?php
       $mejores_toggle = $base_filters;
       unset($mejores_toggle['top10']);
-      if ($filterMejores) unset($mejores_toggle['mejores']); else $mejores_toggle['mejores'] = '1';
+      if ($filterMejores) $mejores_toggle['mejores'] = '0'; else unset($mejores_toggle['mejores']);
       $top10_toggle = $base_filters;
       unset($top10_toggle['mejores']);
-      $top10_toggle['mejores'] = '1';
       if ($filterTop10) unset($top10_toggle['top10']); else $top10_toggle['top10'] = '1';
       ?>
       <a href="?<?= http_build_query($mejores_toggle) ?>"

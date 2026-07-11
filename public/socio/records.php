@@ -26,7 +26,7 @@ $temporada_actual = $cy_now . '-' . substr((string)($cy_now + 1), 2);
 // --- Récord = mejor marca vigente por prueba × piscina × sexo (el último récord) ---
 // El récord real se calcula sobre TODAS las temporadas. El filtro Nadador se
 // aplica al titular del récord (post-filtro): no recalcula el récord.
-$inner_where  = "WHERE u.estado = 'activo' AND m.piscina = ?";
+$inner_where  = "WHERE u.estado = 'activo' AND m.piscina = ? AND m.es_parcial = 0";
 $inner_params = [$filterPiscina];
 if ($filterPrueba !== '') { $inner_where .= ' AND m.prueba = ?'; $inner_params[] = $filterPrueba; }
 
