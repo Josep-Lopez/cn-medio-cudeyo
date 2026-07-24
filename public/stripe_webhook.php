@@ -26,6 +26,10 @@ if ($type === 'checkout.session.completed') {
     if ($pedido && $pedido['estado'] === 'pendiente_pago') {
         $pdo->prepare('UPDATE equipacion_pedidos SET estado = ?, stripe_payment_intent = ? WHERE id = ?')
             ->execute(['pagado', $session->payment_intent, $pedido['id']]);
+    } elseif ($pedido && $pedido['estado'] !== 'pagado') {
+        error_log('Stripe webhook: checkout.session.completed recibido pero pedido no estaba pendiente_pago — '
+            . 'session=' . $session->id . ' pedido_id=' . $pedido['id'] . ' estado=' . $pedido['estado']
+            . ' payment_intent=' . $session->payment_intent);
     }
     $pdo->commit();
 } elseif ($type === 'checkout.session.expired') {
@@ -38,6 +42,9 @@ if ($type === 'checkout.session.completed') {
         equipacion_reponer_stock($pdo, (int)$pedido['id']);
         $pdo->prepare('UPDATE equipacion_pedidos SET estado = ? WHERE id = ?')
             ->execute(['cancelado', $pedido['id']]);
+    } elseif ($pedido && $pedido['estado'] !== 'cancelado') {
+        error_log('Stripe webhook: checkout.session.expired recibido pero pedido no estaba pendiente_pago — '
+            . 'session=' . $session->id . ' pedido_id=' . $pedido['id'] . ' estado=' . $pedido['estado']);
     }
     $pdo->commit();
 }
