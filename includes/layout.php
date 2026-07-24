@@ -62,6 +62,11 @@ function render_header(string $title, string $activePage = '', string $extraHead
                 <a href="/admin/usuarios" <?= str_starts_with($activePage, 'admin') ? 'class="active"' : '' ?>>Administración</a>
               <?php else: ?>
                 <a href="/socio/panel" <?= str_starts_with($activePage, 'socio') ? 'class="active"' : '' ?>>Mi panel</a>
+                <?php if (user_tiene_cargo('director_tecnico')): ?>
+                  <a href="/admin/marcas" <?= str_starts_with($activePage, 'admin') ? 'class="active"' : '' ?>>Administración</a>
+                <?php elseif (user_tiene_cargo('entrenador')): ?>
+                  <a href="/admin/asistencia" <?= str_starts_with($activePage, 'admin') ? 'class="active"' : '' ?>>Asistencia</a>
+                <?php endif; ?>
               <?php endif; ?>
               <?php if (!empty(cargos_activos())): ?>
                 <a href="/directiva/socios" <?= str_starts_with($activePage, 'directiva') ? 'class="active"' : '' ?>>Directiva</a>
@@ -129,6 +134,11 @@ function render_header(string $title, string $activePage = '', string $extraHead
             <a href="/socio/panel">Mi panel</a>
             <?php if (is_nadador_activo()): ?>
               <a href="/socio/ranking">Ranking mi liga</a>
+            <?php endif; ?>
+            <?php if (user_tiene_cargo('director_tecnico')): ?>
+              <a href="/admin/marcas">Administración</a>
+            <?php elseif (user_tiene_cargo('entrenador')): ?>
+              <a href="/admin/asistencia">Asistencia</a>
             <?php endif; ?>
           <?php endif; ?>
           <?php if (!empty(cargos_activos())): ?>
@@ -328,27 +338,39 @@ function render_header(string $title, string $activePage = '', string $extraHead
 
   function render_admin_layout(string $activePage, callable $content): void
   {
+    $isAdmin      = is_admin();
+    $isDirTec     = $isAdmin || user_tiene_cargo('director_tecnico');
+    $isEntrenador = $isDirTec || user_tiene_cargo('entrenador');
 ?>
   <div class="admin-layout">
     <aside class="admin-sidebar">
       <div class="admin-sidebar-section">
         <div class="admin-sidebar-title">Usuarios</div>
+        <?php if ($isAdmin): ?>
         <a href="/admin/usuarios" class="<?= $activePage === 'usuarios' ? 'active' : '' ?>">
           <i class="bi bi-people-fill"></i> Gestión de usuarios
         </a>
+        <?php endif; ?>
+        <?php if ($isDirTec): ?>
         <a href="/admin/cargos" class="<?= $activePage === 'cargos' ? 'active' : '' ?>">
           <i class="bi bi-person-badge-fill"></i> Cargos directiva
         </a>
+        <?php endif; ?>
+        <?php if ($isEntrenador): ?>
         <a href="/admin/asistencia" class="<?= $activePage === 'asistencia' ? 'active' : '' ?>">
           <i class="bi bi-clipboard-check-fill"></i> Pasar lista
         </a>
         <a href="/admin/asistencia_historial" class="<?= $activePage === 'asistencia_historial' ? 'active' : '' ?>">
           <i class="bi bi-calendar-check"></i> Historial asistencia
         </a>
+        <?php endif; ?>
+        <?php if ($isDirTec): ?>
         <a href="/admin/incidencias" class="<?= $activePage === 'incidencias' ? 'active' : '' ?>">
           <i class="bi bi-exclamation-triangle"></i> Incidencias
         </a>
+        <?php endif; ?>
       </div>
+      <?php if ($isDirTec): ?>
       <div class="admin-sidebar-section">
         <div class="admin-sidebar-title">Marcas &amp; Ranking</div>
         <a href="/admin/marcas" class="<?= $activePage === 'marcas' ? 'active' : '' ?>">
@@ -388,6 +410,7 @@ function render_header(string $title, string $activePage = '', string $extraHead
           <i class="bi bi-sliders"></i> Configuración
         </a>
       </div>
+      <?php endif; ?>
       <div class="admin-sidebar-section">
         <div class="admin-sidebar-title">Web pública</div>
         <a href="/" target="_blank"><i class="bi bi-globe"></i> Ver web</a>
