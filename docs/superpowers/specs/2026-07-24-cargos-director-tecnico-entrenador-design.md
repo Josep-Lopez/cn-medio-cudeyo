@@ -94,7 +94,12 @@ Así un `entrenador` que entra en `/admin/asistencia` ve sidebar con una sola se
 
 ## Riesgo aceptado
 
-`director_tecnico` entra en `cargos.php` y puede asignar cualquier cargo (incluido a sí mismo otros cargos, o a otros usuarios el propio `director_tecnico`/`vocal`/etc.), pero nunca puede tocar `usuarios.php` (altas/bajas/aprobación de cuentas). Decisión explícita del usuario.
+~~`director_tecnico` entra en `cargos.php`...~~ **Revertido, ver Enmienda 2026-07-24 abajo.**
+
+## Enmienda 2026-07-24 (post-implementación)
+
+- `admin/cargos.php` vuelve a ser **admin-only** (`require_admin()`). `director_tecnico` pierde acceso — ya no puede asignar/revocar cargos directiva. El enlace "Cargos directiva" del sidebar admin ahora solo se muestra con `$isAdmin` (antes `$isDirTec`).
+- Página/enlace renombrados de "Cargos directiva" a **"Gestión Club"** (sidebar, `render_header()` title y `<h1>` de `admin/cargos.php`).
 
 ## Fuera de alcance
 

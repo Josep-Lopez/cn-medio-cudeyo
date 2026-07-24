@@ -351,9 +351,9 @@ function render_header(string $title, string $activePage = '', string $extraHead
           <i class="bi bi-people-fill"></i> Gestión de usuarios
         </a>
         <?php endif; ?>
-        <?php if ($isDirTec): ?>
+        <?php if ($isAdmin): ?>
         <a href="/admin/cargos" class="<?= $activePage === 'cargos' ? 'active' : '' ?>">
-          <i class="bi bi-person-badge-fill"></i> Cargos directiva
+          <i class="bi bi-person-badge-fill"></i> Gestión Club
         </a>
         <?php endif; ?>
         <?php if ($isEntrenador): ?>

@@ -3,7 +3,7 @@ require_once dirname(__DIR__, 2) . '/config/db.php';
 require_once dirname(__DIR__, 2) . '/includes/auth.php';
 require_once dirname(__DIR__, 2) . '/includes/layout.php';
 
-require_admin_area(['director_tecnico']);
+require_admin();
 
 $CARGOS    = cargos_disponibles();
 $LIMITES   = cargos_limites();
@@ -120,12 +120,12 @@ $usuariosActivos = $pdo->query(
     "SELECT id, nombre, email FROM users WHERE estado='activo' ORDER BY nombre"
 )->fetchAll();
 
-render_header('Cargos directiva', 'admin-cargos');
+render_header('Gestión Club', 'admin-cargos');
 render_admin_layout('cargos', function() use ($CARGOS, $LIMITES, $activosPorCargo, $historial, $usuariosActivos) {
 ?>
 
 <div class="d-flex justify-between align-center mb-6" style="gap:12px;flex-wrap:wrap;">
-  <h1 style="margin:0;">Cargos de la directiva</h1>
+  <h1 style="margin:0;">Gestión Club</h1>
   <button class="btn btn-primary" onclick="document.getElementById('modalAsignar').style.display='flex'">
     <i class="bi bi-plus-circle-fill"></i> Asignar cargo
   </button>
