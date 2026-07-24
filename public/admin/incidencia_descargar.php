@@ -3,7 +3,7 @@ require_once dirname(__DIR__, 2) . '/config/db.php';
 require_once dirname(__DIR__, 2) . '/includes/auth.php';
 require_once dirname(__DIR__, 2) . '/includes/incidencias.php';
 
-require_admin();
+require_admin_area(['director_tecnico']);
 
 $id = (int)($_GET['id'] ?? 0);
 $adj = obtener_adjunto($pdo, $id);

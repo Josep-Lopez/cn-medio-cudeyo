@@ -4,7 +4,7 @@ require_once dirname(__DIR__, 2) . '/includes/auth.php';
 require_once dirname(__DIR__, 2) . '/includes/layout.php';
 require_once dirname(__DIR__, 2) . '/includes/incidencias.php';
 
-require_admin();
+require_admin_area(['director_tecnico']);
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['accion'] ?? '') === 'crear') {
     csrf_verify();

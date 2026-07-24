@@ -4,7 +4,7 @@ require_once dirname(__DIR__, 2) . '/includes/auth.php';
 require_once dirname(__DIR__, 2) . '/includes/layout.php';
 require_once dirname(__DIR__, 2) . '/includes/rfen.php';
 
-require_admin();
+require_admin_area(['director_tecnico']);
 
 $PRUEBAS = ['50L','100L','200L','400L','800L','1500L','50E','100E','200E','50B','100B','200B','50M','100M','200M','100X','200X','400X'];
 
