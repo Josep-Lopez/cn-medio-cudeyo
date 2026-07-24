@@ -7,7 +7,7 @@ require_login();
 
 $u            = current_user();
 $uid          = (int)$u['id'];
-$esDirectiva  = is_admin() || es_directiva();
+$esDirectiva  = is_admin() || es_directiva() || user_tiene_cargo('director_tecnico');
 $puedeDecidir = is_admin() || user_tiene_cargo('presidente');
 
 // ── POST ─────────────────────────────────────────────────────────

@@ -3,7 +3,7 @@ require_once dirname(__DIR__, 2) . '/config/db.php';
 require_once dirname(__DIR__, 2) . '/includes/auth.php';
 require_once dirname(__DIR__, 2) . '/includes/layout.php';
 
-require_cargo(['presidente', 'secretario', 'tesorero', 'vocal']);
+require_cargo(['presidente', 'secretario', 'tesorero', 'vocal', 'director_tecnico']);
 
 $puedeEditar = is_admin() || user_tiene_cargo('secretario');
 
