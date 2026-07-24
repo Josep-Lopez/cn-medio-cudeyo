@@ -191,6 +191,24 @@ function require_cargo(array $cargos_validos): void
     exit;
 }
 
+// Restringe al área admin: admin siempre pasa, o algún cargo de $cargos_extra
+// (p.ej. director_tecnico, entrenador). Usado en public/admin/*.php en vez
+// de require_admin() cuando la página debe ser accesible a esos cargos.
+function require_admin_area(array $cargos_extra = []): void
+{
+    require_login();
+    if (is_admin()) return;
+    $cargos = cargos_activos();
+    foreach ($cargos_extra as $c) {
+        if (in_array($c, $cargos, true)) return;
+    }
+    http_response_code(403);
+    render_header('Acceso denegado');
+    echo '<div class="container page-content"><div class="alert alert-danger">No tienes permiso para acceder a esta página.</div></div>';
+    render_footer();
+    exit;
+}
+
 // Límite máximo de titulares activos por cargo
 function cargos_limites(): array
 {
@@ -201,6 +219,8 @@ function cargos_limites(): array
         'responsable_menores' => 1,
         'vocal'               => 5,
         'encargado_redes'     => 3,
+        'director_tecnico'    => 1,
+        'entrenador'          => 3,
     ];
 }
 
@@ -220,6 +240,8 @@ function cargo_label(string $cargo): string
         'vocal'               => 'Vocal',
         'responsable_menores' => 'Responsable de protección del menor',
         'encargado_redes'     => 'Encargado de redes sociales',
+        'director_tecnico'    => 'Director técnico',
+        'entrenador'          => 'Entrenador',
         default               => ucfirst($cargo),
     };
 }
