@@ -107,6 +107,7 @@ function render_header(string $title, string $activePage = '', string $extraHead
                   <?php if (!$isAdmin): ?>
                     <a href="/socio/comunicaciones"><i class="bi bi-bell"></i> Comunicaciones<?= $notif_count > 0 ? ' <span class="badge badge-blue" style="font-size:11px;padding:2px 6px;margin-left:4px;">' . $notif_count . '</span>' : '' ?></a>
                     <a href="/socio/incidencias" <?= $activePage === 'socio-incidencias' ? 'class="active"' : '' ?>><i class="bi bi-exclamation-triangle"></i> Incidencias</a>
+                    <a href="/socio/equipacion" <?= $activePage === 'socio-equipacion' ? 'class="active"' : '' ?>><i class="bi bi-bag-check"></i> Equipación</a>
                   <?php endif; ?>
                   <a href="/directiva/cuestiones" <?= $activePage === 'directiva-cuestiones' ? 'class="active"' : '' ?>><i class="bi bi-question-circle"></i> Cuestiones</a>
                   <a href="/logout"><i class="bi bi-box-arrow-right"></i> Cerrar sesión</a>
@@ -316,6 +317,9 @@ function render_header(string $title, string $activePage = '', string $extraHead
         <a href="/directiva/cuestiones" class="<?= $activePage === 'cuestiones' ? 'active' : '' ?>">
           <i class="bi bi-question-circle-fill"></i> Cuestiones
         </a>
+        <a href="/directiva/equipacion" class="<?= $activePage === 'equipacion' ? 'active' : '' ?>">
+          <i class="bi bi-bag-check-fill"></i> Equipación
+        </a>
       </div>
       <?php if (is_admin()): ?>
         <div class="admin-sidebar-section">
@@ -402,6 +406,9 @@ function render_header(string $title, string $activePage = '', string $extraHead
         </a>
         <a href="/directiva/cuestiones" class="<?= $activePage === 'directiva-cuestiones' ? 'active' : '' ?>">
           <i class="bi bi-question-circle-fill"></i> Cuestiones
+        </a>
+        <a href="/directiva/equipacion" class="<?= $activePage === 'directiva-equipacion' ? 'active' : '' ?>">
+          <i class="bi bi-bag-check-fill"></i> Equipación
         </a>
       </div>
       <div class="admin-sidebar-section">
