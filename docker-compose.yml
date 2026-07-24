@@ -12,6 +12,10 @@ services:
       DB_PASS: ${DB_PASS}
       DRIVE_API_KEY: ${DRIVE_API_KEY}
       DRIVE_FOLDER_ID: ${DRIVE_FOLDER_ID}
+      STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY}
+      STRIPE_PUBLISHABLE_KEY: ${STRIPE_PUBLISHABLE_KEY}
+      STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET}
+      APP_URL: ${APP_URL}
     depends_on:
       db:
         condition: service_healthy
