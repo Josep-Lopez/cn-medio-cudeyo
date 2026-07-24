@@ -36,7 +36,9 @@ CREATE TABLE IF NOT EXISTS cargos (
         'tesorero',
         'vocal',
         'responsable_menores',
-        'encargado_redes'
+        'encargado_redes',
+        'director_tecnico',
+        'entrenador'
     ) NOT NULL,
     fecha_inicio DATE NOT NULL,
     fecha_fin DATE NULL,
