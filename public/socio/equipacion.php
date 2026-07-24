@@ -12,7 +12,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     if ($action === 'add') {
         $variante_id = (int)($_POST['variante_id'] ?? 0);
-        $cantidad    = max(1, (int)($_POST['cantidad'] ?? 1));
+        $cantidad    = max(1, min(20, (int)($_POST['cantidad'] ?? 1)));
         $chk = $pdo->prepare(
             'SELECT v.stock FROM equipacion_variantes v JOIN equipacion_items i ON i.id = v.item_id
              WHERE v.id = ? AND i.activo = 1'
@@ -21,6 +21,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $stock = $chk->fetchColumn();
         if ($stock === false) {
             flash('Artículo no disponible.', 'danger');
+        } elseif ((int)$stock < $cantidad) {
+            flash('No queda stock suficiente de ese artículo.', 'danger');
         } else {
             carrito_equipacion_add($variante_id, $cantidad);
             flash('Añadido al carrito.', 'success');
