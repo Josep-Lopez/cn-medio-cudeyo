@@ -59,9 +59,17 @@ function equipacion_carrito_detalle(PDO $pdo, array $carrito): array
 
 // Reserva stock atómicamente. Devuelve 0 si todo OK, o el variante_id que
 // falló por falta de stock (el caller debe hacer ROLLBACK de la transacción).
+// Los artículos "bajo pedido" (equipacion_items.bajo_pedido=1) no tienen
+// límite de stock: sus líneas se consideran siempre reservadas con éxito.
 function equipacion_reservar_stock(PDO $pdo, array $carrito): int
 {
     foreach ($carrito as $variante_id => $cantidad) {
+        $chk = $pdo->prepare(
+            'SELECT i.bajo_pedido FROM equipacion_variantes v JOIN equipacion_items i ON i.id = v.item_id WHERE v.id = ?'
+        );
+        $chk->execute([$variante_id]);
+        if ((int)$chk->fetchColumn() === 1) continue;
+
         $stmt = $pdo->prepare(
             'UPDATE equipacion_variantes SET stock = stock - ? WHERE id = ? AND stock >= ?'
         );
@@ -71,11 +79,20 @@ function equipacion_reservar_stock(PDO $pdo, array $carrito): int
     return 0;
 }
 
+// Repone stock de las líneas de un pedido cancelado/expirado. Las líneas de
+// artículos "bajo pedido" no se tocan (no tienen stock limitado que reponer).
 function equipacion_reponer_stock(PDO $pdo, int $pedido_id): void
 {
-    $stmt = $pdo->prepare('SELECT variante_id, cantidad FROM equipacion_pedido_lineas WHERE pedido_id = ?');
+    $stmt = $pdo->prepare(
+        'SELECT l.variante_id, l.cantidad, i.bajo_pedido
+         FROM equipacion_pedido_lineas l
+         JOIN equipacion_variantes v ON v.id = l.variante_id
+         JOIN equipacion_items i ON i.id = v.item_id
+         WHERE l.pedido_id = ?'
+    );
     $stmt->execute([$pedido_id]);
     foreach ($stmt->fetchAll() as $linea) {
+        if ((int)$linea['bajo_pedido'] === 1) continue;
         $pdo->prepare('UPDATE equipacion_variantes SET stock = stock + ? WHERE id = ?')
             ->execute([$linea['cantidad'], $linea['variante_id']]);
     }
