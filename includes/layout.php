@@ -62,6 +62,7 @@ function render_header(string $title, string $activePage = '', string $extraHead
                 <a href="/admin/usuarios" <?= str_starts_with($activePage, 'admin') ? 'class="active"' : '' ?>>Administración</a>
               <?php else: ?>
                 <a href="/socio/panel" <?= str_starts_with($activePage, 'socio') ? 'class="active"' : '' ?>>Mi panel</a>
+                <a href="/socio/equipacion" <?= $activePage === 'socio-equipacion' ? 'class="active"' : '' ?>>Equipación</a>
                 <?php if (user_tiene_cargo('director_tecnico')): ?>
                   <a href="/admin/marcas" <?= str_starts_with($activePage, 'admin') ? 'class="active"' : '' ?>>Administración</a>
                 <?php elseif (user_tiene_cargo('entrenador')): ?>
@@ -107,7 +108,6 @@ function render_header(string $title, string $activePage = '', string $extraHead
                   <?php if (!$isAdmin): ?>
                     <a href="/socio/comunicaciones"><i class="bi bi-bell"></i> Comunicaciones<?= $notif_count > 0 ? ' <span class="badge badge-blue" style="font-size:11px;padding:2px 6px;margin-left:4px;">' . $notif_count . '</span>' : '' ?></a>
                     <a href="/socio/incidencias" <?= $activePage === 'socio-incidencias' ? 'class="active"' : '' ?>><i class="bi bi-exclamation-triangle"></i> Incidencias</a>
-                    <a href="/socio/equipacion" <?= $activePage === 'socio-equipacion' ? 'class="active"' : '' ?>><i class="bi bi-bag-check"></i> Equipación</a>
                   <?php endif; ?>
                   <a href="/directiva/cuestiones" <?= $activePage === 'directiva-cuestiones' ? 'class="active"' : '' ?>><i class="bi bi-question-circle"></i> Cuestiones</a>
                   <a href="/logout"><i class="bi bi-box-arrow-right"></i> Cerrar sesión</a>
@@ -133,6 +133,7 @@ function render_header(string $title, string $activePage = '', string $extraHead
             <a href="/admin/usuarios">Administración</a>
           <?php else: ?>
             <a href="/socio/panel">Mi panel</a>
+            <a href="/socio/equipacion">Equipación</a>
             <?php if (is_nadador_activo()): ?>
               <a href="/socio/ranking">Ranking mi liga</a>
             <?php endif; ?>
