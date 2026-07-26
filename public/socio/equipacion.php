@@ -12,16 +12,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     if ($action === 'add') {
         $variante_id = (int)($_POST['variante_id'] ?? 0);
-        $cantidad    = max(1, min(20, (int)($_POST['cantidad'] ?? 1)));
+        $cantidad    = max(1, (int)($_POST['cantidad'] ?? 1));
         $chk = $pdo->prepare(
             'SELECT v.stock, i.bajo_pedido FROM equipacion_variantes v JOIN equipacion_items i ON i.id = v.item_id
              WHERE v.id = ? AND i.activo = 1'
         );
         $chk->execute([$variante_id]);
         $row = $chk->fetch();
+        $bajoPedido = $row !== false && (int)$row['bajo_pedido'] === 1;
+        if ($bajoPedido) $cantidad = min($cantidad, 100);
+
         if ($row === false) {
             flash('Artículo no disponible.', 'danger');
-        } elseif ((int)$row['bajo_pedido'] === 0 && (int)$row['stock'] < $cantidad) {
+        } elseif (!$bajoPedido && (int)$row['stock'] < $cantidad) {
             flash('No queda stock suficiente de ese artículo.', 'danger');
         } else {
             carrito_equipacion_add($variante_id, $cantidad);
@@ -110,16 +113,19 @@ render_header('Equipación', 'socio-equipacion');
                 <label class="form-label">Talla</label>
                 <select name="variante_id" class="form-control" required>
                   <?php foreach ($item['variantes'] as $v): ?>
-                    <?php $sinStock = !$item['bajo_pedido'] && $v['stock'] <= 0; ?>
+                    <?php
+                      $sinStock = !$item['bajo_pedido'] && $v['stock'] <= 0;
+                      $etiquetaStock = $item['bajo_pedido'] ? '' : ($sinStock ? ' (sin stock)' : ' (' . $v['stock'] . ' disponibles)');
+                    ?>
                     <option value="<?= $v['variante_id'] ?>" <?= $sinStock ? 'disabled' : '' ?>>
-                      <?= e($v['talla']) ?><?= $sinStock ? ' (sin stock)' : '' ?>
+                      <?= e($v['talla']) ?><?= e($etiquetaStock) ?>
                     </option>
                   <?php endforeach; ?>
                 </select>
               </div>
               <div class="form-group" style="margin:0;width:90px;">
                 <label class="form-label">Cant.</label>
-                <input type="number" name="cantidad" class="form-control" value="1" min="1" max="20">
+                <input type="number" name="cantidad" class="form-control" value="1" min="1">
               </div>
               <button type="submit" class="btn btn-primary"><i class="bi bi-cart-plus"></i> Añadir</button>
             </form>
