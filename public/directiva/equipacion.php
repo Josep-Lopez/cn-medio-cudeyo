@@ -30,10 +30,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             } elseif ($_FILES['imagen']['size'] > 8 * 1024 * 1024) {
                 $errores[] = 'La imagen no puede superar los 8 MB.';
             } else {
-                $ext = strtolower(pathinfo($_FILES['imagen']['name'], PATHINFO_EXTENSION));
+                $mimeToExt = ['image/jpeg' => 'jpg', 'image/png' => 'png', 'image/webp' => 'webp', 'image/gif' => 'gif'];
+                $ext = $mimeToExt[$info['mime']];
                 $dir = dirname(__DIR__, 2) . '/public/uploads/equipacion/';
                 if (!is_dir($dir)) mkdir($dir, 0755, true);
-                $filename = 'equipacion_' . uniqid() . '.' . $ext;
+                $filename = 'equipacion_' . bin2hex(random_bytes(16)) . '.' . $ext;
                 if (move_uploaded_file($_FILES['imagen']['tmp_name'], $dir . $filename)) {
                     $imagenUrl = '/uploads/equipacion/' . $filename;
                 } else {
@@ -70,10 +71,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             } elseif ($_FILES['imagen']['size'] > 8 * 1024 * 1024) {
                 $errores[] = 'La imagen no puede superar los 8 MB.';
             } else {
-                $ext = strtolower(pathinfo($_FILES['imagen']['name'], PATHINFO_EXTENSION));
+                $mimeToExt = ['image/jpeg' => 'jpg', 'image/png' => 'png', 'image/webp' => 'webp', 'image/gif' => 'gif'];
+                $ext = $mimeToExt[$info['mime']];
                 $dir = dirname(__DIR__, 2) . '/public/uploads/equipacion/';
                 if (!is_dir($dir)) mkdir($dir, 0755, true);
-                $filename = 'equipacion_' . uniqid() . '.' . $ext;
+                $filename = 'equipacion_' . bin2hex(random_bytes(16)) . '.' . $ext;
                 if (move_uploaded_file($_FILES['imagen']['tmp_name'], $dir . $filename)) {
                     $imagenUrl = '/uploads/equipacion/' . $filename;
                 } else {
