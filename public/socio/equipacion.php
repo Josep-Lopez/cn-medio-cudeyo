@@ -14,14 +14,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $variante_id = (int)($_POST['variante_id'] ?? 0);
         $cantidad    = max(1, min(20, (int)($_POST['cantidad'] ?? 1)));
         $chk = $pdo->prepare(
-            'SELECT v.stock FROM equipacion_variantes v JOIN equipacion_items i ON i.id = v.item_id
+            'SELECT v.stock, i.bajo_pedido FROM equipacion_variantes v JOIN equipacion_items i ON i.id = v.item_id
              WHERE v.id = ? AND i.activo = 1'
         );
         $chk->execute([$variante_id]);
-        $stock = $chk->fetchColumn();
-        if ($stock === false) {
+        $row = $chk->fetch();
+        if ($row === false) {
             flash('Artículo no disponible.', 'danger');
-        } elseif ((int)$stock < $cantidad) {
+        } elseif ((int)$row['bajo_pedido'] === 0 && (int)$row['stock'] < $cantidad) {
             flash('No queda stock suficiente de ese artículo.', 'danger');
         } else {
             carrito_equipacion_add($variante_id, $cantidad);
@@ -40,7 +40,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 
 $catalogoRows = $pdo->query(
-    "SELECT i.id AS item_id, i.nombre, i.descripcion, i.precio,
+    "SELECT i.id AS item_id, i.nombre, i.descripcion, i.precio, i.imagen_url, i.bajo_pedido,
             v.id AS variante_id, v.talla, v.stock
      FROM equipacion_items i
      JOIN equipacion_variantes v ON v.item_id = i.id
@@ -56,6 +56,8 @@ foreach ($catalogoRows as $r) {
             'nombre'      => $r['nombre'],
             'descripcion' => $r['descripcion'],
             'precio'      => (float)$r['precio'],
+            'imagen_url'  => $r['imagen_url'],
+            'bajo_pedido' => (int)$r['bajo_pedido'],
             'variantes'   => [],
         ];
     }
@@ -84,11 +86,20 @@ render_header('Equipación', 'socio-equipacion');
         <div class="card mb-4">
           <div class="card-body">
             <div class="d-flex justify-between align-center" style="gap:12px;flex-wrap:wrap;">
-              <div>
-                <h3 style="margin:0;"><?= e($item['nombre']) ?></h3>
-                <?php if ($item['descripcion']): ?>
-                  <p style="color:var(--gray);margin:4px 0;"><?= e($item['descripcion']) ?></p>
+              <div class="d-flex gap-3" style="align-items:flex-start;">
+                <?php if ($item['imagen_url']): ?>
+                  <img src="<?= e($item['imagen_url']) ?>" alt="<?= e($item['nombre']) ?>" style="width:80px;height:80px;object-fit:cover;border-radius:8px;flex-shrink:0;">
+                <?php else: ?>
+                  <div style="width:80px;height:80px;border-radius:8px;background:#f0f0f0;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                    <i class="bi bi-image" style="font-size:28px;color:var(--gray);"></i>
+                  </div>
                 <?php endif; ?>
+                <div>
+                  <h3 style="margin:0;"><?= e($item['nombre']) ?></h3>
+                  <?php if ($item['descripcion']): ?>
+                    <p style="color:var(--gray);margin:4px 0;"><?= e($item['descripcion']) ?></p>
+                  <?php endif; ?>
+                </div>
               </div>
               <div style="font-size:20px;font-weight:700;"><?= number_format($item['precio'], 2, ',', '.') ?> €</div>
             </div>
@@ -99,8 +110,9 @@ render_header('Equipación', 'socio-equipacion');
                 <label class="form-label">Talla</label>
                 <select name="variante_id" class="form-control" required>
                   <?php foreach ($item['variantes'] as $v): ?>
-                    <option value="<?= $v['variante_id'] ?>" <?= $v['stock'] <= 0 ? 'disabled' : '' ?>>
-                      <?= e($v['talla']) ?><?= $v['stock'] <= 0 ? ' (sin stock)' : '' ?>
+                    <?php $sinStock = !$item['bajo_pedido'] && $v['stock'] <= 0; ?>
+                    <option value="<?= $v['variante_id'] ?>" <?= $sinStock ? 'disabled' : '' ?>>
+                      <?= e($v['talla']) ?><?= $sinStock ? ' (sin stock)' : '' ?>
                     </option>
                   <?php endforeach; ?>
                 </select>
