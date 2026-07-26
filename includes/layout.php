@@ -368,6 +368,12 @@ function render_header(string $title, string $activePage = '', string $extraHead
         <a href="/admin/asistencia_historial" class="<?= $activePage === 'asistencia_historial' ? 'active' : '' ?>">
           <i class="bi bi-calendar-check"></i> Historial asistencia
         </a>
+        <a href="/admin/grupos" class="<?= $activePage === 'grupos' ? 'active' : '' ?>">
+          <i class="bi bi-diagram-3-fill"></i> Grupos
+        </a>
+        <a href="/admin/competiciones" class="<?= $activePage === 'competiciones' ? 'active' : '' ?>">
+          <i class="bi bi-list-ol"></i> Competiciones
+        </a>
         <?php endif; ?>
         <?php if ($isDirTec): ?>
         <a href="/admin/incidencias" class="<?= $activePage === 'incidencias' ? 'active' : '' ?>">
