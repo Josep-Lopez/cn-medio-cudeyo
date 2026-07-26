@@ -4,18 +4,22 @@ Fecha: 2026-07-26
 
 ## Contexto
 
-El cargo `entrenador` ya existe (migración 018) pero no tiene área propia en la web
-(solo `director_tecnico` tiene acceso a `/admin/marcas.php`). El entrenador pide dos
-capacidades nuevas:
+El cargo `entrenador` ya existe (migración 018) y tiene acceso limitado a
+`/admin/asistencia.php` (pasar lista); solo `director_tecnico` tiene acceso a
+`/admin/marcas.php`. El entrenador pide dos capacidades nuevas:
 
 1. Organizar a sus nadadores en grupos de entrenamiento y verlos listados.
 2. Registrar los tiempos que hacen sus nadadores en competiciones (con parciales
    libres), y que cada nadador pueda entrar a ver su tiempo y comentarlo con el
    entrenador, tipo hilo/foro.
 
-Son dos subsistemas independientes que se agrupan bajo una nueva área `/entrenador/*`,
-siguiendo el patrón ya usado por `/directiva/*` (sidebar propio vía
-`render_directiva_layout()`, acceso por cargo).
+Son dos subsistemas independientes. **Corrección tras inspección del código**: el
+cargo `entrenador` ya vive dentro de `/admin/*` (no un área separada como
+`/directiva/*`) — `admin/asistencia.php` usa
+`require_admin_area(['director_tecnico', 'entrenador'])` y `render_admin_layout()`
+ya tiene una bandera `$isEntrenador` que filtra el sidebar. Grupos y competiciones
+siguen ese mismo patrón: páginas nuevas bajo `/admin/*`, sidebar existente
+ampliado, sin crear área/layout nuevos.
 
 Explícitamente fuera de alcance: estos tiempos de competición **no** alimentan la
 tabla `marcas` ni el ranking/records oficiales del club — es un sistema aparte,
@@ -51,13 +55,15 @@ Relación N:N confirmada: un nadador puede pertenecer a varios grupos a la vez
 
 ### Páginas
 
-- `/entrenador/grupos.php`
+- `/admin/grupos.php`
+  - `require_admin_area(['director_tecnico', 'entrenador'])`.
   - Listado de grupos existentes (nombre, nº de nadadores).
   - Crear / editar / borrar grupo (nombre + descripción opcional).
   - Dentro de cada grupo: listado de nadadores asignados mostrando nombre + liga
     (categoría) + sexo; buscador para añadir socios activos; botón quitar por fila.
-  - Accesible por `entrenador` y `admin` (mismo criterio: entrenador y admin pueden
-    crear/gestionar grupos, no solo el admin).
+  - Accesible por `entrenador`, `director_tecnico` y `admin`.
+  - Entrada nueva en el sidebar de `render_admin_layout()`, sección "Usuarios",
+    visible cuando `$isEntrenador` (icono `bi-diagram-3-fill`, label "Grupos").
 
 ### Integración con asistencia (existente)
 
@@ -119,21 +125,27 @@ CREATE TABLE competicion_comentarios (
 
 ### Páginas
 
-- `/entrenador/competiciones.php`
+- `/admin/competiciones.php`
+  - `require_admin_area(['director_tecnico', 'entrenador'])`.
   - Listado de competiciones (nombre, lugar, fecha), crear nueva.
   - Dentro de cada competición: tabla de tiempos registrados (nadador, prueba,
     piscina, tiempo), botón "Añadir tiempo" (selector nadador + prueba + piscina +
     tiempo + parciales libres).
-- `/entrenador/competicion_tiempo.php?id=X`
+  - Entrada nueva en el sidebar de `render_admin_layout()`, sección "Usuarios",
+    visible cuando `$isEntrenador` (icono `bi-list-ol`, label "Competiciones").
+- `/admin/competicion_tiempo.php?id=X`
   - Detalle de un tiempo (nadador, prueba, tiempo, parciales) + hilo de comentarios
     (textarea + listado cronológico, igual que `incidencia_comentarios`).
+  - Mismo `require_admin_area`, más chequeo de que el tiempo pertenece a una
+    competición existente (404 si no).
 - `/socio/competiciones.php`
   - Listado de los propios tiempos de competición del socio logueado (todas las
     competiciones en que aparece). Siempre visible en el menú aunque esté vacío
     (mensaje "Aún no tienes tiempos de competición registrados"), igual criterio
     que `socio/incidencias.php`.
-  - Click en un tiempo abre el mismo detalle+hilo que `/entrenador/competicion_tiempo.php`,
-    reutilizando la misma vista con chequeo de propiedad (`user_id === current_user id`).
+- `/socio/competicion_tiempo.php?id=X`
+  - Mismo detalle+hilo que la vista de admin, página propia bajo `/socio/` con
+    chequeo de propiedad (`user_id === current_user id`, 403 si no coincide).
 
 ### Visibilidad del hilo (foro)
 
@@ -145,11 +157,13 @@ grupo.
 
 ## Sección 3 — Permisos, sidebar y comportamiento
 
-- **Acceso `/entrenador/*`**: `require_cargo(['entrenador'])` al inicio de cada
-  página (admin pasa siempre, mismo criterio que `require_cargo` ya implementado).
-- **Sidebar**: nueva función `render_entrenador_layout(string $activePage, callable $content)`
-  en `includes/layout.php`, calco de `render_directiva_layout()`, con entradas
-  "Grupos" y "Competiciones".
+- **Acceso `/admin/grupos.php`, `/admin/competiciones.php`,
+  `/admin/competicion_tiempo.php`**: `require_admin_area(['director_tecnico', 'entrenador'])`,
+  igual que `admin/asistencia.php` — admin, director_tecnico y entrenador pasan.
+- **Sidebar**: se amplía `render_admin_layout()` existente (líneas ~364-371 de
+  `includes/layout.php`, bloque `if ($isEntrenador)`), añadiendo los enlaces
+  "Grupos" y "Competiciones" junto a los ya existentes "Pasar lista"/"Historial
+  asistencia". No se crea layout nuevo.
 - **Navbar/menú socio**: nuevo enlace "Competiciones" en el panel de socio, visible
   siempre (no condicionado a tener datos).
 - **Cascadas de borrado**:
@@ -164,9 +178,9 @@ grupo.
 
 ## Migraciones
 
-Una migración nueva `021_entrenador_grupos_competiciones.sql` con las 4 tablas
+Una migración nueva `021_entrenador_grupos_competiciones.sql` con las 5 tablas
 (`grupos_entrenamiento`, `grupo_nadadores`, `competiciones`, `competicion_tiempos`,
-`competicion_comentarios`) — 5 tablas en total.
+`competicion_comentarios`).
 
 ## Testing manual (no hay suite automatizada en el proyecto)
 
