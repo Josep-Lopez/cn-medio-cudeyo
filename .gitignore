@@ -34,3 +34,4 @@ migrations/
 
 # Runtime logs
 /storage/*.log
+.worktrees/
