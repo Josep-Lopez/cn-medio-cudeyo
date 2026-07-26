@@ -2,6 +2,7 @@
 require_once dirname(__DIR__, 2) . '/config/db.php';
 require_once dirname(__DIR__, 2) . '/includes/auth.php';
 require_once dirname(__DIR__, 2) . '/includes/layout.php';
+require_once dirname(__DIR__, 2) . '/includes/grupos.php';
 
 require_admin_area(['director_tecnico', 'entrenador']);
 
@@ -30,7 +31,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     flash('Asistencia guardada correctamente.', 'success');
-    header('Location: /admin/asistencia?fecha=' . urlencode($fecha) . '&liga=' . urlencode($_POST['liga_back'] ?? ''));
+    header('Location: /admin/asistencia?fecha=' . urlencode($fecha) . '&liga=' . urlencode($_POST['liga_back'] ?? '') . '&grupo=' . (int)($_POST['grupo_back'] ?? 0));
     exit;
 }
 
@@ -38,6 +39,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 $fecha = $_GET['fecha'] ?? date('Y-m-d');
 $filtroLiga = $_GET['liga'] ?? 'todos';
 if ($filtroLiga !== 'todos' && !array_key_exists($filtroLiga, $LIGAS)) $filtroLiga = 'todos';
+$filtroGrupo = isset($_GET['grupo']) ? (int)$_GET['grupo'] : 0;
+$grupos = listar_grupos($pdo);
 
 // Cargar nadadores activos (solo si hay categoría seleccionada o "todos")
 $where = "estado='activo' AND rol='socio' AND nadador_activo=1";
@@ -45,6 +48,10 @@ $params = [];
 if ($filtroLiga && $filtroLiga !== 'todos') {
     $where .= ' AND liga=?';
     $params[] = $filtroLiga;
+}
+if ($filtroGrupo > 0) {
+    $where .= ' AND id IN (SELECT user_id FROM grupo_nadadores WHERE grupo_id=?)';
+    $params[] = $filtroGrupo;
 }
 $stmt = $pdo->prepare("SELECT id, nombre, liga, sexo FROM users WHERE $where ORDER BY nombre");
 $stmt->execute($params);
@@ -66,7 +73,7 @@ foreach ($nadadores as $n) {
 }
 
 render_header('Control de asistencia', 'admin-asistencia');
-render_admin_layout('asistencia', function() use ($LIGAS, $nadadores, $registros, $fecha, $filtroLiga, $total, $presentes) {
+render_admin_layout('asistencia', function() use ($LIGAS, $grupos, $nadadores, $registros, $fecha, $filtroLiga, $filtroGrupo, $total, $presentes) {
 ?>
 
 <h1>Control de asistencia</h1>
@@ -78,16 +85,26 @@ render_admin_layout('asistencia', function() use ($LIGAS, $nadadores, $registros
     <div class="form-group" style="margin:0;">
       <label class="form-label">Fecha</label>
       <input type="date" class="form-control" value="<?= e($fecha) ?>"
-             onchange="window.location='?fecha='+this.value+'&liga=<?= e($filtroLiga) ?>'"
+             onchange="window.location='?fecha='+this.value+'&liga=<?= e($filtroLiga) ?>&grupo=<?= (int)$filtroGrupo ?>'"
              style="width:auto;">
     </div>
     <div class="form-group" style="margin:0;">
       <label class="form-label">Categoría</label>
       <select class="form-control" style="width:auto;min-width:160px;"
-              onchange="window.location='?fecha=<?= e($fecha) ?>&liga='+this.value">
+              onchange="window.location='?fecha=<?= e($fecha) ?>&liga='+this.value+'&grupo=<?= (int)$filtroGrupo ?>'">
         <option value="todos" <?= $filtroLiga === 'todos' ? 'selected' : '' ?>>Todos</option>
         <?php foreach ($LIGAS as $k => $v): ?>
           <option value="<?= $k ?>" <?= $filtroLiga === $k ? 'selected' : '' ?>><?= $v ?></option>
+        <?php endforeach; ?>
+      </select>
+    </div>
+    <div class="form-group" style="margin:0;">
+      <label class="form-label">Grupo</label>
+      <select class="form-control" style="width:auto;min-width:160px;"
+              onchange="window.location='?fecha=<?= e($fecha) ?>&liga=<?= e($filtroLiga) ?>&grupo='+this.value">
+        <option value="0">Todos</option>
+        <?php foreach ($grupos as $g): ?>
+          <option value="<?= (int)$g['id'] ?>" <?= $filtroGrupo === (int)$g['id'] ? 'selected' : '' ?>><?= e($g['nombre']) ?></option>
         <?php endforeach; ?>
       </select>
     </div>
@@ -114,6 +131,7 @@ render_admin_layout('asistencia', function() use ($LIGAS, $nadadores, $registros
   <?= csrf_field() ?>
   <input type="hidden" name="fecha" value="<?= e($fecha) ?>">
   <input type="hidden" name="liga_back" value="<?= e($filtroLiga) ?>">
+  <input type="hidden" name="grupo_back" value="<?= (int)$filtroGrupo ?>">
 
   <div class="card">
     <div class="card-header">
