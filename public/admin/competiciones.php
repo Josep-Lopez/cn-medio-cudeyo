@@ -94,7 +94,7 @@ render_admin_layout('competiciones', function() use ($accion, $verId, $competici
             return;
         }
         $tiempos = listar_tiempos_competicion($pdo, $verId);
-        $sociosStmt = $pdo->query("SELECT id, nombre FROM users WHERE rol='socio' AND estado='activo' ORDER BY nombre");
+        $sociosStmt = $pdo->query("SELECT id, nombre FROM users WHERE rol='socio' AND estado='activo' AND nadador_activo=1 ORDER BY nombre");
         $socios = $sociosStmt->fetchAll();
 ?>
 <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">

@@ -56,7 +56,7 @@ function listar_nadadores_grupo(PDO $pdo, int $grupo_id): array
         SELECT u.id, u.nombre, u.liga, u.sexo
         FROM grupo_nadadores gn
         JOIN users u ON u.id = gn.user_id
-        WHERE gn.grupo_id = ?
+        WHERE gn.grupo_id = ? AND u.nadador_activo = 1
         ORDER BY u.nombre
     ');
     $stmt->execute([$grupo_id]);
@@ -68,7 +68,7 @@ function listar_socios_fuera_de_grupo(PDO $pdo, int $grupo_id): array
     $stmt = $pdo->prepare("
         SELECT id, nombre, liga
         FROM users
-        WHERE estado = 'activo' AND rol = 'socio'
+        WHERE estado = 'activo' AND rol = 'socio' AND nadador_activo = 1
           AND id NOT IN (SELECT user_id FROM grupo_nadadores WHERE grupo_id = ?)
         ORDER BY nombre
     ");

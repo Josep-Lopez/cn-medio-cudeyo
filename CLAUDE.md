@@ -28,7 +28,10 @@ cn-medio-cudeyo/
 ├── includes/
 │   ├── auth.php           ← Helpers auth, session, flash, utils
 │   ├── layout.php         ← render_header(), render_footer(), render_admin_layout()
-│   └── rfen.php           ← Helpers importación RFEN
+│   ├── rfen.php           ← Helpers importación RFEN
+│   ├── incidencias.php    ← Helpers dominio incidencias
+│   ├── grupos.php         ← Helpers dominio grupos de entrenamiento
+│   └── competicion_entrenador.php ← Helpers dominio competiciones del entrenador (CE_PRUEBAS, CE_PISCINAS)
 └── public/                ← DocumentRoot de Apache
     ├── assets/
     │   ├── css/main.css   ← CSS global (variables, componentes, responsive)
@@ -57,7 +60,10 @@ cn-medio-cudeyo/
     │   ├── incidencia_descargar.php ← Descarga de adjuntos
     │   ├── ranking-edades.php ← Ranking por edad (Vista A top-10 + Vista B matriz)
     │   ├── records.php        ← Récords del club (mejor marca vigente por prueba×piscina×sexo)
-    │   └── puntos-aqua.php    ← Ranking equipo por puntos AQUA (suma N mejores; filtro 1/2/3/4/8/18)
+    │   ├── puntos-aqua.php    ← Ranking equipo por puntos AQUA (suma N mejores; filtro 1/2/3/4/8/18)
+    │   ├── grupos.php         ← Grupos de entrenamiento (crear/editar/borrar, asignar/quitar nadadores) — entrenador
+    │   ├── competiciones.php  ← Competiciones del entrenador: listado + tiempos por competición
+    │   └── competicion_tiempo.php ← Detalle de tiempo + hilo de comentarios (staff, sin restricción de propiedad)
     ├── directiva/
     │   ├── socios.php      ← Lista socios + cuotas (directiva ver; tesorero edita)
     │   ├── actas.php       ← Actas (directiva ve publicadas; secretario edita)
@@ -70,7 +76,9 @@ cn-medio-cudeyo/
         ├── incidencia_descargar.php ← Descarga de adjuntos (con check)
         ├── ranking-edades.php ← Ranking por edad (Vista A top-10 + Vista B matriz)
         ├── records.php        ← Récords del club (mejor marca vigente por prueba×piscina×sexo)
-        └── puntos-aqua.php    ← Ranking equipo por puntos AQUA (suma N mejores; filtro 1/2/3/4/8/18)
+        ├── puntos-aqua.php    ← Ranking equipo por puntos AQUA (suma N mejores; filtro 1/2/3/4/8/18)
+        ├── competiciones.php  ← Mis tiempos de competición (registrados por el entrenador)
+        └── competicion_tiempo.php ← Detalle de tiempo propio + hilo de comentarios (solo el dueño o admin)
 ```
 
 ## Convenciones PHP
@@ -145,6 +153,11 @@ render_directiva_layout($activePage, fn)   // Sidebar directiva + main
 | `actas` | Actas de reuniones (fecha, título, contenido, autor, publicada) |
 | `cuestiones` | Propuestas de socios (estado: propuesta/aprobada/rechazada, decision_por presidente) |
 | `cuestion_comentarios` | Hilo de comentarios por cuestión |
+| `grupos_entrenamiento` | Grupos de entrenamiento del entrenador (nombre, descripción) |
+| `grupo_nadadores` | Relación N:N grupo↔nadador (un nadador puede estar en varios grupos) |
+| `competicion_entrenador` | Competiciones registradas por el entrenador (nombre, lugar, fecha) — **no** confundir con `competiciones`/`competicion_resultados` de otra feature |
+| `competicion_entrenador_tiempos` | Tiempos por nadador×prueba×competición, con parciales en texto libre |
+| `competicion_entrenador_comentarios` | Hilo de comentarios privado entrenador↔nadador por tiempo |
 
 **Tiempo format:** Almacenado como `mm:ss.cc` string + `tiempo_seg` float para ordenar.
 
@@ -219,6 +232,9 @@ Inter (Google Fonts) + Arial fallback
 | Admin — Récords del club | `public/admin/records.php` | ✅ |
 | Socio — Puntos AQUA | `public/socio/puntos-aqua.php` | ✅ |
 | Admin — Puntos AQUA | `public/admin/puntos-aqua.php` | ✅ |
+| Admin — Grupos de entrenamiento | `public/admin/grupos.php` | ✅ |
+| Admin — Competiciones | `public/admin/competiciones.php` + `competicion_tiempo.php` | ✅ |
+| Socio — Mis competiciones | `public/socio/competiciones.php` + `competicion_tiempo.php` | ✅ |
 
 ## Pendiente / futuro
 - [ ] Calendari: confirmar que el Google Calendar embed funciona
