@@ -26,6 +26,19 @@ tabla `marcas` ni el ranking/records oficiales del club — es un sistema aparte
 centrado en seguimiento del entrenador y parciales. Tampoco se da acceso a tutores
 de menores en esta fase (igual que en incidencias, donde no se ha implementado).
 
+**Aviso de nombres**: existe una branch sin mergear `feature/competiciones` con una
+mini-app aparte (subdominio, directorio `competiciones/` en la raíz del repo) para
+importar resultados desde swimrankings.net, que ya creó en la BD de desarrollo las
+tablas `competiciones` y `competicion_resultados` (migración `012_competiciones.sql`
+de esa branch, numeración propia). Es una feature distinta, no relacionada con esta.
+Para no chocar de nombre en la misma base de datos, las tablas de esta spec se
+llaman `competicion_entrenador`, `competicion_entrenador_tiempos` y
+`competicion_entrenador_comentarios` (no `competiciones`/`competicion_tiempos`/
+`competicion_comentarios`). Las rutas `/admin/competiciones.php` y
+`/socio/competiciones.php` de esta spec sí pueden llamarse así sin problema: están
+dentro de `public/` de la app principal, mientras que la otra feature vive en
+`competiciones/public/` (árbol de directorios distinto).
+
 ## Sección 1 — Grupos de entrenamiento
 
 ### Datos
@@ -76,7 +89,7 @@ nueva para esto, es un filtro sobre datos ya existentes.
 ### Datos
 
 ```sql
-CREATE TABLE competiciones (
+CREATE TABLE competicion_entrenador (
     id INT AUTO_INCREMENT PRIMARY KEY,
     nombre VARCHAR(150) NOT NULL,
     lugar VARCHAR(255) DEFAULT NULL,
@@ -86,7 +99,7 @@ CREATE TABLE competiciones (
     FOREIGN KEY (creado_por) REFERENCES users(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-CREATE TABLE competicion_tiempos (
+CREATE TABLE competicion_entrenador_tiempos (
     id INT AUTO_INCREMENT PRIMARY KEY,
     competicion_id INT NOT NULL,
     user_id INT NOT NULL,
@@ -97,19 +110,19 @@ CREATE TABLE competicion_tiempos (
     parciales VARCHAR(255) DEFAULT NULL,
     registrado_por INT NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (competicion_id) REFERENCES competiciones(id) ON DELETE CASCADE,
+    FOREIGN KEY (competicion_id) REFERENCES competicion_entrenador(id) ON DELETE CASCADE,
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
     FOREIGN KEY (registrado_por) REFERENCES users(id) ON DELETE CASCADE,
     INDEX idx_user (user_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-CREATE TABLE competicion_comentarios (
+CREATE TABLE competicion_entrenador_comentarios (
     id INT AUTO_INCREMENT PRIMARY KEY,
     tiempo_id INT NOT NULL,
     user_id INT NOT NULL,
     contenido TEXT NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (tiempo_id) REFERENCES competicion_tiempos(id) ON DELETE CASCADE,
+    FOREIGN KEY (tiempo_id) REFERENCES competicion_entrenador_tiempos(id) ON DELETE CASCADE,
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
     INDEX idx_tiempo (tiempo_id, created_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
@@ -122,6 +135,8 @@ CREATE TABLE competicion_comentarios (
   decisión explícita para mantenerlo simple, el entrenador escribe como quiera.
 - Patrón calcado de `incidencias` / `incidencia_comentarios`, ya validado en el repo.
 - Sin FK a `marcas`: sistema independiente del ranking/records oficiales.
+- Nombres con sufijo `_entrenador` para no chocar con las tablas `competiciones` /
+  `competicion_resultados` de la branch `feature/competiciones` (ver aviso arriba).
 
 ### Páginas
 
@@ -168,8 +183,8 @@ grupo.
   siempre (no condicionado a tener datos).
 - **Cascadas de borrado**:
   - Borrar grupo → borra filas de `grupo_nadadores` (`ON DELETE CASCADE`).
-  - Borrar competición → borra `competicion_tiempos` y sus `competicion_comentarios`
-    en cascada.
+  - Borrar competición → borra `competicion_entrenador_tiempos` y sus
+    `competicion_entrenador_comentarios` en cascada.
 - **Validación de tiempo**: mismo formato/regex que ya usa `admin/marcas.php` para
   el campo `tiempo`, calculando `tiempo_seg` en servidor.
 - **Menores con tutor**: `tutor_user_id` no gana acceso automático a este módulo en
@@ -179,8 +194,8 @@ grupo.
 ## Migraciones
 
 Una migración nueva `021_entrenador_grupos_competiciones.sql` con las 5 tablas
-(`grupos_entrenamiento`, `grupo_nadadores`, `competiciones`, `competicion_tiempos`,
-`competicion_comentarios`).
+(`grupos_entrenamiento`, `grupo_nadadores`, `competicion_entrenador`,
+`competicion_entrenador_tiempos`, `competicion_entrenador_comentarios`).
 
 ## Testing manual (no hay suite automatizada en el proyecto)
 
