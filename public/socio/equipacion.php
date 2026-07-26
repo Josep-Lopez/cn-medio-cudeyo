@@ -77,7 +77,7 @@ render_header('Equipación', 'socio-equipacion');
   <h1>Equipación del club</h1>
   <?php render_flash(); ?>
 
-  <div style="display:grid;grid-template-columns:2fr 1fr;gap:24px;align-items:start;">
+  <div class="equipacion-layout">
     <div>
       <?php if (!$catalogo): ?>
         <p class="text-muted">No hay artículos disponibles ahora mismo.</p>

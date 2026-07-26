@@ -61,7 +61,7 @@ function render_header(string $title, string $activePage = '', string $extraHead
               <?php if ($isAdmin): ?>
                 <a href="/admin/usuarios" <?= str_starts_with($activePage, 'admin') ? 'class="active"' : '' ?>>Administración</a>
               <?php else: ?>
-                <a href="/socio/panel" <?= str_starts_with($activePage, 'socio') ? 'class="active"' : '' ?>>Mi panel</a>
+                <a href="/socio/panel" <?= in_array($activePage, ['socio', 'socio-panel'], true) ? 'class="active"' : '' ?>>Mi panel</a>
                 <a href="/socio/equipacion" <?= $activePage === 'socio-equipacion' ? 'class="active"' : '' ?>>Equipación</a>
                 <?php if (user_tiene_cargo('director_tecnico')): ?>
                   <a href="/admin/marcas" <?= str_starts_with($activePage, 'admin') ? 'class="active"' : '' ?>>Administración</a>
