@@ -3,6 +3,8 @@ require_once dirname(__DIR__, 2) . '/config/db.php';
 require_once dirname(__DIR__, 2) . '/includes/auth.php';
 require_once dirname(__DIR__, 2) . '/includes/layout.php';
 
+require_once dirname(__DIR__, 2) . '/includes/equipacion.php';
+
 require_admin_area(['director_tecnico']);
 
 // Estructura agrupada — FINA (claves = nombre en JSON, con emoji para el título)
@@ -51,6 +53,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!in_array($temporada, $temporadas, true)) $temporada = $temporadas[2];
     $pdo->prepare('INSERT INTO config (clave, valor) VALUES (?,?) ON DUPLICATE KEY UPDATE valor=?')
         ->execute(['temporada_activa', $temporada, $temporada]);
+
+    // Tienda de equipación (activa/próximamente)
+    $equipacionHabilitada = isset($_POST['equipacion_habilitada']) ? '1' : '0';
+    $pdo->prepare('INSERT INTO config (clave, valor) VALUES (?,?) ON DUPLICATE KEY UPDATE valor=?')
+        ->execute(['equipacion_habilitada', $equipacionHabilitada, $equipacionHabilitada]);
 
     // Tiempos FINA
     $finaData = [];
@@ -117,6 +124,7 @@ $configRows = $pdo->query('SELECT clave, valor FROM config')->fetchAll(PDO::FETC
 $finaData   = json_decode($configRows['fina_times']   ?? '{}', true) ?? [];
 $minData    = json_decode($configRows['minimas_rfen'] ?? '{}', true) ?? [];
 $edadesData  = array_merge($defaultEdades, json_decode($configRows['minimas_edats'] ?? '{}', true) ?? []);
+$equipacionHabilitada = equipacion_habilitada($pdo);
 
 // Helper: tiempo FINA formateado para un input
 function cfg_fina(array $data, string $prueba, string $sexo, string $piscina): string {
@@ -138,7 +146,7 @@ function cfg_min(array $data, string $prueba, string $piscina, string $sexo, str
 }
 
 render_header('Configuración', 'admin-config');
-render_admin_layout('config', function() use ($configRows, $finaData, $minData, $edadesData, $FINA_PRUEBAS, $MIN_PRUEBAS_BY_GROUP, $MIN_CATS, $temporadas) {
+render_admin_layout('config', function() use ($configRows, $finaData, $minData, $edadesData, $FINA_PRUEBAS, $MIN_PRUEBAS_BY_GROUP, $MIN_CATS, $temporadas, $equipacionHabilitada) {
 ?>
 
 <h1>Configuración</h1>
@@ -160,6 +168,13 @@ render_admin_layout('config', function() use ($configRows, $finaData, $minData, 
         <?php endforeach; ?>
       </select>
       <div class="form-hint">Se usa en marcas y rankings.</div>
+    </div>
+    <div class="form-group" style="margin-top:16px;margin-bottom:0;">
+      <label class="form-label" style="display:flex;align-items:center;gap:8px;font-weight:400;">
+        <input type="checkbox" name="equipacion_habilitada" value="1" style="width:auto;" <?= $equipacionHabilitada ? 'checked' : '' ?>>
+        Tienda de equipación activa para socios
+      </label>
+      <div class="form-hint">Si está desmarcado, los socios ven "Próximamente" en vez del catálogo. La directiva sigue pudiendo gestionar el catálogo (fotos, artículos, tallas) mientras tanto.</div>
     </div>
   </div>
 

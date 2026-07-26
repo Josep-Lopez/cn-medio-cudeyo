@@ -7,6 +7,21 @@ require_once dirname(__DIR__, 2) . '/includes/equipacion.php';
 require_login();
 $uid = (int)current_user()['id'];
 
+if (!equipacion_habilitada($pdo)) {
+    render_header('Mis pedidos de equipación', 'socio-equipacion');
+    ?>
+    <div class="container page-content">
+      <div class="card text-center" style="padding:60px;">
+        <div style="font-size:48px;margin-bottom:16px;color:var(--blue);"><i class="bi bi-hourglass-split"></i></div>
+        <h1>Equipación del club</h1>
+        <p class="text-muted">Muy pronto podrás pedir equipación del club desde aquí. ¡Vuelve pronto!</p>
+      </div>
+    </div>
+    <?php
+    render_footer();
+    exit;
+}
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     csrf_verify();
     $action = $_POST['action'] ?? '';

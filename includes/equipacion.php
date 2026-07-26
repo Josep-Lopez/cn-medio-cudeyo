@@ -108,6 +108,16 @@ function equipacion_variante_label(PDO $pdo, int $variante_id): string
     return $r ? ($r['nombre'] . ' (talla ' . $r['talla'] . ')') : 'artículo';
 }
 
+// Interruptor general de la tienda de equipación (tabla config, clave
+// 'equipacion_habilitada'). Si la fila no existe, se considera deshabilitada
+// por defecto — así una instalación nueva arranca en "Próximamente" sin
+// pasos extra.
+function equipacion_habilitada(PDO $pdo): bool
+{
+    $val = $pdo->query("SELECT valor FROM config WHERE clave='equipacion_habilitada' LIMIT 1")->fetchColumn();
+    return $val === '1';
+}
+
 function equipacion_badge_estado(string $estado): string
 {
     return match ($estado) {
