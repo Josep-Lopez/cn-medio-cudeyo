@@ -11,6 +11,8 @@ public/uploads/noticias/*
 !public/uploads/noticias/.htaccess
 public/uploads/incidencias/*
 !public/uploads/incidencias/.htaccess
+public/uploads/equipacion/*
+!public/uploads/equipacion/.htaccess
 
 # Logs y temporales
 *.log
