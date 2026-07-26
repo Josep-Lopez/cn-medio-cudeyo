@@ -108,6 +108,7 @@ function render_header(string $title, string $activePage = '', string $extraHead
                   <?php if (!$isAdmin): ?>
                     <a href="/socio/comunicaciones"><i class="bi bi-bell"></i> Comunicaciones<?= $notif_count > 0 ? ' <span class="badge badge-blue" style="font-size:11px;padding:2px 6px;margin-left:4px;">' . $notif_count . '</span>' : '' ?></a>
                     <a href="/socio/incidencias" <?= $activePage === 'socio-incidencias' ? 'class="active"' : '' ?>><i class="bi bi-exclamation-triangle"></i> Incidencias</a>
+                    <a href="/socio/competiciones" <?= $activePage === 'socio-competiciones' ? 'class="active"' : '' ?>><i class="bi bi-list-ol"></i> Competiciones</a>
                   <?php endif; ?>
                   <a href="/directiva/cuestiones" <?= $activePage === 'directiva-cuestiones' ? 'class="active"' : '' ?>><i class="bi bi-question-circle"></i> Cuestiones</a>
                   <a href="/logout"><i class="bi bi-box-arrow-right"></i> Cerrar sesión</a>
