@@ -25,10 +25,21 @@ $temporadas_disp = [];
 for ($y = $current_year; $y >= 2012; $y--)
     $temporadas_disp[] = $y . '-' . substr((string)($y + 1), 2);
 $temporada = $_GET['temporada'] ?? $temporadas_disp[0];
-if (!in_array($temporada, $temporadas_disp)) $temporada = $temporadas_disp[0];
+if ($temporada !== 'todas' && !in_array($temporada, $temporadas_disp, true)) $temporada = $temporadas_disp[0];
+$filtroPrueba = $_GET['prueba'] ?? '';
+if (!in_array($filtroPrueba, $PRUEBAS, true)) $filtroPrueba = '';
+$filtroPiscina = $_GET['piscina'] ?? '';
+if (!in_array($filtroPiscina, ['25m', '50m'], true)) $filtroPiscina = '';
 
-$stmt = $pdo->prepare('SELECT * FROM marcas WHERE user_id=? AND temporada=? ORDER BY prueba, piscina');
-$stmt->execute([$id, $temporada]);
+$where  = ['user_id = ?'];
+$params = [$id];
+if ($temporada !== 'todas') { $where[] = 'temporada = ?'; $params[] = $temporada; }
+if ($filtroPrueba !== '')   { $where[] = 'prueba = ?';    $params[] = $filtroPrueba; }
+if ($filtroPiscina !== '')  { $where[] = 'piscina = ?';   $params[] = $filtroPiscina; }
+$orden_pruebas = implode(',', array_map(fn($p) => $pdo->quote($p), $PRUEBAS));
+$stmt = $pdo->prepare('SELECT * FROM marcas WHERE ' . implode(' AND ', $where)
+    . " ORDER BY FIELD(prueba, $orden_pruebas), piscina, tiempo_seg");
+$stmt->execute($params);
 $marcas = $stmt->fetchAll();
 
 // --- Tiempos de competición ---
@@ -60,7 +71,7 @@ $nombre_mes = ucfirst($meses_es[(int)date('m', strtotime($fecha_inicio)) - 1]) .
 
 render_header('Perfil de ' . $nadador['nombre'], 'admin-deportistas');
 render_admin_layout('deportistas', function() use (
-    $nadador, $marcas, $temporada, $temporadas_disp, $tiempos,
+    $nadador, $marcas, $temporada, $temporadas_disp, $filtroPrueba, $filtroPiscina, $tiempos, $mes,
     $dias_mes, $asistencia_data, $mes_anterior, $mes_siguiente, $nombre_mes,
     $total_presente, $total_registrado, $pct
 ) {
@@ -76,27 +87,38 @@ render_admin_layout('deportistas', function() use (
 <div class="card mb-6">
   <div class="d-flex align-center justify-between flex-wrap gap-2 mb-4">
     <h2 style="font-size:15px;font-weight:700;margin:0;">Marcas oficiales</h2>
-    <form method="GET" style="margin:0;">
+    <form method="GET" class="d-flex gap-2 flex-wrap" style="margin:0;">
       <input type="hidden" name="id" value="<?= (int)$nadador['id'] ?>">
+      <input type="hidden" name="mes" value="<?= e($mes) ?>">
       <select name="temporada" class="form-control" style="width:auto;" onchange="this.form.submit()">
         <?php foreach ($temporadas_disp as $t): ?>
           <option value="<?= e($t) ?>" <?= $temporada === $t ? 'selected' : '' ?>><?= e($t) ?></option>
         <?php endforeach; ?>
+        <option value="todas" <?= $temporada === 'todas' ? 'selected' : '' ?>>Todas las temporadas</option>
+      </select>
+      <select name="prueba" class="form-control" style="width:auto;" onchange="this.form.submit()">
+        <?php render_prueba_options($filtroPrueba, true); ?>
+      </select>
+      <select name="piscina" class="form-control" style="width:auto;" onchange="this.form.submit()">
+        <option value="" <?= $filtroPiscina === '' ? 'selected' : '' ?>>Todas las piscinas</option>
+        <option value="25m" <?= $filtroPiscina === '25m' ? 'selected' : '' ?>>25 metros</option>
+        <option value="50m" <?= $filtroPiscina === '50m' ? 'selected' : '' ?>>50 metros</option>
       </select>
     </form>
   </div>
   <?php if (!$marcas): ?>
-    <p class="text-muted">Sin marcas registradas en la temporada <?= e($temporada) ?>.</p>
+    <p class="text-muted">Sin marcas registradas con estos filtros.</p>
   <?php else: ?>
     <div class="table-wrapper">
       <table>
-        <thead><tr><th>Prueba</th><th>Piscina</th><th>Tiempo</th><th>Fecha</th><th>Lugar</th></tr></thead>
+        <thead><tr><th>Prueba</th><th>Piscina</th><th>Tiempo</th><?php if ($temporada === 'todas'): ?><th>Temporada</th><?php endif; ?><th>Fecha</th><th>Lugar</th></tr></thead>
         <tbody>
           <?php foreach ($marcas as $m): ?>
             <tr>
               <td><?= e(format_prueba($m['prueba'])) ?><?= $m['es_parcial'] ? ' <span class="text-muted text-sm">(parcial)</span>' : '' ?></td>
               <td><?= e($m['piscina']) ?></td>
               <td style="font-weight:600;"><?= e($m['tiempo']) ?></td>
+              <?php if ($temporada === 'todas'): ?><td><?= e($m['temporada']) ?></td><?php endif; ?>
               <td><?= date('d/m/Y', strtotime($m['fecha_marca'])) ?></td>
               <td><?= e($m['lugar'] ?: '—') ?></td>
             </tr>
@@ -133,13 +155,14 @@ render_admin_layout('deportistas', function() use (
 </div>
 
 <!-- Asistencia -->
-<div class="card">
+<?php $filtros = array_filter(['temporada' => $temporada, 'prueba' => $filtroPrueba, 'piscina' => $filtroPiscina]); ?>
+<div class="card" id="asistencia">
   <div class="d-flex gap-3 align-center flex-wrap mb-4">
     <h2 style="font-size:15px;font-weight:700;margin:0;">Asistencia</h2>
     <div class="d-flex gap-2 align-center" style="margin-left:auto;">
-      <a href="?id=<?= (int)$nadador['id'] ?>&mes=<?= $mes_anterior ?>" class="btn btn-gray btn-sm"><i class="bi bi-chevron-left"></i></a>
+      <a href="?<?= e(http_build_query(['id' => $nadador['id'], 'mes' => $mes_anterior] + $filtros)) ?>#asistencia" class="btn btn-gray btn-sm"><i class="bi bi-chevron-left"></i></a>
       <span style="font-weight:600;min-width:140px;text-align:center;"><?= e($nombre_mes) ?></span>
-      <a href="?id=<?= (int)$nadador['id'] ?>&mes=<?= $mes_siguiente ?>" class="btn btn-gray btn-sm"><i class="bi bi-chevron-right"></i></a>
+      <a href="?<?= e(http_build_query(['id' => $nadador['id'], 'mes' => $mes_siguiente] + $filtros)) ?>#asistencia" class="btn btn-gray btn-sm"><i class="bi bi-chevron-right"></i></a>
     </div>
     <div style="font-weight:700;">
       <?= $total_presente ?>/<?= $total_registrado ?>
