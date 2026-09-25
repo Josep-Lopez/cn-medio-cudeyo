@@ -3,7 +3,7 @@ require_once dirname(__DIR__, 2) . '/config/db.php';
 require_once dirname(__DIR__, 2) . '/includes/auth.php';
 require_once dirname(__DIR__, 2) . '/includes/layout.php';
 
-require_admin_area(['director_tecnico']);
+require_admin_area(['director_tecnico', 'encargado_redes']);
 
 $mode    = $_GET['mode'] ?? 'list';
 $edit_id = (int)($_GET['id'] ?? 0);

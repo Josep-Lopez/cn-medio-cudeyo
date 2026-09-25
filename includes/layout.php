@@ -67,9 +67,11 @@ function render_header(string $title, string $activePage = '', string $extraHead
                   <a href="/admin/marcas" <?= str_starts_with($activePage, 'admin') ? 'class="active"' : '' ?>>Administración</a>
                 <?php elseif (user_tiene_cargo('entrenador')): ?>
                   <a href="/admin/asistencia" <?= str_starts_with($activePage, 'admin') ? 'class="active"' : '' ?>>Asistencia</a>
+                <?php elseif (user_tiene_cargo('encargado_redes')): ?>
+                  <a href="/admin/noticias" <?= str_starts_with($activePage, 'admin') ? 'class="active"' : '' ?>>Noticias</a>
                 <?php endif; ?>
               <?php endif; ?>
-              <?php if (!empty(cargos_activos())): ?>
+              <?php if (es_directiva() || user_tiene_cargo('director_tecnico')): ?>
                 <a href="/directiva/socios" <?= str_starts_with($activePage, 'directiva') ? 'class="active"' : '' ?>>Directiva</a>
               <?php endif; ?>
             <?php endif; ?>
@@ -109,6 +111,9 @@ function render_header(string $title, string $activePage = '', string $extraHead
                     <a href="/socio/comunicaciones"><i class="bi bi-bell"></i> Comunicaciones<?= $notif_count > 0 ? ' <span class="badge badge-blue" style="font-size:11px;padding:2px 6px;margin-left:4px;">' . $notif_count . '</span>' : '' ?></a>
                     <a href="/socio/incidencias" <?= $activePage === 'socio-incidencias' ? 'class="active"' : '' ?>><i class="bi bi-exclamation-triangle"></i> Incidencias</a>
                     <a href="/socio/competiciones" <?= $activePage === 'socio-competiciones' ? 'class="active"' : '' ?>><i class="bi bi-list-ol"></i> Competiciones</a>
+                    <?php if (is_nadador_activo()): ?>
+                      <a href="/socio/asistencia" <?= $activePage === 'socio-asistencia' ? 'class="active"' : '' ?>><i class="bi bi-calendar-check"></i> Mi asistencia</a>
+                    <?php endif; ?>
                   <?php endif; ?>
                   <a href="/directiva/cuestiones" <?= $activePage === 'directiva-cuestiones' ? 'class="active"' : '' ?>><i class="bi bi-question-circle"></i> Cuestiones</a>
                   <a href="/logout"><i class="bi bi-box-arrow-right"></i> Cerrar sesión</a>
@@ -134,17 +139,21 @@ function render_header(string $title, string $activePage = '', string $extraHead
             <a href="/admin/usuarios">Administración</a>
           <?php else: ?>
             <a href="/socio/panel">Mi panel</a>
+            <a href="/socio/comunicaciones">Comunicaciones<?= $notif_count > 0 ? ' <span class="badge badge-blue" style="font-size:11px;padding:2px 6px;margin-left:4px;">' . $notif_count . '</span>' : '' ?></a>
             <a href="/socio/equipacion">Equipación</a>
             <?php if (is_nadador_activo()): ?>
               <a href="/socio/ranking">Ranking mi liga</a>
+              <a href="/socio/asistencia">Mi asistencia</a>
             <?php endif; ?>
             <?php if (user_tiene_cargo('director_tecnico')): ?>
               <a href="/admin/marcas">Administración</a>
             <?php elseif (user_tiene_cargo('entrenador')): ?>
               <a href="/admin/asistencia">Asistencia</a>
+            <?php elseif (user_tiene_cargo('encargado_redes')): ?>
+              <a href="/admin/noticias">Noticias (admin)</a>
             <?php endif; ?>
           <?php endif; ?>
-          <?php if (!empty(cargos_activos())): ?>
+          <?php if (es_directiva() || user_tiene_cargo('director_tecnico')): ?>
             <a href="/directiva/socios">Directiva</a>
           <?php endif; ?>
         <?php endif; ?>
@@ -347,6 +356,7 @@ function render_header(string $title, string $activePage = '', string $extraHead
     $isAdmin      = is_admin();
     $isDirTec     = $isAdmin || user_tiene_cargo('director_tecnico');
     $isEntrenador = $isDirTec || user_tiene_cargo('entrenador');
+    $isRedes      = $isDirTec || user_tiene_cargo('encargado_redes');
 ?>
   <div class="admin-layout">
     <aside class="admin-sidebar">
@@ -363,6 +373,9 @@ function render_header(string $title, string $activePage = '', string $extraHead
         </a>
         <?php endif; ?>
         <?php if ($isEntrenador): ?>
+        <a href="/admin/deportistas" class="<?= $activePage === 'deportistas' ? 'active' : '' ?>">
+          <i class="bi bi-person-lines-fill"></i> Deportistas
+        </a>
         <a href="/admin/asistencia" class="<?= $activePage === 'asistencia' ? 'active' : '' ?>">
           <i class="bi bi-clipboard-check-fill"></i> Pasar lista
         </a>
@@ -392,18 +405,24 @@ function render_header(string $title, string $activePage = '', string $extraHead
           <i class="bi bi-trophy-fill"></i> Ranking general
         </a>
       </div>
+      <?php endif; ?>
+      <?php if ($isRedes): ?>
       <div class="admin-sidebar-section">
         <div class="admin-sidebar-title">Contenido</div>
         <a href="/admin/noticias" class="<?= $activePage === 'noticias' ? 'active' : '' ?>">
           <i class="bi bi-newspaper"></i> Noticias
         </a>
+        <?php if ($isDirTec): ?>
         <a href="/admin/comunicaciones" class="<?= $activePage === 'comunicaciones' ? 'active' : '' ?>">
           <i class="bi bi-megaphone-fill"></i> Comunicaciones
         </a>
         <a href="/admin/contacto" class="<?= $activePage === 'contacto' ? 'active' : '' ?>">
           <i class="bi bi-envelope-fill"></i> Mensajes de contacto
         </a>
+        <?php endif; ?>
       </div>
+      <?php endif; ?>
+      <?php if ($isDirTec): ?>
       <div class="admin-sidebar-section">
         <div class="admin-sidebar-title">Directiva</div>
         <a href="/directiva/socios" class="<?= $activePage === 'directiva-socios' ? 'active' : '' ?>">

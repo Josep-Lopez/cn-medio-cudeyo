@@ -169,7 +169,7 @@ function user_tiene_cargo(string $cargo, ?int $user_id = null): bool
 function es_directiva(?int $user_id = null): bool
 {
     $cargos = cargos_activos($user_id);
-    foreach (['presidente', 'secretario', 'tesorero', 'vocal'] as $c) {
+    foreach (['presidente', 'vicepresidente', 'secretario', 'tesorero', 'vocal'] as $c) {
         if (in_array($c, $cargos, true)) return true;
     }
     return false;
@@ -214,6 +214,7 @@ function cargos_limites(): array
 {
     return [
         'presidente'          => 1,
+        'vicepresidente'      => 1,
         'secretario'          => 1,
         'tesorero'            => 1,
         'responsable_menores' => 1,
@@ -235,6 +236,7 @@ function cargo_label(string $cargo): string
 {
     return match ($cargo) {
         'presidente'          => 'Presidente',
+        'vicepresidente'      => 'Vicepresidente',
         'secretario'          => 'Secretario',
         'tesorero'            => 'Tesorero',
         'vocal'               => 'Vocal',

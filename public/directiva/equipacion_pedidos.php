@@ -4,7 +4,7 @@ require_once dirname(__DIR__, 2) . '/includes/auth.php';
 require_once dirname(__DIR__, 2) . '/includes/layout.php';
 require_once dirname(__DIR__, 2) . '/includes/equipacion.php';
 
-require_cargo(['presidente', 'secretario', 'tesorero', 'vocal', 'director_tecnico']);
+require_cargo(['presidente', 'vicepresidente', 'secretario', 'tesorero', 'vocal', 'director_tecnico']);
 
 $uid = (int)current_user()['id'];
 

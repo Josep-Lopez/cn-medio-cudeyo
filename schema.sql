@@ -32,6 +32,7 @@ CREATE TABLE IF NOT EXISTS cargos (
     user_id INT NOT NULL,
     cargo ENUM(
         'presidente',
+        'vicepresidente',
         'secretario',
         'tesorero',
         'vocal',
