@@ -31,11 +31,14 @@ cn-medio-cudeyo/
 │   ├── rfen.php           ← Helpers importación RFEN
 │   ├── incidencias.php    ← Helpers dominio incidencias
 │   ├── grupos.php         ← Helpers dominio grupos de entrenamiento
-│   └── competicion_entrenador.php ← Helpers dominio competiciones del entrenador (CE_PRUEBAS, CE_PISCINAS)
+│   ├── competicion_entrenador.php ← Helpers dominio competiciones del entrenador (CE_PRUEBAS, CE_PISCINAS)
+│   └── encuestas.php      ← Helpers encuestas estilo Google Forms (ENC_TIPOS, validar, guardar, resultados, export)
 └── public/                ← DocumentRoot de Apache
     ├── assets/
     │   ├── css/main.css   ← CSS global (variables, componentes, responsive)
-    │   └── js/calculadora.js ← FINA_TIMES, MINIMAS, calcularAQUA(), etc.
+    │   └── js/
+    │       ├── calculadora.js ← FINA_TIMES, MINIMAS, calcularAQUA(), etc.
+    │       └── encuesta-builder.js ← Editor de encuestas (modelo JS → preguntas_json)
     ├── index.php           ← Homepage pública
     ├── login.php           ← Acceso socios
     ├── logout.php          ← Destruye sesión
@@ -54,6 +57,8 @@ cn-medio-cudeyo/
     │   ├── noticias.php    ← CRUD noticias
     │   ├── config.php      ← Configuración (temporada, FINA, mínimas)
     │   ├── contacto.php    ← Mensajes de contacto
+    │   ├── comunicaciones.php ← Mensajes + encuestas: listado / editor (?nueva, ?editar) / resultados (?ver)
+    │   ├── comunicacion_exportar.php ← Respuestas de encuesta a CSV (Excel, ';' + BOM)
     │   ├── rfen_buscar.php ← API búsqueda deportistas RFEN
     │   ├── rfen_importar.php ← Importar marcas desde RFEN
     │   ├── incidencias.php ← Listado + nueva + detalle + edit + eliminar
@@ -77,6 +82,7 @@ cn-medio-cudeyo/
         ├── ranking-edades.php ← Ranking por edad (Vista A top-10 + Vista B matriz)
         ├── records.php        ← Récords del club (mejor marca vigente por prueba×piscina×sexo)
         ├── puntos-aqua.php    ← Ranking equipo por puntos AQUA (suma N mejores; filtro 1/2/3/4/8/18)
+        ├── comunicaciones.php ← Mensajes recibidos + responder encuestas
         ├── competiciones.php  ← Mis tiempos de competición (registrados por el entrenador)
         └── competicion_tiempo.php ← Detalle de tiempo propio + hilo de comentarios (solo el dueño o admin)
 ```
@@ -157,6 +163,10 @@ render_directiva_layout($activePage, fn)   // Sidebar directiva + main
 | `grupo_nadadores` | Relación N:N grupo↔nadador (un nadador puede estar en varios grupos) |
 | `competicion_entrenador` | Competiciones registradas por el entrenador (nombre, lugar, fecha) — **no** confundir con `competiciones`/`competicion_resultados` de otra feature |
 | `competicion_entrenador_tiempos` | Tiempos por nadador×prueba×competición, con parciales en texto libre |
+| `comunicaciones` | Mensajes y encuestas (destinatario todos/liga/individual; encuestas: `fecha_cierre`, `cerrada`) |
+| `encuestas_preguntas` / `encuestas_opciones` | Preguntas (tipos: opciones, casillas, desplegable, escala, texto_corto, texto_libre; `obligatoria`) y opciones (`es_libre` = «Otro») |
+| `encuestas_respuestas` | Respuestas (casillas = varias filas por pregunta; escala en `valor`) |
+| `encuestas_envios` | Quién ha respondido cada encuesta (UNIQUE comunicacion+user) |
 | `competicion_entrenador_comentarios` | Hilo de comentarios privado entrenador↔nadador por tiempo |
 
 **Tiempo format:** Almacenado como `mm:ss.cc` string + `tiempo_seg` float para ordenar.
