@@ -19,6 +19,30 @@ if (!$nadador) {
     exit;
 }
 
+// --- POST: cambiar asistencia de un día desde el calendario ---
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'asistencia_dia') {
+    csrf_verify();
+    $fecha  = $_POST['fecha'] ?? '';
+    $estado = $_POST['estado'] ?? '';
+    $obs    = trim($_POST['observaciones'] ?? '');
+    $d = DateTime::createFromFormat('Y-m-d', $fecha);
+    if (!$d || $d->format('Y-m-d') !== $fecha || !in_array($estado, ['presente', 'ausente', ''], true)) {
+        flash('Datos de asistencia no válidos.', 'danger');
+    } elseif ($estado === '') {
+        $pdo->prepare('DELETE FROM asistencia WHERE user_id=? AND fecha=?')->execute([$id, $fecha]);
+        flash('Asistencia del ' . $d->format('d/m/Y') . ' eliminada.', 'success');
+    } else {
+        $pdo->prepare('
+            INSERT INTO asistencia (user_id, fecha, presente, observaciones, registrado_por)
+            VALUES (?, ?, ?, ?, ?)
+            ON DUPLICATE KEY UPDATE presente=VALUES(presente), observaciones=VALUES(observaciones), registrado_por=VALUES(registrado_por)
+        ')->execute([$id, $fecha, $estado === 'presente' ? 1 : 0, $obs ?: null, current_user()['id']]);
+        flash('Asistencia del ' . $d->format('d/m/Y') . ' guardada.', 'success');
+    }
+    header('Location: ' . $_SERVER['REQUEST_URI'] . '#asistencia');
+    exit;
+}
+
 // --- Marcas oficiales ---
 $current_year    = (int)date('n') >= 9 ? (int)date('Y') : (int)date('Y') - 1;
 $temporadas_disp = [];
@@ -171,8 +195,57 @@ render_admin_layout('deportistas', function() use (
       <?php endif; ?>
     </div>
   </div>
-  <?php render_calendario_asistencia($dias_mes, $asistencia_data); ?>
+  <?php render_calendario_asistencia($dias_mes, $asistencia_data, true); ?>
+  <p class="text-muted text-sm" style="margin-top:10px;">Haz clic en un día para cambiar la asistencia.</p>
 </div>
+
+<div class="modal-overlay" id="modal-asistencia" style="display:none;" onclick="if(event.target===this)cerrarModalAsistencia()">
+  <div class="modal-box" style="max-width:400px;">
+    <form method="POST">
+      <?= csrf_field() ?>
+      <input type="hidden" name="action" value="asistencia_dia">
+      <input type="hidden" name="fecha" id="asis-fecha">
+      <div class="modal-header">
+        <h3 id="asis-titulo">Asistencia</h3>
+        <button type="button" class="modal-close" onclick="cerrarModalAsistencia()">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="d-flex gap-3 flex-wrap mb-4">
+          <label class="d-flex gap-2 align-center"><input type="radio" name="estado" value="presente"> Presente</label>
+          <label class="d-flex gap-2 align-center"><input type="radio" name="estado" value="ausente"> Ausente</label>
+          <label class="d-flex gap-2 align-center"><input type="radio" name="estado" value=""> Sin registrar</label>
+        </div>
+        <label class="form-label" for="asis-obs">Observaciones</label>
+        <input type="text" name="observaciones" id="asis-obs" class="form-control" maxlength="500">
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-gray" onclick="cerrarModalAsistencia()">Cancelar</button>
+        <button type="submit" class="btn btn-primary">Guardar</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+function abrirModalAsistencia(cell) {
+  var fecha = cell.dataset.fecha;
+  var p = fecha.split('-');
+  document.getElementById('asis-fecha').value = fecha;
+  document.getElementById('asis-titulo').textContent = 'Asistencia del ' + p[2] + '/' + p[1] + '/' + p[0];
+  document.getElementById('asis-obs').value = cell.dataset.obs || '';
+  var estado = cell.dataset.estado || 'presente';
+  document.querySelectorAll('#modal-asistencia input[name="estado"]').forEach(function (r) {
+    r.checked = r.value === estado;
+  });
+  document.getElementById('modal-asistencia').style.display = 'flex';
+}
+function cerrarModalAsistencia() {
+  document.getElementById('modal-asistencia').style.display = 'none';
+}
+document.addEventListener('keydown', function (e) {
+  if (e.key === 'Escape') cerrarModalAsistencia();
+});
+</script>
 
 <?php
 });

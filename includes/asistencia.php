@@ -22,7 +22,8 @@ function resumen_asistencia(array $presencias): array
 // Pinta un calendario mensual de asistencia (grid Lun-Dom).
 // $dias_mes: array de fechas 'Y-m-d' del mes.
 // $asistencia_data: [fecha => ['presente'=>0|1, 'observaciones'=>?string]]
-function render_calendario_asistencia(array $dias_mes, array $asistencia_data): void
+// $editable: cada día llama a abrirModalAsistencia(this) al hacer clic (la página define el modal).
+function render_calendario_asistencia(array $dias_mes, array $asistencia_data, bool $editable = false): void
 {
     if (!$dias_mes) return;
     $dias_semana = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
@@ -53,8 +54,17 @@ function render_calendario_asistencia(array $dias_mes, array $asistencia_data): 
             $icon = '<i class="bi bi-x-circle-fill"></i>';
         }
         $title = ($registro && $registro['observaciones']) ? e($registro['observaciones']) : '';
+        $attrs = '';
+        if ($editable) {
+            $cls  .= ' cal-editable';
+            $estado = $registro === null ? '' : ($registro['presente'] ? 'presente' : 'ausente');
+            $attrs = ' role="button" tabindex="0" onclick="abrirModalAsistencia(this)"'
+                   . ' onkeydown="if(event.key===\'Enter\')abrirModalAsistencia(this)"'
+                   . ' data-fecha="' . $dia . '" data-estado="' . $estado . '"'
+                   . ' data-obs="' . e($registro['observaciones'] ?? '') . '"';
+        }
       ?>
-        <div class="<?= $cls ?>"<?= $title ? ' title="' . $title . '"' : '' ?>>
+        <div class="<?= $cls ?>"<?= $title ? ' title="' . $title . '"' : '' ?><?= $attrs ?>>
           <span class="cal-daynum"><?= $dayNum ?></span>
           <span class="cal-icon"><?= $icon ?></span>
         </div>
