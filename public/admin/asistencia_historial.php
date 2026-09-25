@@ -2,10 +2,11 @@
 require_once dirname(__DIR__, 2) . '/config/db.php';
 require_once dirname(__DIR__, 2) . '/includes/auth.php';
 require_once dirname(__DIR__, 2) . '/includes/layout.php';
+require_once dirname(__DIR__, 2) . '/includes/asistencia.php';
 
 require_admin_area(['director_tecnico', 'entrenador']);
 
-$LIGAS = ['benjamin'=>'Benjamín','alevin'=>'Alevín','infantil'=>'Infantil','junior'=>'Junior','absoluto'=>'Absoluto','master'=>'Master'];
+$LIGAS = ['benjamin'=>'Benjamín','alevin'=>'Alevín','infantil'=>'Infantil','junior'=>'Junior','absoluto'=>'Absoluto'];
 
 // ── Filtros ──────────────────────────────────────────────────────────────────
 $filtroLiga = $_GET['liga'] ?? 'todos';
@@ -25,7 +26,7 @@ $asistencia_data = [];
 
 if ($filtroLiga) {
     if ($filtroLiga === 'todos') {
-        $stmt = $pdo->query("SELECT id, nombre, liga FROM users WHERE estado='activo' AND rol='socio' AND nadador_activo=1 ORDER BY nombre");
+        $stmt = $pdo->query("SELECT id, nombre, liga FROM users WHERE estado='activo' AND rol='socio' AND nadador_activo=1 AND liga <> 'master' ORDER BY nombre");
     } else {
         $stmt = $pdo->prepare("SELECT id, nombre, liga FROM users WHERE estado='activo' AND rol='socio' AND nadador_activo=1 AND liga=? ORDER BY nombre");
         $stmt->execute([$filtroLiga]);
@@ -119,8 +120,7 @@ render_admin_layout('asistencia_historial', function() use ($LIGAS, $filtroLiga,
       </thead>
       <tbody>
         <?php foreach ($nadadores as $n):
-          $total_presente = 0;
-          $total_registrado = 0;
+          [$total_presente, $total_registrado, $pct] = resumen_asistencia($asistencia_data[$n['id']] ?? []);
         ?>
           <tr data-nombre="<?= e(mb_strtolower($n['nombre'])) ?>">
             <td style="position:sticky;left:0;background:white;z-index:1;font-weight:600;white-space:nowrap;"><?= e($n['nombre']) ?></td>
@@ -129,14 +129,13 @@ render_admin_layout('asistencia_historial', function() use ($LIGAS, $filtroLiga,
             <?php endif; ?>
             <?php foreach ($dias_mes as $dia):
               $registro = $asistencia_data[$n['id']][$dia] ?? null;
-              if ($registro !== null) {
-                  $total_registrado++;
-                  if ($registro) $total_presente++;
-              }
+              $finde    = es_fin_de_semana($dia);
             ?>
               <td style="text-align:center;padding:6px 4px;">
-                <?php if ($registro === null): ?>
+                <?php if ($registro === null || (!$registro && $finde)): ?>
                   <span style="color:#ddd;">·</span>
+                <?php elseif ($registro && $finde): ?>
+                  <span style="color:var(--blue);font-weight:700;" title="Fin de semana: suma">+</span>
                 <?php elseif ($registro): ?>
                   <span style="color:var(--green);">✓</span>
                 <?php else: ?>
@@ -145,8 +144,8 @@ render_admin_layout('asistencia_historial', function() use ($LIGAS, $filtroLiga,
               </td>
             <?php endforeach; ?>
             <td style="text-align:center;font-weight:700;"><?= $total_presente ?>/<?= $total_registrado ?></td>
-            <td style="text-align:center;font-weight:600;color:<?= $total_registrado > 0 && ($total_presente / $total_registrado) >= 0.8 ? 'var(--green)' : (($total_registrado > 0 && ($total_presente / $total_registrado) < 0.5) ? 'var(--red)' : 'var(--text)') ?>;">
-              <?= $total_registrado > 0 ? round(($total_presente / $total_registrado) * 100) . '%' : '—' ?>
+            <td style="text-align:center;font-weight:600;color:<?= $pct !== null && $pct >= 80 ? 'var(--green)' : ($pct !== null && $pct < 50 ? 'var(--red)' : 'var(--text)') ?>;">
+              <?= $pct !== null ? $pct . '%' : '—' ?>
             </td>
           </tr>
         <?php endforeach; ?>
