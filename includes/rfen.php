@@ -202,7 +202,9 @@ function rfen_import_marks(PDO $pdo, int $user_id, string $rfen_id, ?string $tem
     $rows = $result['rows'];
 
     if (!$result['has_table']) {
-      if ($paginas_leidas === 0)
+      // RFEN omite la tabla y muestra este texto cuando no hay marcas para el período/nadador.
+      $sin_registros = stripos($html, 'No se han encontrado registros') !== false;
+      if ($paginas_leidas === 0 && !$sin_registros)
         $parse_error = 'No se ha encontrado la tabla de marcas. La página puede haber cambiado.';
       break;
     }

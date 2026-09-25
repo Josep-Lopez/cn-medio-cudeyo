@@ -153,7 +153,9 @@ while ($current_url && $paginas_leidas < 100) {
   $rows = $result['rows'];
 
   if (!$result['has_table']) {
-    if ($paginas_leidas === 0)
+    // RFEN omite la tabla y muestra este texto cuando no hay marcas para el período/nadador.
+    $sin_registros = stripos($html, 'No se han encontrado registros') !== false;
+    if ($paginas_leidas === 0 && !$sin_registros)
       $parse_error = 'No se ha encontrado la tabla de marcas. La página puede haber cambiado.';
     break;
   }
@@ -341,39 +343,39 @@ render_admin_layout('marcas', function () use ($nadador, $user_id, $agrupados, $
       </div>
     </form>
 
-    <script>
-      function showPageLoading(message) {
-        const overlay = document.getElementById('pageLoadingOverlay');
-        if (!overlay) return;
-        const text = overlay.querySelector('.text-muted');
-        if (text && message) text.textContent = message;
-        overlay.style.display = 'flex';
-      }
-
-      document.querySelectorAll('.js-loading-form').forEach(form => {
-        form.addEventListener('submit', () => {
-          showPageLoading('Consultando RFEN, esto puede tardar unos segundos.');
-        });
-      });
-
-      document.querySelectorAll('.js-loading-select').forEach(select => {
-        select.addEventListener('change', function () {
-          showPageLoading('Consultando RFEN, esto puede tardar unos segundos.');
-          this.form.requestSubmit();
-        });
-      });
-
-      window.addEventListener('pageshow', () => {
-        const overlay = document.getElementById('pageLoadingOverlay');
-        if (overlay) overlay.style.display = 'none';
-      });
-
-      function toggleAll(cb) {
-        document.querySelectorAll('input[name^="imp_sel"]').forEach(c => c.checked = cb.checked);
-      }
-    </script>
-
   <?php endif; ?>
+
+  <script>
+    function showPageLoading(message) {
+      const overlay = document.getElementById('pageLoadingOverlay');
+      if (!overlay) return;
+      const text = overlay.querySelector('.text-muted');
+      if (text && message) text.textContent = message;
+      overlay.style.display = 'flex';
+    }
+
+    document.querySelectorAll('.js-loading-form').forEach(form => {
+      form.addEventListener('submit', () => {
+        showPageLoading('Consultando RFEN, esto puede tardar unos segundos.');
+      });
+    });
+
+    document.querySelectorAll('.js-loading-select').forEach(select => {
+      select.addEventListener('change', function () {
+        showPageLoading('Consultando RFEN, esto puede tardar unos segundos.');
+        this.form.requestSubmit();
+      });
+    });
+
+    window.addEventListener('pageshow', () => {
+      const overlay = document.getElementById('pageLoadingOverlay');
+      if (overlay) overlay.style.display = 'none';
+    });
+
+    function toggleAll(cb) {
+      document.querySelectorAll('input[name^="imp_sel"]').forEach(c => c.checked = cb.checked);
+    }
+  </script>
 
 <?php
 });
