@@ -1,5 +1,6 @@
 <?php
-// Sábados y domingos: la asistencia suma (cuenta como día entrenado) pero la falta no resta.
+// Sábados y domingos son extra: la asistencia suma presentes pero no cuenta como día
+// computable, así que el % puede superar el 100%. La falta en fin de semana se ignora.
 function es_fin_de_semana(string $fecha): bool
 {
     return (int)date('N', strtotime($fecha)) >= 6;
@@ -11,12 +12,8 @@ function resumen_asistencia(array $presencias): array
     $presentes = 0;
     $computables = 0;
     foreach ($presencias as $fecha => $presente) {
-        if ($presente) {
-            $presentes++;
-            $computables++;
-        } elseif (!es_fin_de_semana($fecha)) {
-            $computables++;
-        }
+        if ($presente) $presentes++;
+        if (!es_fin_de_semana($fecha)) $computables++;
     }
     $pct = $computables > 0 ? (int)round(($presentes / $computables) * 100) : null;
     return [$presentes, $computables, $pct];
