@@ -10,6 +10,8 @@ public/uploads/avatars/*
 public/uploads/noticias/*
 !public/uploads/noticias/.htaccess
 public/uploads/incidencias/*
+public/uploads/entrenos/*
+!public/uploads/entrenos/.htaccess
 !public/uploads/incidencias/.htaccess
 public/uploads/equipacion/*
 !public/uploads/equipacion/.htaccess

@@ -32,6 +32,7 @@ cn-medio-cudeyo/
 │   ├── incidencias.php    ← Helpers dominio incidencias
 │   ├── grupos.php         ← Helpers dominio grupos de entrenamiento
 │   ├── competicion_entrenador.php ← Helpers dominio competiciones del entrenador (CE_PRUEBAS, CE_PISCINAS)
+│   ├── entrenos.php       ← Helpers entrenos por grupo (subida fotos/PDF, visibilidad, avisos de nuevos)
 │   └── encuestas.php      ← Helpers encuestas estilo Google Forms (ENC_TIPOS, validar, guardar, resultados, export)
 └── public/                ← DocumentRoot de Apache
     ├── assets/
@@ -46,6 +47,7 @@ cn-medio-cudeyo/
     ├── sobre-nosotros.php  ← Página estática
     ├── calculadoras.php    ← 3 calculadoras JS (AQUA, Mínimas, Parciales)
     ├── biblioteca.php      ← Carpetas colapsables con documentos
+    ├── entreno_archivo.php ← Sirve fotos/PDF de entrenos (staff o nadador del grupo)
     ├── noticias/
     │   ├── index.php       ← Listado paginado (12/página)
     │   └── detall.php      ← Detalle noticia (?id=X)
@@ -68,7 +70,8 @@ cn-medio-cudeyo/
     │   ├── puntos-aqua.php    ← Ranking equipo por puntos AQUA (suma N mejores; filtro 1/2/3/4/8/18)
     │   ├── grupos.php         ← Grupos de entrenamiento (crear/editar/borrar, asignar/quitar nadadores) — entrenador
     │   ├── competiciones.php  ← Competiciones del entrenador: listado + tiempos por competición
-    │   └── competicion_tiempo.php ← Detalle de tiempo + hilo de comentarios (staff, sin restricción de propiedad)
+    │   ├── competicion_tiempo.php ← Detalle de tiempo + hilo de comentarios (staff, sin restricción de propiedad)
+    │   └── entrenos.php       ← Entrenos por grupo de entrenamiento: listado / nuevo / editar (texto + fotos/PDF)
     ├── directiva/
     │   ├── socios.php      ← Lista socios + cuotas (directiva ver; tesorero edita)
     │   ├── actas.php       ← Actas (directiva ve publicadas; secretario edita)
@@ -84,7 +87,8 @@ cn-medio-cudeyo/
         ├── puntos-aqua.php    ← Ranking equipo por puntos AQUA (suma N mejores; filtro 1/2/3/4/8/18)
         ├── comunicaciones.php ← Mensajes recibidos + responder encuestas
         ├── competiciones.php  ← Mis tiempos de competición (registrados por el entrenador)
-        └── competicion_tiempo.php ← Detalle de tiempo propio + hilo de comentarios (solo el dueño o admin)
+        ├── competicion_tiempo.php ← Detalle de tiempo propio + hilo de comentarios (solo el dueño o admin)
+        └── entrenos.php       ← Entrenos de mis grupos (solo los publicados tras entrar al grupo); marca vistos
 ```
 
 ## Convenciones PHP
@@ -168,6 +172,9 @@ render_directiva_layout($activePage, fn)   // Sidebar directiva + main
 | `encuestas_respuestas` | Respuestas (casillas = varias filas por pregunta; escala en `valor`) |
 | `encuestas_envios` | Quién ha respondido cada encuesta (UNIQUE comunicacion+user) |
 | `competicion_entrenador_comentarios` | Hilo de comentarios privado entrenador↔nadador por tiempo |
+| `entrenos` / `entreno_grupos` | Entrenos publicados por el entrenador (título, fecha, descripción) y grupos destino (N:N) |
+| `entreno_archivos` | Fotos/PDF por entreno (JPG/PNG/WEBP/PDF, máx 10 MB, máx 10/entreno) en `public/uploads/entrenos/` (acceso directo denegado) |
+| `entreno_vistos` | Qué entrenos ha visto cada nadador (aviso de nuevos en navbar y panel) |
 
 **Tiempo format:** Almacenado como `mm:ss.cc` string + `tiempo_seg` float para ordenar.
 
@@ -245,6 +252,8 @@ Inter (Google Fonts) + Arial fallback
 | Admin — Grupos de entrenamiento | `public/admin/grupos.php` | ✅ |
 | Admin — Competiciones | `public/admin/competiciones.php` + `competicion_tiempo.php` | ✅ |
 | Socio — Mis competiciones | `public/socio/competiciones.php` + `competicion_tiempo.php` | ✅ |
+| Admin — Entrenos | `public/admin/entrenos.php` | ✅ |
+| Socio — Mis entrenos | `public/socio/entrenos.php` | ✅ |
 
 ## Pendiente / futuro
 - [ ] Calendari: confirmar que el Google Calendar embed funciona

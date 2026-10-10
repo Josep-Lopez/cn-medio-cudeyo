@@ -1372,3 +1372,87 @@ table tbody tr:hover td { background: #fafcff; }
   .gf-scale-legend { display: flex; }
   .gf-fake-answer, .gf-fake-answer.is-long { width: 100%; }
 }
+
+/* === Entrenos === */
+.entreno-grupos { display: flex; flex-wrap: wrap; gap: 8px; }
+.entreno-grupo {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  border: 1px solid #ddd;
+  border-radius: 999px;
+  background: #fff;
+  font-size: 14px;
+  font-weight: 500;
+  white-space: nowrap;
+  cursor: pointer;
+  user-select: none;
+  margin: 0;
+}
+.entreno-grupo:hover { border-color: var(--blue); }
+.entreno-grupo input { margin: 0; accent-color: var(--blue); }
+.entreno-grupo-num {
+  font-size: 12px;
+  color: var(--gray);
+  background: var(--bg);
+  border-radius: 999px;
+  padding: 1px 7px;
+}
+.entreno-grupo:has(input:checked) {
+  border-color: var(--blue);
+  background: #eef3ff;
+  color: var(--blue);
+}
+.entreno-grupo:has(input:checked) .entreno-grupo-num { background: var(--blue); color: #fff; }
+.entreno-nuevo { border-left: 4px solid var(--blue); }
+.entreno-fotos {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 10px;
+  margin-top: 14px;
+}
+.entreno-foto { position: relative; }
+.entreno-foto img {
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  object-fit: cover;
+  border-radius: 8px;
+  display: block;
+  background: var(--bg);
+}
+.entreno-foto-borrar {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  border: 0;
+  border-radius: 50%;
+  width: 28px;
+  height: 28px;
+  background: rgba(0,0,0,0.6);
+  color: #fff;
+  cursor: pointer;
+}
+.visor-entreno {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.9);
+  z-index: 10000;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+}
+.visor-entreno img { max-width: 100%; max-height: 100%; object-fit: contain; }
+.visor-entreno-cerrar {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  border: 0;
+  background: none;
+  color: #fff;
+  font-size: 24px;
+  cursor: pointer;
+}
+@media (max-width: 479px) {
+  .entreno-fotos { grid-template-columns: repeat(2, 1fr); }
+}

@@ -162,6 +162,8 @@ if ($user_bests) {
 $user_top3_total = $user_top3['25m'] + $user_top3['50m'];
 $user_top10_total = $user_top10['25m'] + $user_top10['50m'];
 
+$entrenos_nuevos = contar_entrenos_nuevos($pdo, (int)$user['id']);
+
 render_header('Mi panel', 'socio-panel');
 ?>
 
@@ -187,6 +189,13 @@ render_header('Mi panel', 'socio-panel');
   </div>
 
   <?php render_flash(); ?>
+
+  <?php if ($entrenos_nuevos > 0): ?>
+    <a href="/socio/entrenos" class="alert alert-info" style="display:flex;align-items:center;gap:10px;text-decoration:none;">
+      <i class="bi bi-clipboard2-pulse-fill" style="font-size:20px;flex-shrink:0;"></i>
+      <span>Tu entrenador ha publicado <strong><?= $entrenos_nuevos ?> entreno<?= $entrenos_nuevos > 1 ? 's' : '' ?> nuevo<?= $entrenos_nuevos > 1 ? 's' : '' ?></strong>. Pulsa para verlo<?= $entrenos_nuevos > 1 ? 's' : '' ?>.</span>
+    </a>
+  <?php endif; ?>
 
   <?php if (!$nadador_activo): ?>
     <div class="alert alert-info" style="display:flex;align-items:center;gap:10px;">

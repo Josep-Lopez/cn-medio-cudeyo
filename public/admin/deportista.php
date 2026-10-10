@@ -4,6 +4,7 @@ require_once dirname(__DIR__, 2) . '/includes/auth.php';
 require_once dirname(__DIR__, 2) . '/includes/layout.php';
 require_once dirname(__DIR__, 2) . '/includes/competicion_entrenador.php';
 require_once dirname(__DIR__, 2) . '/includes/asistencia.php';
+require_once dirname(__DIR__, 2) . '/includes/entrenos.php';
 
 require_admin_area(['director_tecnico', 'entrenador']);
 
@@ -69,6 +70,9 @@ $marcas = $stmt->fetchAll();
 // --- Tiempos de competición ---
 $tiempos = listar_tiempos_socio($pdo, $id);
 
+// --- Entrenos (los que ve el deportista en su perfil) ---
+$entrenos = listar_entrenos_nadador($pdo, $id, 10);
+
 // --- Asistencia (mes) ---
 $mes = $_GET['mes'] ?? date('Y-m');
 if (!preg_match('/^\d{4}-\d{2}$/', $mes)) $mes = date('Y-m');
@@ -97,7 +101,7 @@ $anio = (int)substr($mes, 0, 4);
 
 render_header('Perfil de ' . $nadador['nombre'], 'admin-deportistas');
 render_admin_layout('deportistas', function() use (
-    $nadador, $marcas, $temporada, $temporadas_disp, $filtroPrueba, $filtroPiscina, $tiempos, $mes,
+    $nadador, $marcas, $temporada, $temporadas_disp, $filtroPrueba, $filtroPiscina, $tiempos, $entrenos, $mes,
     $dias_mes, $asistencia_data, $mes_anterior, $mes_siguiente, $nombre_mes,
     $total_presente, $total_registrado, $pct, $anio, $anio_presente, $anio_registrado, $anio_pct
 ) {
@@ -177,6 +181,32 @@ render_admin_layout('deportistas', function() use (
         </tbody>
       </table>
     </div>
+  <?php endif; ?>
+</div>
+
+<!-- Entrenos -->
+<div class="card mb-6">
+  <h2 style="font-size:15px;font-weight:700;margin-bottom:14px;">Entrenos</h2>
+  <?php if (!$entrenos): ?>
+    <p class="text-muted">Sin entrenos publicados para sus grupos.</p>
+  <?php else: ?>
+    <div class="table-wrapper">
+      <table>
+        <thead><tr><th>Fecha</th><th>Título</th><th>Grupo</th><th>Leído</th><th></th></tr></thead>
+        <tbody>
+          <?php foreach ($entrenos as $en): ?>
+            <tr>
+              <td><?= date('d/m/Y', strtotime($en['fecha'])) ?></td>
+              <td style="font-weight:600;"><?= e($en['titulo']) ?></td>
+              <td class="text-muted"><?= e($en['grupos'] ?? '') ?></td>
+              <td><?= $en['nuevo'] ? '<span class="text-muted">No</span>' : '<i class="bi bi-check2" style="color:var(--green);"></i>' ?></td>
+              <td><a href="/admin/entrenos?ver=<?= (int)$en['id'] ?>" class="btn btn-gray btn-sm">Ver →</a></td>
+            </tr>
+          <?php endforeach; ?>
+        </tbody>
+      </table>
+    </div>
+    <p class="text-muted text-sm" style="margin-top:10px;">Últimos 10 entrenos.</p>
   <?php endif; ?>
 </div>
 

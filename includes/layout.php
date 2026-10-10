@@ -1,4 +1,6 @@
 <?php
+require_once __DIR__ . '/entrenos.php';
+
 function render_header(string $title, string $activePage = '', string $extraHead = '', string $description = ''): void
 {
   global $pdo;
@@ -13,6 +15,14 @@ function render_header(string $title, string $activePage = '', string $extraHead
         ");
     $stmtN->execute([$user['liga'] ?? '', $user['id'], $user['id']]);
     $notif_count = (int)$stmtN->fetchColumn();
+  }
+  $entrenos_nuevos = 0;
+  if ($user && !$isAdmin && $pdo) {
+    try {
+      $entrenos_nuevos = contar_entrenos_nuevos($pdo, (int)$user['id']);
+    } catch (PDOException $ex) {
+      // Migración 026 pendiente: sin aviso de entrenos
+    }
   }
   $metaDesc = $description ?: 'Club de Natación Medio Cudeyo — Cantabria. Marcas personales, ranking de liga, noticias y más.';
   $pageTitle = e($title) . ' — CN Medio Cudeyo';
@@ -95,6 +105,12 @@ function render_header(string $title, string $activePage = '', string $extraHead
                   <span class="navbar-notif-badge"><?= $notif_count ?></span>
                 </a>
               <?php endif; ?>
+              <?php if ($entrenos_nuevos > 0): ?>
+                <a href="/socio/entrenos" class="navbar-notif" title="<?= $entrenos_nuevos ?> entreno(s) nuevo(s)">
+                  <i class="bi bi-clipboard2-pulse-fill"></i>
+                  <span class="navbar-notif-badge"><?= $entrenos_nuevos ?></span>
+                </a>
+              <?php endif; ?>
               <div class="navbar-user-dropdown">
                 <button class="navbar-user" onclick="document.querySelector('.navbar-user-dropdown').classList.toggle('open')" type="button">
                   <?php if (!empty($user['avatar_url'])): ?>
@@ -111,6 +127,7 @@ function render_header(string $title, string $activePage = '', string $extraHead
                     <a href="/socio/comunicaciones"><i class="bi bi-bell"></i> Comunicaciones<?= $notif_count > 0 ? ' <span class="badge badge-blue" style="font-size:11px;padding:2px 6px;margin-left:4px;">' . $notif_count . '</span>' : '' ?></a>
                     <a href="/socio/incidencias" <?= $activePage === 'socio-incidencias' ? 'class="active"' : '' ?>><i class="bi bi-exclamation-triangle"></i> Incidencias</a>
                     <a href="/socio/competiciones" <?= $activePage === 'socio-competiciones' ? 'class="active"' : '' ?>><i class="bi bi-list-ol"></i> Competiciones</a>
+                    <a href="/socio/entrenos" <?= $activePage === 'socio-entrenos' ? 'class="active"' : '' ?>><i class="bi bi-clipboard2-pulse"></i> Entrenos<?= $entrenos_nuevos > 0 ? ' <span class="badge badge-blue" style="font-size:11px;padding:2px 6px;margin-left:4px;">' . $entrenos_nuevos . '</span>' : '' ?></a>
                     <?php if (is_nadador_activo()): ?>
                       <a href="/socio/asistencia" <?= $activePage === 'socio-asistencia' ? 'class="active"' : '' ?>><i class="bi bi-calendar-check"></i> Mi asistencia</a>
                     <?php endif; ?>
@@ -140,6 +157,7 @@ function render_header(string $title, string $activePage = '', string $extraHead
             <a href="/socio/panel">Mi panel</a>
             <a href="/socio/comunicaciones">Comunicaciones<?= $notif_count > 0 ? ' <span class="badge badge-blue" style="font-size:11px;padding:2px 6px;margin-left:4px;">' . $notif_count . '</span>' : '' ?></a>
             <a href="/socio/equipacion">Equipación</a>
+            <a href="/socio/entrenos">Entrenos<?= $entrenos_nuevos > 0 ? ' <span class="badge badge-blue" style="font-size:11px;padding:2px 6px;margin-left:4px;">' . $entrenos_nuevos . '</span>' : '' ?></a>
             <?php if (is_nadador_activo()): ?>
               <a href="/socio/ranking">Ranking mi liga</a>
               <a href="/socio/asistencia">Mi asistencia</a>
@@ -384,6 +402,9 @@ function render_header(string $title, string $activePage = '', string $extraHead
         </a>
         <a href="/admin/competiciones" class="<?= $activePage === 'competiciones' ? 'active' : '' ?>">
           <i class="bi bi-list-ol"></i> Competiciones
+        </a>
+        <a href="/admin/entrenos" class="<?= $activePage === 'entrenos' ? 'active' : '' ?>">
+          <i class="bi bi-clipboard2-pulse-fill"></i> Entrenos
         </a>
         <?php endif; ?>
         <?php if ($isDirTec): ?>
