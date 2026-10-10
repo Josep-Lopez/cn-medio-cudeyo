@@ -23,7 +23,7 @@ render_header('Inicio', 'inicio', '', 'Club de Natación Medio Cudeyo, en Cantab
     </blockquote>
     <div class="hero-btns">
       <?php if (!current_user()): ?>
-        <a href="/register" class="btn btn-primary btn-lg"><i class="bi bi-person-plus-fill"></i> Hazte socio</a>
+        <a href="/contacto" class="btn btn-primary btn-lg"><i class="bi bi-envelope-fill"></i> Hazte socio</a>
         <a href="/sobre-nosotros" class="btn btn-secondary btn-lg">Conocer el club</a>
       <?php else: ?>
         <a href="/socio/panel" class="btn btn-primary btn-lg"><i class="bi bi-grid-fill"></i> Mi panel</a>
@@ -146,9 +146,9 @@ render_header('Inicio', 'inicio', '', 'Club de Natación Medio Cudeyo, en Cantab
   <div class="container">
     <?php if (!current_user()): ?>
       <h2>¿Quieres unirte al club?</h2>
-      <p>Regístrate y el administrador revisará tu solicitud. ¡Te esperamos en el agua!</p>
+      <p>Escríbenos y te daremos de alta. ¡Te esperamos en el agua!</p>
       <div class="hero-btns">
-        <a href="/register" class="btn btn-primary btn-lg"><i class="bi bi-person-plus-fill"></i> Solicitar alta</a>
+        <a href="/contacto" class="btn btn-primary btn-lg"><i class="bi bi-envelope-fill"></i> Contactar</a>
         <a href="/login" class="btn btn-secondary btn-lg">Acceso socios</a>
       </div>
     <?php else: ?>

@@ -242,7 +242,7 @@ render_header('Sobre nosotros', 'sobre', '', 'Conoce el Club de Natación Medio 
     <h2>¿Listo para nadar con nosotros?</h2>
     <p>Únete a nuestra familia de nadadores. Da igual si empiezas de cero o llevas años en el agua.</p>
     <div class="hero-btns">
-      <a href="/register" class="btn btn-primary btn-lg">Registrarse ahora</a>
+      <a href="/contacto" class="btn btn-primary btn-lg">Contactar</a>
       <a href="/noticias/" class="btn btn-secondary btn-lg">Ver noticias</a>
     </div>
   </div>

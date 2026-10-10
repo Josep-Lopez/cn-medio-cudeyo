@@ -42,7 +42,7 @@ cn-medio-cudeyo/
     ├── index.php           ← Homepage pública
     ├── login.php           ← Acceso socios
     ├── logout.php          ← Destruye sesión
-    ├── register.php        ← Solicitud de alta (estado=pendiente)
+    ├── register.php        ← Desactivado: redirige a /contacto (altas solo por admin)
     ├── sobre-nosotros.php  ← Página estática
     ├── calculadoras.php    ← 3 calculadoras JS (AQUA, Mínimas, Parciales)
     ├── biblioteca.php      ← Carpetas colapsables con documentos
@@ -193,7 +193,7 @@ Inter (Google Fonts) + Arial fallback
 
 ## Flujo de autenticación
 
-1. Socio se registra → `estado = pendiente`
+1. Admin crea el usuario desde `/admin/usuarios.php` (registro público desactivado)
 2. Admin aprueba desde `/admin/usuarios.php` → `estado = activo`
 3. Login → sesión `$_SESSION['user']` con: id, nombre, email, rol, liga, sexo, estado
 4. Admin → redirige a `/admin/usuarios`

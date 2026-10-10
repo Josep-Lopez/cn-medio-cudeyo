@@ -121,7 +121,6 @@ function render_header(string $title, string $activePage = '', string $extraHead
               </div>
             <?php else: ?>
               <a href="/login" class="btn btn-secondary btn-sm">Acceso</a>
-              <a href="/register" class="btn btn-primary btn-sm">Registro</a>
             <?php endif; ?>
           </div>
 
@@ -173,7 +172,6 @@ function render_header(string $title, string $activePage = '', string $extraHead
             <a href="/logout" class="btn btn-secondary btn-sm"><i class="bi bi-box-arrow-right"></i> Cerrar sesión</a>
           <?php else: ?>
             <a href="/login" class="btn btn-secondary btn-sm">Acceso</a>
-            <a href="/register" class="btn btn-primary btn-sm">Registro</a>
           <?php endif; ?>
         </div>
       </div>
@@ -208,7 +206,6 @@ function render_header(string $title, string $activePage = '', string $extraHead
             <h4>Socios</h4>
             <?php if (!$user): ?>
               <a href="/login">Acceso socios</a>
-              <a href="/register">Registro</a>
             <?php else: ?>
               <a href="/socio/panel">Mi panel</a>
               <a href="/socio/ranking">Ranking liga</a>

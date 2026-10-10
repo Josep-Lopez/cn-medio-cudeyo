@@ -100,7 +100,7 @@ render_header('Acceso', 'login');
 
     <hr class="auth-divider">
     <p class="auth-footer">
-      ¿No tienes cuenta? <a href="/register">Regístrate</a>
+      ¿No tienes cuenta? <a href="/contacto">Contacta con el club</a>
     </p>
   </div>
 </div>
