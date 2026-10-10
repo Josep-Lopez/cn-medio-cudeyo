@@ -8,7 +8,7 @@ require_once dirname(__DIR__, 2) . '/includes/minimas.php';
 
 require_admin_area(['director_tecnico', 'entrenador']);
 
-$LIGAS = ['benjamin'=>'Benjamín','alevin'=>'Alevín','infantil'=>'Infantil','junior'=>'Junior','absoluto'=>'Absoluto','master'=>'Master'];
+$LIGAS = ['benjamin'=>'Benjamín','alevin'=>'Alevín','infantil'=>'Infantil','junior'=>'Junior','absoluto'=>'Absoluto'];
 $FILTROS_ASIS = ['90' => '≥ 90%', '80' => '≥ 80%', '50' => '≥ 50%', 'lt50' => '< 50%'];
 $FILTROS_MIN  = ['ok' => 'Conseguida (≥ 100%)', '95' => '≥ 95%', '90' => '≥ 90%', '85' => '≥ 85%', 'lt85' => '< 85%', 'sin' => 'Sin mínima'];
 
@@ -33,7 +33,7 @@ $temporada = $_GET['temporada'] ?? $temporadas_disp[0];
 if (!in_array($temporada, $temporadas_disp, true)) $temporada = $temporadas_disp[0];
 $anio_ini = (int)substr($temporada, 0, 4);
 
-$where = "estado='activo' AND rol='socio' AND nadador_activo=1";
+$where = "estado='activo' AND rol='socio' AND nadador_activo=1 AND liga <> 'master'";
 $params = [];
 if ($filtroLiga && $filtroLiga !== 'todos') {
     $where .= ' AND liga=?';
@@ -62,7 +62,6 @@ if ($ids) {
     $stmt->execute(array_merge($ids, [$temporada]));
     foreach ($stmt->fetchAll() as $m) {
         $n = $por_id[$m['user_id']];
-        if ($n['liga'] === 'master') continue; // Masters: sin mínimas RFEN
         $edad = edad_deportiva($m['fecha_marca'], $n['fecha_nacimiento']);
         $min  = minima_para($minimas_datos, $m['prueba'], $m['piscina'], $n['sexo'], $edad);
         if (!$min) continue;
