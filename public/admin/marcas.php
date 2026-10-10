@@ -2,6 +2,7 @@
 require_once dirname(__DIR__, 2) . '/config/db.php';
 require_once dirname(__DIR__, 2) . '/includes/auth.php';
 require_once dirname(__DIR__, 2) . '/includes/layout.php';
+require_once dirname(__DIR__, 2) . '/includes/minimas.php';
 require_once dirname(__DIR__, 2) . '/includes/rfen.php';
 
 require_admin_area(['director_tecnico']);
@@ -107,8 +108,9 @@ $nadadores = $stmt->fetchAll();
 $marcas_usuario = [];
 $all_marks = [];
 $selected_user = null;
+$minimas_datos = minimas_cargar($pdo);
 if ($selectedUserId) {
-    $stmt = $pdo->prepare('SELECT nombre, liga, rfen_id FROM users WHERE id=?');
+    $stmt = $pdo->prepare('SELECT nombre, liga, rfen_id, sexo, fecha_nacimiento FROM users WHERE id=?');
     $stmt->execute([$selectedUserId]);
     $selected_user = $stmt->fetch();
 
@@ -125,7 +127,7 @@ if ($selectedUserId) {
 }
 
 render_header('Gestión de marcas', 'admin-marcas');
-render_admin_layout('marcas', function() use ($PRUEBAS, $selectedUserId, $selectedPiscina, $selectedPrueba, $nadadores, $marcas_usuario, $selected_user, $temporada, $temporadas_disp, $all_marks) {
+render_admin_layout('marcas', function() use ($PRUEBAS, $selectedUserId, $selectedPiscina, $selectedPrueba, $nadadores, $marcas_usuario, $selected_user, $temporada, $temporadas_disp, $all_marks, $minimas_datos) {
 ?>
 
 <h1>Gestión de marcas</h1>
@@ -260,7 +262,7 @@ render_admin_layout('marcas', function() use ($PRUEBAS, $selectedUserId, $select
                     <span style="font-size:11px;background:#f3f4f6;color:#6b7280;border-radius:4px;padding:1px 6px;margin-left:4px;">parcial</span>
                   <?php endif; ?>
                 </td>
-                <td><span class="mark-time"><?= e($marca['tiempo']) ?></span></td>
+                <td><span class="mark-time"><?= e($marca['tiempo']) ?></span><?= $marca['es_parcial'] ? '' : render_minima_badge($minimas_datos, $marca, $selected_user['sexo'] ?? null, $selected_user['fecha_nacimiento'] ?? null) ?></td>
                 <td class="text-sm text-muted"><?= e($marca['lugar'] ?? '') ?></td>
                 <td class="text-sm text-muted"><?= date('d/m/Y', strtotime($marca['fecha_marca'])) ?></td>
                 <td>
