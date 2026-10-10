@@ -9,6 +9,21 @@ require_admin_area(['director_tecnico', 'entrenador']);
 $LIGAS = ['benjamin'=>'Benjamín','alevin'=>'Alevín','infantil'=>'Infantil','junior'=>'Junior','absoluto'=>'Absoluto','master'=>'Master'];
 
 // ── POST: guardar asistencia ─────────────────────────────────────────────────
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && in_array($_POST['action'] ?? '', ['verificar', 'rechazar'], true)) {
+    csrf_verify();
+    $asis_id = (int)($_POST['asistencia_id'] ?? 0);
+    if ($_POST['action'] === 'verificar') {
+        $pdo->prepare('UPDATE asistencia SET verificada=1, registrado_por=? WHERE id=? AND verificada=0')
+            ->execute([current_user()['id'], $asis_id]);
+        flash('Entrenamiento verificado.', 'success');
+    } else {
+        $pdo->prepare('DELETE FROM asistencia WHERE id=? AND verificada=0')->execute([$asis_id]);
+        flash('Entrenamiento rechazado.', 'success');
+    }
+    header('Location: ' . $_SERVER['REQUEST_URI']);
+    exit;
+}
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     csrf_verify();
     $fecha = $_POST['fecha'] ?? date('Y-m-d');
@@ -17,9 +32,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $admin_id = current_user()['id'];
 
     $stmt = $pdo->prepare('
-        INSERT INTO asistencia (user_id, fecha, presente, observaciones, registrado_por)
-        VALUES (?, ?, ?, ?, ?)
-        ON DUPLICATE KEY UPDATE presente=VALUES(presente), observaciones=VALUES(observaciones), registrado_por=VALUES(registrado_por)
+        INSERT INTO asistencia (user_id, fecha, presente, verificada, observaciones, registrado_por)
+        VALUES (?, ?, ?, 1, ?, ?)
+        ON DUPLICATE KEY UPDATE presente=VALUES(presente), verificada=1, observaciones=VALUES(observaciones), registrado_por=VALUES(registrado_por)
     ');
 
     $users_ids = $_POST['user_ids'] ?? [];
@@ -58,26 +73,66 @@ $stmt->execute($params);
 $nadadores = $stmt->fetchAll();
 
 // Cargar asistencia existente para esa fecha
-$stmt = $pdo->prepare('SELECT user_id, presente, observaciones FROM asistencia WHERE fecha=?');
+$stmt = $pdo->prepare('SELECT user_id, presente, verificada, observaciones FROM asistencia WHERE fecha=?');
 $stmt->execute([$fecha]);
 $registros = [];
 foreach ($stmt->fetchAll() as $r) {
     $registros[$r['user_id']] = $r;
 }
 
+// Entrenamientos apuntados por los deportistas pendientes de verificar
+$pendientes = $pdo->query("
+    SELECT a.id, a.fecha, a.observaciones, u.id AS user_id, u.nombre, u.liga
+    FROM asistencia a JOIN users u ON u.id = a.user_id
+    WHERE a.verificada = 0
+    ORDER BY a.fecha DESC, u.nombre
+")->fetchAll();
+
 // Estadísticas del día
 $total = count($nadadores);
 $presentes = 0;
 foreach ($nadadores as $n) {
-    if (!empty($registros[$n['id']]['presente'])) $presentes++;
+    if (!empty($registros[$n['id']]['presente']) && !empty($registros[$n['id']]['verificada'])) $presentes++;
 }
 
 render_header('Control de asistencia', 'admin-asistencia');
-render_admin_layout('asistencia', function() use ($LIGAS, $grupos, $nadadores, $registros, $fecha, $filtroLiga, $filtroGrupo, $total, $presentes) {
+render_admin_layout('asistencia', function() use ($LIGAS, $grupos, $nadadores, $registros, $fecha, $filtroLiga, $filtroGrupo, $total, $presentes, $pendientes) {
 ?>
 
 <h1>Control de asistencia</h1>
 <?php render_flash(); ?>
+
+<?php if ($pendientes): ?>
+<div class="card mb-6" style="border-left:4px solid #f59e0b;">
+  <h2 style="font-size:15px;font-weight:700;margin-bottom:14px;">
+    <i class="bi bi-hourglass-split" style="color:#b45309;"></i>
+    Pendientes de verificar (<?= count($pendientes) ?>)
+  </h2>
+  <div class="table-wrapper">
+    <table>
+      <thead><tr><th>Fecha</th><th>Nadador</th><th>Categoría</th><th>Comentario</th><th></th></tr></thead>
+      <tbody>
+        <?php foreach ($pendientes as $p): ?>
+          <tr>
+            <td style="white-space:nowrap;"><?= date('d/m/Y', strtotime($p['fecha'])) ?> <span class="text-muted text-sm"><?= ['','Lun','Mar','Mié','Jue','Vie','Sáb','Dom'][(int)date('N', strtotime($p['fecha']))] ?></span></td>
+            <td style="font-weight:600;"><a href="/admin/deportista?id=<?= (int)$p['user_id'] ?>&mes=<?= substr($p['fecha'], 0, 7) ?>#asistencia"><?= e($p['nombre']) ?></a></td>
+            <td><span class="text-sm"><?= e(format_liga($p['liga'] ?? '')) ?></span></td>
+            <td class="text-sm"><?= e($p['observaciones'] ?: '—') ?></td>
+            <td style="white-space:nowrap;text-align:right;">
+              <form method="POST" style="display:inline;">
+                <?= csrf_field() ?>
+                <input type="hidden" name="asistencia_id" value="<?= (int)$p['id'] ?>">
+                <button type="submit" name="action" value="verificar" class="btn btn-primary btn-sm"><i class="bi bi-check-lg"></i> Verificar</button>
+                <button type="submit" name="action" value="rechazar" class="btn btn-gray btn-sm" style="color:var(--red);"><i class="bi bi-x-lg"></i> Rechazar</button>
+              </form>
+            </td>
+          </tr>
+        <?php endforeach; ?>
+      </tbody>
+    </table>
+  </div>
+</div>
+<?php endif; ?>
 
 <!-- Filtros -->
 <div class="card mb-6">
@@ -165,7 +220,11 @@ render_admin_layout('asistencia', function() use ($LIGAS, $grupos, $nadadores, $
                 <input type="hidden" name="user_ids[]" value="<?= $n['id'] ?>">
                 <input type="checkbox" name="asistencia[<?= $n['id'] ?>]" value="1" <?= $checked ? 'checked' : '' ?>>
               </td>
-              <td style="font-weight:600;"><?= e($n['nombre']) ?></td>
+              <td style="font-weight:600;"><?= e($n['nombre']) ?>
+                <?php if ($reg && !(int)$reg['verificada']): ?>
+                  <span class="badge" style="background:#fef3c7;color:#b45309;font-size:11px;" title="Apuntado por el deportista; se verifica al guardar">pendiente</span>
+                <?php endif; ?>
+              </td>
               <td><span class="text-sm"><?= e(format_liga($n['liga'] ?? '')) ?></span></td>
               <td>
                 <input type="text" name="observaciones[<?= $n['id'] ?>]" class="form-control"

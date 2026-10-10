@@ -33,9 +33,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'asist
         flash('Asistencia del ' . $d->format('d/m/Y') . ' eliminada.', 'success');
     } else {
         $pdo->prepare('
-            INSERT INTO asistencia (user_id, fecha, presente, observaciones, registrado_por)
-            VALUES (?, ?, ?, ?, ?)
-            ON DUPLICATE KEY UPDATE presente=VALUES(presente), observaciones=VALUES(observaciones), registrado_por=VALUES(registrado_por)
+            INSERT INTO asistencia (user_id, fecha, presente, verificada, observaciones, registrado_por)
+            VALUES (?, ?, ?, 1, ?, ?)
+            ON DUPLICATE KEY UPDATE presente=VALUES(presente), verificada=1, observaciones=VALUES(observaciones), registrado_por=VALUES(registrado_por)
         ')->execute([$id, $fecha, $estado === 'presente' ? 1 : 0, $obs ?: null, current_user()['id']]);
         flash('Asistencia del ' . $d->format('d/m/Y') . ' guardada.', 'success');
     }
@@ -81,7 +81,7 @@ for ($d = 1; $d <= $num_dias; $d++) {
     $dias_mes[] = sprintf('%s-%02d', $mes, $d);
 }
 $asistencia_data = [];
-$stmt = $pdo->prepare("SELECT fecha, presente, observaciones FROM asistencia WHERE user_id = ? AND fecha BETWEEN ? AND ?");
+$stmt = $pdo->prepare("SELECT fecha, presente, verificada, observaciones FROM asistencia WHERE user_id = ? AND fecha BETWEEN ? AND ?");
 $stmt->execute([$id, $fecha_inicio, $fecha_fin]);
 foreach ($stmt->fetchAll() as $r) {
     $asistencia_data[$r['fecha']] = $r;
@@ -91,7 +91,7 @@ $mes_siguiente = date('Y-m', strtotime($fecha_inicio . ' +1 month'));
 $meses_es = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
 $nombre_mes = ucfirst($meses_es[(int)date('m', strtotime($fecha_inicio)) - 1]) . ' ' . date('Y', strtotime($fecha_inicio));
 
-[$total_presente, $total_registrado, $pct] = resumen_asistencia(array_map(fn($r) => (int)$r['presente'], $asistencia_data));
+[$total_presente, $total_registrado, $pct] = resumen_asistencia(presencias_verificadas($asistencia_data));
 
 render_header('Perfil de ' . $nadador['nombre'], 'admin-deportistas');
 render_admin_layout('deportistas', function() use (
@@ -210,6 +210,10 @@ render_admin_layout('deportistas', function() use (
         <button type="button" class="modal-close" onclick="cerrarModalAsistencia()">&times;</button>
       </div>
       <div class="modal-body">
+        <p id="asis-pendiente" class="text-sm mb-4" style="display:none;color:#b45309;">
+          <i class="bi bi-hourglass-split"></i> Apuntado por el deportista, pendiente de verificar.
+          Guarda como <b>Presente</b> para verificarlo o elige otra opción para rechazarlo.
+        </p>
         <div class="d-flex gap-3 flex-wrap mb-4">
           <label class="d-flex gap-2 align-center"><input type="radio" name="estado" value="presente"> Presente</label>
           <label class="d-flex gap-2 align-center"><input type="radio" name="estado" value="ausente"> Ausente</label>
@@ -233,7 +237,9 @@ function abrirModalAsistencia(cell) {
   document.getElementById('asis-fecha').value = fecha;
   document.getElementById('asis-titulo').textContent = 'Asistencia del ' + p[2] + '/' + p[1] + '/' + p[0];
   document.getElementById('asis-obs').value = cell.dataset.obs || '';
-  var estado = cell.dataset.estado || 'presente';
+  var pendiente = cell.dataset.estado === 'pendiente';
+  document.getElementById('asis-pendiente').style.display = pendiente ? '' : 'none';
+  var estado = pendiente ? 'presente' : (cell.dataset.estado || 'presente');
   document.querySelectorAll('#modal-asistencia input[name="estado"]').forEach(function (r) {
     r.checked = r.value === estado;
   });

@@ -19,11 +19,30 @@ function resumen_asistencia(array $presencias): array
     return [$presentes, $computables, $pct];
 }
 
+// Solo lo verificado cuenta: filtra $asistencia_data ([fecha => fila]) a [fecha => presente].
+function presencias_verificadas(array $asistencia_data): array
+{
+    $out = [];
+    foreach ($asistencia_data as $fecha => $r) {
+        if (!isset($r['verificada']) || $r['verificada']) $out[$fecha] = (int)$r['presente'];
+    }
+    return $out;
+}
+
+// El deportista puede apuntarse a sí mismo: masters cualquier día, el resto solo fines
+// de semana. Nunca días futuros. Lo apuntado queda pendiente de verificar.
+function puede_autoregistrar_dia(string $fecha, ?string $liga): bool
+{
+    if ($fecha > date('Y-m-d')) return false;
+    return $liga === 'master' || es_fin_de_semana($fecha);
+}
+
 // Pinta un calendario mensual de asistencia (grid Lun-Dom).
 // $dias_mes: array de fechas 'Y-m-d' del mes.
-// $asistencia_data: [fecha => ['presente'=>0|1, 'observaciones'=>?string]]
-// $editable: cada día llama a abrirModalAsistencia(this) al hacer clic (la página define el modal).
-function render_calendario_asistencia(array $dias_mes, array $asistencia_data, bool $editable = false): void
+// $asistencia_data: [fecha => ['presente'=>0|1, 'verificada'=>0|1, 'observaciones'=>?string]]
+// $editable: true, o fn(string $fecha, ?array $registro): bool para decidir por día. Los días
+// editables llaman a abrirModalAsistencia(this) al hacer clic (la página define el modal).
+function render_calendario_asistencia(array $dias_mes, array $asistencia_data, bool|callable $editable = false): void
 {
     if (!$dias_mes) return;
     $dias_semana = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
@@ -40,7 +59,11 @@ function render_calendario_asistencia(array $dias_mes, array $asistencia_data, b
         $registro = $asistencia_data[$dia] ?? null;
         $dayNum   = (int)date('j', strtotime($dia));
         $finde    = es_fin_de_semana($dia);
-        if ($registro === null || (!$registro['presente'] && $finde)) {
+        $pendiente = $registro !== null && isset($registro['verificada']) && !$registro['verificada'];
+        if ($pendiente) {
+            $cls = 'cal-cell cal-pendiente';
+            $icon = '<i class="bi bi-hourglass-split"></i>';
+        } elseif ($registro === null || (!$registro['presente'] && $finde)) {
             $cls = 'cal-cell cal-sin-registrar';
             $icon = '';
         } elseif ($registro['presente'] && $finde) {
@@ -54,10 +77,11 @@ function render_calendario_asistencia(array $dias_mes, array $asistencia_data, b
             $icon = '<i class="bi bi-x-circle-fill"></i>';
         }
         $title = ($registro && $registro['observaciones']) ? e($registro['observaciones']) : '';
+        if ($pendiente) $title = 'Pendiente de verificar' . ($title ? ' · ' . $title : '');
         $attrs = '';
-        if ($editable) {
+        if (is_callable($editable) ? $editable($dia, $registro) : $editable) {
             $cls  .= ' cal-editable';
-            $estado = $registro === null ? '' : ($registro['presente'] ? 'presente' : 'ausente');
+            $estado = $registro === null ? '' : ($pendiente ? 'pendiente' : ($registro['presente'] ? 'presente' : 'ausente'));
             $attrs = ' role="button" tabindex="0" onclick="abrirModalAsistencia(this)"'
                    . ' onkeydown="if(event.key===\'Enter\')abrirModalAsistencia(this)"'
                    . ' data-fecha="' . $dia . '" data-estado="' . $estado . '"'

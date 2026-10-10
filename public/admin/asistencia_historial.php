@@ -43,7 +43,7 @@ if ($filtroLiga) {
     $user_ids = array_column($nadadores, 'id');
     if ($user_ids) {
         $placeholders = implode(',', array_fill(0, count($user_ids), '?'));
-        $stmt = $pdo->prepare("SELECT user_id, fecha, presente FROM asistencia WHERE user_id IN ($placeholders) AND fecha BETWEEN ? AND ?");
+        $stmt = $pdo->prepare("SELECT user_id, fecha, presente FROM asistencia WHERE user_id IN ($placeholders) AND fecha BETWEEN ? AND ? AND verificada = 1");
         $stmt->execute(array_merge($user_ids, [$fecha_inicio, $fecha_fin]));
         foreach ($stmt->fetchAll() as $r) {
             $asistencia_data[$r['user_id']][$r['fecha']] = (int)$r['presente'];
