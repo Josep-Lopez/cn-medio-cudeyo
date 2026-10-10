@@ -1,11 +1,23 @@
 <?php
+// La sesión caduca tras 2 h sin actividad (gc de PHP es aleatorio: se controla también a mano).
+const SESION_INACTIVIDAD_MAX = 7200;
+
 if (session_status() === PHP_SESSION_NONE) {
     if (!headers_sent()) {
+        ini_set('session.gc_maxlifetime', (string)SESION_INACTIVIDAD_MAX);
         session_start();
     } else {
         $_SESSION = $_SESSION ?? [];
     }
 }
+
+if (!empty($_SESSION['user']) && isset($_SESSION['ultima_actividad'])
+    && time() - $_SESSION['ultima_actividad'] > SESION_INACTIVIDAD_MAX) {
+    $_SESSION = [];
+    if (session_status() === PHP_SESSION_ACTIVE && !headers_sent()) session_regenerate_id(true);
+    flash('Tu sesión ha caducado tras 2 horas sin actividad. Vuelve a iniciar sesión.', 'info');
+}
+$_SESSION['ultima_actividad'] = time();
 
 // HTTP Security Headers
 if (!headers_sent()) {

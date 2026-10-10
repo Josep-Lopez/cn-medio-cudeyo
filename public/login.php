@@ -76,6 +76,7 @@ render_header('Acceso', 'login');
     <?php if ($error): ?>
       <div class="alert alert-danger"><?= e($error) ?></div>
     <?php endif; ?>
+    <?php render_flash(); ?>
 
     <form method="POST" novalidate>
       <?= csrf_field() ?>
