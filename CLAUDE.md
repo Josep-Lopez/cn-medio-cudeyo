@@ -68,6 +68,7 @@ cn-medio-cudeyo/
     │   ├── ranking-edades.php ← Ranking por edad (Vista A top-10 + Vista B matriz)
     │   ├── records.php        ← Récords del club (mejor marca vigente por prueba×piscina×sexo)
     │   ├── puntos-aqua.php    ← Ranking equipo por puntos AQUA (suma N mejores; filtro 1/2/3/4/8/18)
+    │   ├── deportistas.php    ← Lista deportistas: asistencia temporada + mejor % mínima; filtros y orden por columna — entrenador
     │   ├── grupos.php         ← Grupos de entrenamiento (crear/editar/borrar, asignar/quitar nadadores) — entrenador
     │   ├── competiciones.php  ← Competiciones del entrenador: listado + tiempos por competición
     │   ├── competicion_tiempo.php ← Detalle de tiempo + hilo de comentarios (staff, sin restricción de propiedad)

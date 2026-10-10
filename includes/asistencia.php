@@ -32,12 +32,18 @@ function presencias_verificadas(array $asistencia_data): array
 // Resumen del año natural (solo verificado) por usuario: [user_id => [presentes, computables, pct|null]].
 function resumen_asistencia_anio(PDO $pdo, array $user_ids, int $anio): array
 {
+    return resumen_asistencia_rango($pdo, $user_ids, "$anio-01-01", "$anio-12-31");
+}
+
+// Igual que resumen_asistencia_anio pero entre dos fechas 'Y-m-d' (incluidas).
+function resumen_asistencia_rango(PDO $pdo, array $user_ids, string $desde, string $hasta): array
+{
     $presencias = array_fill_keys($user_ids, []);
     if ($user_ids) {
         $ph = implode(',', array_fill(0, count($user_ids), '?'));
         $stmt = $pdo->prepare("SELECT user_id, fecha, presente FROM asistencia
                                WHERE user_id IN ($ph) AND fecha BETWEEN ? AND ? AND verificada = 1");
-        $stmt->execute(array_merge($user_ids, ["$anio-01-01", "$anio-12-31"]));
+        $stmt->execute(array_merge($user_ids, [$desde, $hasta]));
         foreach ($stmt->fetchAll() as $r) {
             $presencias[$r['user_id']][$r['fecha']] = (int)$r['presente'];
         }
