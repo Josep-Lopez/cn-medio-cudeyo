@@ -66,6 +66,8 @@ $meses_es = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','
 $nombre_mes = ucfirst($meses_es[(int)date('m', strtotime($fecha_inicio)) - 1]) . ' ' . date('Y', strtotime($fecha_inicio));
 
 [$total_presente, $total_registrado, $pct] = resumen_asistencia(presencias_verificadas($asistencia_data));
+$anio = (int)substr($mes, 0, 4);
+[$anio_presente, $anio_registrado, $anio_pct] = resumen_asistencia_anio($pdo, [$user['id']], $anio)[$user['id']];
 
 render_header('Mi asistencia', 'socio-asistencia');
 ?>
@@ -85,6 +87,12 @@ render_header('Mi asistencia', 'socio-asistencia');
         <?php if ($pct !== null): ?>
           <span style="color:<?= $pct >= 80 ? 'var(--green)' : ($pct < 50 ? 'var(--red)' : 'var(--text)') ?>;">(<?= $pct ?>%)</span>
         <?php endif; ?>
+        <div class="text-muted" style="font-weight:600;font-size:13px;text-align:right;">
+          Total <?= $anio ?>: <?= $anio_presente ?>/<?= $anio_registrado ?>
+          <?php if ($anio_pct !== null): ?>
+            <span style="color:<?= $anio_pct >= 80 ? 'var(--green)' : ($anio_pct < 50 ? 'var(--red)' : 'var(--text)') ?>;">(<?= $anio_pct ?>%)</span>
+          <?php endif; ?>
+        </div>
       </div>
     </div>
   </div>

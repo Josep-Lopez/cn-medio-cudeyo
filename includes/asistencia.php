@@ -29,6 +29,22 @@ function presencias_verificadas(array $asistencia_data): array
     return $out;
 }
 
+// Resumen del año natural (solo verificado) por usuario: [user_id => [presentes, computables, pct|null]].
+function resumen_asistencia_anio(PDO $pdo, array $user_ids, int $anio): array
+{
+    $presencias = array_fill_keys($user_ids, []);
+    if ($user_ids) {
+        $ph = implode(',', array_fill(0, count($user_ids), '?'));
+        $stmt = $pdo->prepare("SELECT user_id, fecha, presente FROM asistencia
+                               WHERE user_id IN ($ph) AND fecha BETWEEN ? AND ? AND verificada = 1");
+        $stmt->execute(array_merge($user_ids, ["$anio-01-01", "$anio-12-31"]));
+        foreach ($stmt->fetchAll() as $r) {
+            $presencias[$r['user_id']][$r['fecha']] = (int)$r['presente'];
+        }
+    }
+    return array_map('resumen_asistencia', $presencias);
+}
+
 // El deportista puede apuntarse a sí mismo: masters cualquier día, el resto solo fines
 // de semana. Nunca días futuros. Lo apuntado queda pendiente de verificar.
 function puede_autoregistrar_dia(string $fecha, ?string $liga): bool

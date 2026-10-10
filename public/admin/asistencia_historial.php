@@ -50,6 +50,8 @@ if ($filtroLiga) {
         }
     }
 }
+$anio = (int)substr($mes, 0, 4);
+$resumen_anio = resumen_asistencia_anio($pdo, array_column($nadadores, 'id'), $anio);
 
 // Navegación meses
 $mes_anterior = date('Y-m', strtotime($fecha_inicio . ' -1 month'));
@@ -58,7 +60,7 @@ $meses_es = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','
 $nombre_mes = ucfirst($meses_es[(int)date('m', strtotime($fecha_inicio)) - 1]) . ' ' . date('Y', strtotime($fecha_inicio));
 
 render_header('Historial de asistencia', 'admin-asistencia_historial');
-render_admin_layout('asistencia_historial', function() use ($LIGAS, $filtroLiga, $mes, $mes_anterior, $mes_siguiente, $nombre_mes, $nadadores, $dias_mes, $asistencia_data) {
+render_admin_layout('asistencia_historial', function() use ($LIGAS, $filtroLiga, $mes, $mes_anterior, $mes_siguiente, $nombre_mes, $nadadores, $dias_mes, $asistencia_data, $anio, $resumen_anio) {
   $showLiga = ($filtroLiga === 'todos');
 ?>
 
@@ -116,6 +118,8 @@ render_admin_layout('asistencia_historial', function() use ($LIGAS, $filtroLiga,
           <?php endforeach; ?>
           <th style="text-align:center;min-width:50px;">Total</th>
           <th style="text-align:center;min-width:50px;">%</th>
+          <th style="text-align:center;min-width:60px;border-left:2px solid #eee;">Total <?= $anio ?></th>
+          <th style="text-align:center;min-width:50px;">% <?= $anio ?></th>
         </tr>
       </thead>
       <tbody>
@@ -146,6 +150,11 @@ render_admin_layout('asistencia_historial', function() use ($LIGAS, $filtroLiga,
             <td style="text-align:center;font-weight:700;"><?= $total_presente ?>/<?= $total_registrado ?></td>
             <td style="text-align:center;font-weight:600;color:<?= $pct !== null && $pct >= 80 ? 'var(--green)' : ($pct !== null && $pct < 50 ? 'var(--red)' : 'var(--text)') ?>;">
               <?= $pct !== null ? $pct . '%' : '—' ?>
+            </td>
+            <?php [$anio_presente, $anio_registrado, $anio_pct] = $resumen_anio[$n['id']]; ?>
+            <td style="text-align:center;font-weight:700;border-left:2px solid #eee;"><?= $anio_presente ?>/<?= $anio_registrado ?></td>
+            <td style="text-align:center;font-weight:600;color:<?= $anio_pct !== null && $anio_pct >= 80 ? 'var(--green)' : ($anio_pct !== null && $anio_pct < 50 ? 'var(--red)' : 'var(--text)') ?>;">
+              <?= $anio_pct !== null ? $anio_pct . '%' : '—' ?>
             </td>
           </tr>
         <?php endforeach; ?>

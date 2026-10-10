@@ -92,12 +92,14 @@ $meses_es = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','
 $nombre_mes = ucfirst($meses_es[(int)date('m', strtotime($fecha_inicio)) - 1]) . ' ' . date('Y', strtotime($fecha_inicio));
 
 [$total_presente, $total_registrado, $pct] = resumen_asistencia(presencias_verificadas($asistencia_data));
+$anio = (int)substr($mes, 0, 4);
+[$anio_presente, $anio_registrado, $anio_pct] = resumen_asistencia_anio($pdo, [$id], $anio)[$id];
 
 render_header('Perfil de ' . $nadador['nombre'], 'admin-deportistas');
 render_admin_layout('deportistas', function() use (
     $nadador, $marcas, $temporada, $temporadas_disp, $filtroPrueba, $filtroPiscina, $tiempos, $mes,
     $dias_mes, $asistencia_data, $mes_anterior, $mes_siguiente, $nombre_mes,
-    $total_presente, $total_registrado, $pct
+    $total_presente, $total_registrado, $pct, $anio, $anio_presente, $anio_registrado, $anio_pct
 ) {
 ?>
 
@@ -193,6 +195,12 @@ render_admin_layout('deportistas', function() use (
       <?php if ($pct !== null): ?>
         <span style="color:<?= $pct >= 80 ? 'var(--green)' : ($pct < 50 ? 'var(--red)' : 'var(--text)') ?>;">(<?= $pct ?>%)</span>
       <?php endif; ?>
+      <div class="text-muted" style="font-weight:600;font-size:13px;">
+        Total <?= $anio ?>: <?= $anio_presente ?>/<?= $anio_registrado ?>
+        <?php if ($anio_pct !== null): ?>
+          <span style="color:<?= $anio_pct >= 80 ? 'var(--green)' : ($anio_pct < 50 ? 'var(--red)' : 'var(--text)') ?>;">(<?= $anio_pct ?>%)</span>
+        <?php endif; ?>
+      </div>
     </div>
   </div>
   <?php render_calendario_asistencia($dias_mes, $asistencia_data, true); ?>
