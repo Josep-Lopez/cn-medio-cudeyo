@@ -344,14 +344,17 @@ function format_liga(string $liga): string
     return $mapa[$liga] ?? ucfirst($liga);
 }
 
-// Edad deportiva FINA/RFEN: año(fecha_marca) - año(fecha_nacimiento).
-// No depende de día/mes. Devuelve null si falta algún dato.
+// Edad deportiva RFEN por temporada: año en que termina la temporada (sept–ago) - año de nacimiento.
+// Una marca de octubre 2025 es de la temporada 2025-26 y cuenta con la edad de 2026.
+// No depende del día de nacimiento. Devuelve null si falta algún dato.
 function edad_deportiva(?string $fecha_marca, ?string $fecha_nacimiento): ?int
 {
     if (!$fecha_marca || !$fecha_nacimiento) return null;
     $y_m = (int)substr($fecha_marca, 0, 4);
+    $m_m = (int)substr($fecha_marca, 5, 2);
     $y_n = (int)substr($fecha_nacimiento, 0, 4);
     if ($y_m <= 0 || $y_n <= 0) return null;
+    if ($m_m >= 9) $y_m++;
     return $y_m - $y_n;
 }
 
