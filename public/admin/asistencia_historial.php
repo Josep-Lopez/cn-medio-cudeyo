@@ -114,7 +114,11 @@ render_admin_layout('asistencia_historial', function() use ($LIGAS, $filtroLiga,
             <th style="min-width:90px;">Categoría</th>
           <?php endif; ?>
           <?php foreach ($dias_mes as $dia): ?>
-            <th style="text-align:center;min-width:30px;padding:6px 4px;"><?= (int)date('d', strtotime($dia)) ?></th>
+            <?php if (es_festivo($dia)): ?>
+              <th style="text-align:center;min-width:30px;padding:6px 4px;color:var(--blue);text-decoration:underline dotted;" title="Festivo<?= festivos()[$dia] ? ': ' . e(festivos()[$dia]) : '' ?>"><?= (int)date('d', strtotime($dia)) ?></th>
+            <?php else: ?>
+              <th style="text-align:center;min-width:30px;padding:6px 4px;"><?= (int)date('d', strtotime($dia)) ?></th>
+            <?php endif; ?>
           <?php endforeach; ?>
           <th style="text-align:center;min-width:50px;">Total</th>
           <th style="text-align:center;min-width:50px;">%</th>
@@ -133,13 +137,13 @@ render_admin_layout('asistencia_historial', function() use ($LIGAS, $filtroLiga,
             <?php endif; ?>
             <?php foreach ($dias_mes as $dia):
               $registro = $asistencia_data[$n['id']][$dia] ?? null;
-              $finde    = es_fin_de_semana($dia);
+              $finde    = es_dia_extra($dia);
             ?>
               <td style="text-align:center;padding:6px 4px;">
                 <?php if ($registro === null || (!$registro && $finde)): ?>
                   <span style="color:#ddd;">·</span>
                 <?php elseif ($registro && $finde): ?>
-                  <span style="color:var(--blue);font-weight:700;" title="Fin de semana: suma">+</span>
+                  <span style="color:var(--blue);font-weight:700;" title="Fin de semana o festivo: suma">+</span>
                 <?php elseif ($registro): ?>
                   <span style="color:var(--green);">✓</span>
                 <?php else: ?>

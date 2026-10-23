@@ -1,9 +1,47 @@
 <?php
-// Sábados y domingos son extra: la asistencia suma presentes pero no cuenta como día
-// computable, así que el % puede superar el 100%. La falta en fin de semana se ignora.
+// Sábados, domingos y festivos son días extra: la asistencia suma presentes pero no cuenta
+// como día computable, así que el % puede superar el 100%. La falta en día extra se ignora.
 function es_fin_de_semana(string $fecha): bool
 {
     return (int)date('N', strtotime($fecha)) >= 6;
+}
+
+// Festivos marcados a mano por el entrenador: [fecha => descripcion|null]. Se cargan una vez por petición.
+function festivos(): array
+{
+    static $festivos = null;
+    global $pdo;
+    if ($festivos === null) {
+        try {
+            $festivos = $pdo->query('SELECT fecha, descripcion FROM festivos')->fetchAll(PDO::FETCH_KEY_PAIR);
+        } catch (PDOException $e) {
+            $festivos = []; // Migración 027 aún no aplicada
+        }
+    }
+    return $festivos;
+}
+
+function es_festivo(string $fecha): bool
+{
+    return array_key_exists($fecha, festivos());
+}
+
+function es_dia_extra(string $fecha): bool
+{
+    return es_fin_de_semana($fecha) || es_festivo($fecha);
+}
+
+function marcar_festivo(PDO $pdo, string $fecha, ?string $descripcion, int $creado_por): void
+{
+    $desc = $descripcion !== null && trim($descripcion) !== '' ? mb_substr(trim($descripcion), 0, 100) : null;
+    $pdo->prepare('INSERT INTO festivos (fecha, descripcion, creado_por) VALUES (?, ?, ?)
+                   ON DUPLICATE KEY UPDATE descripcion = VALUES(descripcion)')
+        ->execute([$fecha, $desc, $creado_por]);
+}
+
+function quitar_festivo(PDO $pdo, string $fecha): void
+{
+    $pdo->prepare('DELETE FROM festivos WHERE fecha = ?')->execute([$fecha]);
 }
 
 // $presencias: [fecha => bool|int presente]. Devuelve [presentes, computables, pct|null].
@@ -13,7 +51,7 @@ function resumen_asistencia(array $presencias): array
     $computables = 0;
     foreach ($presencias as $fecha => $presente) {
         if ($presente) $presentes++;
-        if (!es_fin_de_semana($fecha)) $computables++;
+        if (!es_dia_extra($fecha)) $computables++;
     }
     $pct = $computables > 0 ? (int)round(($presentes / $computables) * 100) : null;
     return [$presentes, $computables, $pct];
@@ -52,11 +90,11 @@ function resumen_asistencia_rango(PDO $pdo, array $user_ids, string $desde, stri
 }
 
 // El deportista puede apuntarse a sí mismo: masters cualquier día, el resto solo fines
-// de semana. Nunca días futuros. Lo apuntado queda pendiente de verificar.
+// de semana y festivos. Nunca días futuros. Lo apuntado queda pendiente de verificar.
 function puede_autoregistrar_dia(string $fecha, ?string $liga): bool
 {
     if ($fecha > date('Y-m-d')) return false;
-    return $liga === 'master' || es_fin_de_semana($fecha);
+    return $liga === 'master' || es_dia_extra($fecha);
 }
 
 // Pinta un calendario mensual de asistencia (grid Lun-Dom).
@@ -80,7 +118,7 @@ function render_calendario_asistencia(array $dias_mes, array $asistencia_data, b
       <?php foreach ($dias_mes as $dia):
         $registro = $asistencia_data[$dia] ?? null;
         $dayNum   = (int)date('j', strtotime($dia));
-        $finde    = es_fin_de_semana($dia);
+        $finde    = es_dia_extra($dia);
         $pendiente = $registro !== null && isset($registro['verificada']) && !$registro['verificada'];
         if ($pendiente) {
             $cls = 'cal-cell cal-pendiente';
@@ -100,6 +138,10 @@ function render_calendario_asistencia(array $dias_mes, array $asistencia_data, b
         }
         $title = ($registro && $registro['observaciones']) ? e($registro['observaciones']) : '';
         if ($pendiente) $title = 'Pendiente de verificar' . ($title ? ' · ' . $title : '');
+        if (es_festivo($dia)) {
+            $cls  .= ' cal-festivo';
+            $title = 'Festivo' . (festivos()[$dia] ? ': ' . e(festivos()[$dia]) : '') . ($title ? ' · ' . $title : '');
+        }
         $attrs = '';
         if (is_callable($editable) ? $editable($dia, $registro) : $editable) {
             $cls  .= ' cal-editable';

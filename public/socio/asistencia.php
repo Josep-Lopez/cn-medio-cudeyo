@@ -103,7 +103,7 @@ render_header('Mi asistencia', 'socio-asistencia');
     <p class="text-muted text-sm" style="margin-top:10px;">
       <?= $liga === 'master'
           ? 'Haz clic en un día para apuntar que fuiste a entrenar.'
-          : 'Haz clic en un sábado o domingo para apuntar que fuiste a entrenar.' ?>
+          : 'Haz clic en un sábado, domingo o festivo para apuntar que fuiste a entrenar.' ?>
       Queda <span style="color:#b45309;font-weight:600;">pendiente</span> hasta que el entrenador lo verifique.
     </p>
   </div>

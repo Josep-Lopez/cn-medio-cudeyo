@@ -3,10 +3,29 @@ require_once dirname(__DIR__, 2) . '/config/db.php';
 require_once dirname(__DIR__, 2) . '/includes/auth.php';
 require_once dirname(__DIR__, 2) . '/includes/layout.php';
 require_once dirname(__DIR__, 2) . '/includes/grupos.php';
+require_once dirname(__DIR__, 2) . '/includes/asistencia.php';
 
 require_admin_area(['director_tecnico', 'entrenador']);
 
 $LIGAS = ['benjamin'=>'Benjamín','alevin'=>'Alevín','infantil'=>'Infantil','junior'=>'Junior','absoluto'=>'Absoluto','master'=>'Master'];
+
+// ── POST: marcar / quitar festivo ────────────────────────────────────────────
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && in_array($_POST['action'] ?? '', ['festivo_marcar', 'festivo_quitar'], true)) {
+    csrf_verify();
+    $f = $_POST['fecha'] ?? '';
+    $d = DateTime::createFromFormat('Y-m-d', $f);
+    if ($d && $d->format('Y-m-d') === $f) {
+        if ($_POST['action'] === 'festivo_marcar') {
+            marcar_festivo($pdo, $f, $_POST['descripcion'] ?? null, (int)current_user()['id']);
+            flash('Día marcado como festivo: las faltas no cuentan y la presencia suma.', 'success');
+        } else {
+            quitar_festivo($pdo, $f);
+            flash('Festivo quitado.', 'success');
+        }
+    }
+    header('Location: ' . $_SERVER['REQUEST_URI']);
+    exit;
+}
 
 // ── POST: guardar asistencia ─────────────────────────────────────────────────
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && in_array($_POST['action'] ?? '', ['verificar', 'rechazar'], true)) {
@@ -175,6 +194,30 @@ render_admin_layout('asistencia', function() use ($LIGAS, $grupos, $nadadores, $
       </div>
     </div>
   </div>
+</div>
+
+<!-- Festivo -->
+<?php $esFestivo = es_festivo($fecha); ?>
+<div class="card mb-6" style="padding:12px 16px;<?= $esFestivo ? 'border-left:4px solid var(--blue);' : '' ?>">
+  <form method="POST" class="d-flex gap-2 align-center flex-wrap">
+    <?= csrf_field() ?>
+    <input type="hidden" name="fecha" value="<?= e($fecha) ?>">
+    <?php if ($esFestivo): ?>
+      <i class="bi bi-calendar-event" style="color:var(--blue);"></i>
+      <span><strong>Festivo<?= festivos()[$fecha] ? ': ' . e(festivos()[$fecha]) : '' ?></strong>
+        <span class="text-muted text-sm">— cuenta como fin de semana: la presencia suma y las faltas no cuentan.</span></span>
+      <button type="submit" name="action" value="festivo_quitar" class="btn btn-gray btn-sm" style="margin-left:auto;">Quitar festivo</button>
+    <?php elseif (es_fin_de_semana($fecha)): ?>
+      <i class="bi bi-calendar-week text-muted"></i>
+      <span class="text-muted text-sm">Fin de semana: la presencia suma y las faltas no cuentan.</span>
+    <?php else: ?>
+      <i class="bi bi-calendar-event text-muted"></i>
+      <span class="text-sm">¿Es festivo?</span>
+      <input type="text" name="descripcion" class="form-control" maxlength="100" placeholder="Descripción (opcional)"
+             style="padding:5px 8px;font-size:13px;width:auto;min-width:200px;">
+      <button type="submit" name="action" value="festivo_marcar" class="btn btn-gray btn-sm">Marcar como festivo</button>
+    <?php endif; ?>
+  </form>
 </div>
 
 <?php if (!$nadadores): ?>
