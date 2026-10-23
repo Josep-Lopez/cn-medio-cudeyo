@@ -7,10 +7,66 @@ require_once dirname(__DIR__, 2) . '/includes/competicion_entrenador.php';
 require_login();
 $user = current_user();
 $tiempos = listar_tiempos_socio($pdo, (int)$user['id']);
+$convocatorias = listar_convocatorias_socio($pdo, (int)$user['id']);
+
+$stmt = $pdo->prepare('SELECT id, nombre, sexo, fecha_nacimiento FROM users WHERE id = ?');
+$stmt->execute([(int)$user['id']]);
+$yo = $stmt->fetch();
 
 render_header('Mis competiciones', 'socio-competiciones');
 ?>
 <main class="container" style="padding:24px 16px;">
+  <?php if ($convocatorias): ?>
+    <h1>Mis convocatorias</h1>
+    <div class="ce-convocados mb-6">
+      <?php foreach ($convocatorias as $c): ?>
+        <div class="card ce-convocatoria-socio">
+          <div class="ce-nadador__head">
+            <div>
+              <strong><?= e($c['nombre']) ?></strong>
+              <span class="text-muted text-sm"><?= date('d/m/Y', strtotime($c['fecha'])) ?><?= $c['lugar'] ? ' · ' . e($c['lugar']) : '' ?> · Piscina <?= e($c['piscina']) ?></span>
+            </div>
+          </div>
+          <?php if ($c['pruebas']): ?>
+            <div class="table-wrapper">
+              <table class="ce-pruebas">
+                <thead><tr><th>Prueba</th><th>Marca de inscripción</th><th>Mínima</th></tr></thead>
+                <tbody>
+                  <?php foreach ($c['pruebas'] as $p): ?>
+                    <tr>
+                      <td><?= e(format_prueba($p['prueba'])) ?></td>
+                      <td>
+                        <?php if ($p['marca_seg']): ?>
+                          <strong><?= e($p['marca_tiempo']) ?></strong>
+                          <span class="text-muted text-sm"><?= e($p['marca_piscina']) ?></span>
+                        <?php else: ?>
+                          <span class="text-muted">Sin marca</span>
+                        <?php endif; ?>
+                      </td>
+                      <td><?= render_ce_minima_badge(ce_estado_minima($pdo, $c, $yo, $p)) ?: '<span class="text-muted">—</span>' ?></td>
+                    </tr>
+                  <?php endforeach; ?>
+                </tbody>
+              </table>
+            </div>
+          <?php else: ?>
+            <p class="text-muted text-sm" style="margin:0;">Tu entrenador aún no te ha asignado pruebas.</p>
+          <?php endif; ?>
+          <?php if ($c['relevos']): ?>
+            <p class="text-sm" style="margin:10px 0 0;">
+              <i class="bi bi-people"></i> Relevos:
+              <?php foreach ($c['relevos'] as $i => $r): ?>
+                <?= $i ? ' · ' : '' ?><strong><?= e(format_relevo($r['prueba'])) ?></strong>
+                <?= e(CE_RELEVO_SEXOS[$r['sexo']]) ?><?= $r['nombre'] ? ' (' . e($r['nombre']) . ')' : '' ?>
+                — <?= e(relevo_nombre_posta($r['prueba'], (int)$r['posicion'])) ?><?= $r['parcial'] ? ' · ' . e($r['parcial']) : '' ?><?= $r['tiempo'] ? ' (final ' . e($r['tiempo']) . ')' : '' ?>
+              <?php endforeach; ?>
+            </p>
+          <?php endif; ?>
+        </div>
+      <?php endforeach; ?>
+    </div>
+  <?php endif; ?>
+
   <h1>Mis tiempos de competición</h1>
 
   <?php if (!$tiempos): ?>
