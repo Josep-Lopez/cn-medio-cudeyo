@@ -2,9 +2,34 @@
 require_once dirname(__DIR__, 2) . '/config/db.php';
 require_once dirname(__DIR__, 2) . '/includes/auth.php';
 require_once dirname(__DIR__, 2) . '/includes/layout.php';
+require_once dirname(__DIR__, 2) . '/includes/records_relevos.php';
 
 require_admin_area(['director_tecnico']);
 $admin_user = current_user();
+
+// --- Gestión de récords de relevo (manuales) ---
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    csrf_verify();
+    $accion = $_POST['accion'] ?? '';
+    $volverPiscina = in_array($_POST['piscina'] ?? '', ['25m', '50m'], true) ? $_POST['piscina'] : '25m';
+    try {
+        if ($accion === 'guardar_relevo') {
+            $id = (int)($_POST['id'] ?? 0);
+            records_relevos_guardar($pdo, $id ?: null, $_POST, (int)$admin_user['id']);
+            flash($id ? 'Récord de relevo actualizado.' : 'Récord de relevo añadido.', 'success');
+        } elseif ($accion === 'eliminar_relevo') {
+            records_relevos_eliminar($pdo, (int)($_POST['id'] ?? 0));
+            flash('Récord de relevo eliminado.', 'success');
+        }
+    } catch (Throwable $ex) {
+        flash('Error: ' . $ex->getMessage(), 'danger');
+        $extra = !empty($_POST['id']) ? '&editar_relevo=' . (int)$_POST['id'] : '';
+        header('Location: /admin/records?piscina=' . $volverPiscina . $extra . '#gestion-relevos');
+        exit;
+    }
+    header('Location: /admin/records?piscina=' . $volverPiscina . '#gestion-relevos');
+    exit;
+}
 
 $PRUEBAS = ['50L', '100L', '200L', '400L', '800L', '1500L', '50E', '100E', '200E', '50B', '100B', '200B', '50M', '100M', '200M', '100X', '200X', '400X'];
 
@@ -56,6 +81,11 @@ $records = ['M' => [], 'F' => []]; // [sexo][prueba] = row
 foreach ($stmt->fetchAll() as $row) {
     $records[$row['sexo']][$row['prueba']] = $row;
 }
+
+$relevosVigentes = records_relevos_vigentes($pdo, $filterPiscina);
+$relevosTodos = records_relevos_listar($pdo, $filterPiscina);
+$editarRelevo = isset($_GET['editar_relevo']) ? records_relevos_obtener($pdo, (int)$_GET['editar_relevo']) : null;
+$nombresSocios = $pdo->query("SELECT nombre FROM users WHERE rol = 'socio' ORDER BY nombre")->fetchAll(PDO::FETCH_COLUMN);
 
 /**
  * Renderiza una tabla de récords para un sexo concreto.
@@ -130,10 +160,11 @@ function tabla_records_unica(array $records, array $PRUEBAS, string $piscina, st
 }
 
 render_header('Récords del club', 'admin-ranking');
-render_admin_layout('ranking', function () use ($PRUEBAS, $records, $filterPrueba, $filterPiscina, $filterNadador, $temporada_actual) {
+render_admin_layout('ranking', function () use ($PRUEBAS, $records, $filterPrueba, $filterPiscina, $filterNadador, $temporada_actual, $relevosVigentes, $relevosTodos, $editarRelevo, $nombresSocios) {
 ?>
 
 <h1 style="margin-bottom:6px;">Récords del club</h1>
+<?php render_flash(); ?>
 
 <div class="ranking-tabs">
   <a href="/admin/ranking" class="js-loading-link">Ranking</a>
@@ -202,6 +233,160 @@ $base_filters = [
 </p>
 
 <?php tabla_records_unica($records, $PRUEBAS, $filterPiscina, $temporada_actual); ?>
+
+<?php if ($filterPrueba === '') render_tabla_records_relevos($relevosVigentes, $filterPiscina, $temporada_actual); ?>
+
+<?php
+$vigentesIds = [];
+foreach ($relevosVigentes as $porPrueba) foreach ($porPrueba as $r) $vigentesIds[(int)$r['id']] = true;
+$rv = $editarRelevo ?? ['id' => 0, 'prueba' => '4x50L', 'piscina' => $filterPiscina, 'sexo' => 'M', 'tiempo' => '', 'fecha' => date('Y-m-d'), 'lugar' => '',
+                        'nadador1' => '', 'nadador2' => '', 'nadador3' => '', 'nadador4' => ''];
+?>
+<div class="card" id="gestion-relevos" style="padding:24px;margin-top:32px;scroll-margin-top:90px;">
+  <h3 style="margin-top:0;">Gestionar récords de relevo · <?= e($filterPiscina) ?></h3>
+  <p class="text-muted text-sm">Los récords de relevo se introducen a mano. Si añades un tiempo mejor, pasa a ser el récord vigente; los anteriores quedan como histórico (puedes borrarlos).</p>
+
+  <?php if ($relevosTodos): ?>
+  <div class="table-wrapper" style="margin-bottom:20px;">
+    <table>
+      <thead><tr><th>Relevo</th><th>Categoría</th><th>Tiempo</th><th>Nadadores</th><th>Fecha</th><th>Lugar</th><th></th></tr></thead>
+      <tbody>
+        <?php foreach ($relevosTodos as $r): ?>
+          <tr>
+            <td style="white-space:nowrap;"><?= e(format_relevo($r['prueba'])) ?></td>
+            <td><?= e(CE_RELEVO_SEXOS[$r['sexo']]) ?></td>
+            <td style="white-space:nowrap;"><span class="mark-time"><?= e($r['tiempo']) ?></span>
+              <?php if (isset($vigentesIds[(int)$r['id']])): ?><span class="badge badge-blue" style="margin-left:4px;">Récord</span><?php endif; ?></td>
+            <td class="text-sm"><?= records_relevos_nadadores($r, ' · ') ?></td>
+            <td class="text-sm text-muted"><?= date('d/m/Y', strtotime($r['fecha'])) ?></td>
+            <td class="text-sm text-muted"><?= e($r['lugar']) ?></td>
+            <td style="white-space:nowrap;text-align:right;">
+              <a href="/admin/records?piscina=<?= e($filterPiscina) ?>&editar_relevo=<?= (int)$r['id'] ?>#gestion-relevos" class="btn btn-gray btn-sm"><i class="bi bi-pencil"></i></a>
+              <form method="POST" action="/admin/records" class="js-confirm-relevo" style="display:inline;">
+                <?= csrf_field() ?>
+                <input type="hidden" name="accion" value="eliminar_relevo">
+                <input type="hidden" name="id" value="<?= (int)$r['id'] ?>">
+                <input type="hidden" name="piscina" value="<?= e($filterPiscina) ?>">
+                <button type="submit" class="btn btn-gray btn-sm"><i class="bi bi-trash"></i></button>
+              </form>
+            </td>
+          </tr>
+        <?php endforeach; ?>
+      </tbody>
+    </table>
+  </div>
+  <?php endif; ?>
+
+  <form method="POST" action="/admin/records" style="border-top:1px solid #eee;padding-top:16px;">
+    <?= csrf_field() ?>
+    <input type="hidden" name="accion" value="guardar_relevo">
+    <input type="hidden" name="id" value="<?= (int)$rv['id'] ?>">
+    <h4 style="margin:0 0 12px;"><?= $editarRelevo ? 'Editar récord de relevo' : 'Añadir récord de relevo' ?></h4>
+    <div class="d-flex gap-3 flex-wrap">
+      <div class="form-group" style="flex:1;min-width:150px;">
+        <label class="form-label">Relevo *</label>
+        <select name="prueba" class="form-control" id="rr-prueba">
+          <?php foreach (array_keys(CE_RELEVOS) as $k): ?>
+            <option value="<?= $k ?>" <?= $rv['prueba'] === $k ? 'selected' : '' ?>><?= e(format_relevo($k)) ?></option>
+          <?php endforeach; ?>
+        </select>
+      </div>
+      <div class="form-group" style="flex:1;min-width:110px;">
+        <label class="form-label">Piscina *</label>
+        <select name="piscina" class="form-control">
+          <?php foreach (['25m', '50m'] as $pp): ?>
+            <option value="<?= $pp ?>" <?= $rv['piscina'] === $pp ? 'selected' : '' ?>><?= $pp ?></option>
+          <?php endforeach; ?>
+        </select>
+      </div>
+      <div class="form-group" style="flex:1;min-width:130px;">
+        <label class="form-label">Categoría *</label>
+        <select name="sexo" class="form-control">
+          <?php foreach (CE_RELEVO_SEXOS as $k => $label): ?>
+            <option value="<?= $k ?>" <?= $rv['sexo'] === $k ? 'selected' : '' ?>><?= $label ?></option>
+          <?php endforeach; ?>
+        </select>
+      </div>
+      <div class="form-group" style="flex:1;min-width:120px;">
+        <label class="form-label">Tiempo *</label>
+        <input type="text" name="tiempo" class="form-control" placeholder="1:52.30" required value="<?= e($rv['tiempo']) ?>">
+      </div>
+    </div>
+    <div class="d-flex gap-3 flex-wrap">
+      <div class="form-group" style="flex:1;min-width:150px;">
+        <label class="form-label">Fecha *</label>
+        <input type="date" name="fecha" class="form-control" required value="<?= e($rv['fecha']) ?>">
+      </div>
+      <div class="form-group" style="flex:2;min-width:200px;">
+        <label class="form-label">Lugar</label>
+        <input type="text" name="lugar" class="form-control" maxlength="255" value="<?= e($rv['lugar']) ?>">
+      </div>
+    </div>
+    <div class="d-flex gap-3 flex-wrap">
+      <?php for ($i = 1; $i <= 4; $i++): ?>
+        <div class="form-group" style="flex:1;min-width:200px;">
+          <label class="form-label relevo-posta-label" data-pos="<?= $i ?>"><?= e(relevo_nombre_posta($rv['prueba'], $i)) ?> *</label>
+          <div class="d-flex gap-2">
+            <input type="text" name="nadador<?= $i ?>" class="form-control" maxlength="100" list="socios-nombres" required placeholder="Nombre" value="<?= e($rv['nadador' . $i]) ?>" style="flex:1;min-width:0;">
+            <input type="text" name="parcial<?= $i ?>" class="form-control" maxlength="20" placeholder="Tiempo" inputmode="decimal" title="Tiempo de su posta (opcional)" value="<?= e($rv['parcial' . $i] ?? '') ?>" style="width:90px;flex:none;">
+          </div>
+        </div>
+      <?php endfor; ?>
+    </div>
+    <p class="text-muted text-sm" style="margin:-6px 0 12px;">El tiempo de cada posta es opcional. Si el nombre coincide con un socio (usa la lista de sugerencias), el récord aparece también en su perfil.</p>
+    <datalist id="socios-nombres">
+      <?php foreach ($nombresSocios as $n): ?><option value="<?= e($n) ?>"><?php endforeach; ?>
+    </datalist>
+    <div style="display:flex;gap:12px;">
+      <button type="submit" class="btn btn-primary"><?= $editarRelevo ? 'Guardar cambios' : 'Añadir récord' ?></button>
+      <?php if ($editarRelevo): ?><a href="/admin/records?piscina=<?= e($filterPiscina) ?>#gestion-relevos" class="btn btn-gray">Cancelar</a><?php endif; ?>
+    </div>
+  </form>
+</div>
+
+<script>
+(function () {
+  var sel = document.getElementById('rr-prueba'), estilos = ['Espalda', 'Braza', 'Mariposa', 'Libre'];
+  function etiquetas() {
+    var x = sel.value.slice(-1) === 'X';
+    document.querySelectorAll('.relevo-posta-label').forEach(function (l) {
+      var p = +l.dataset.pos;
+      l.textContent = (x ? estilos[p - 1] : 'Posta ' + p) + ' *';
+    });
+  }
+  sel.addEventListener('change', etiquetas);
+})();
+</script>
+
+<div id="modal-relevo" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:9999;align-items:center;justify-content:center;">
+  <div style="background:#fff;padding:24px;border-radius:8px;max-width:420px;width:calc(100% - 32px);">
+    <h3 style="margin:0 0 12px;">¿Eliminar récord de relevo?</h3>
+    <p>Esta acción no se puede deshacer.</p>
+    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:16px;">
+      <button type="button" class="btn btn-gray" id="modal-relevo-no">Cancelar</button>
+      <button type="button" class="btn" style="background:#dc2626;color:#fff;" id="modal-relevo-si">Eliminar</button>
+    </div>
+  </div>
+</div>
+<script>
+(function () {
+  var modal = document.getElementById('modal-relevo'), pendiente = null;
+  document.querySelectorAll('form.js-confirm-relevo').forEach(function (f) {
+    f.addEventListener('submit', function (ev) {
+      if (f.dataset.ok) return;
+      ev.preventDefault();
+      pendiente = f;
+      modal.style.display = 'flex';
+    });
+  });
+  document.getElementById('modal-relevo-no').onclick = function () { modal.style.display = 'none'; pendiente = null; };
+  document.getElementById('modal-relevo-si').onclick = function () {
+    if (!pendiente) return;
+    pendiente.dataset.ok = '1';
+    pendiente.submit();
+  };
+})();
+</script>
 
 <script>
 document.querySelectorAll('.js-loading-form select').forEach(select => {

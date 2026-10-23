@@ -3,6 +3,7 @@ require_once dirname(__DIR__, 2) . '/config/db.php';
 require_once dirname(__DIR__, 2) . '/includes/auth.php';
 require_once dirname(__DIR__, 2) . '/includes/layout.php';
 require_once dirname(__DIR__, 2) . '/includes/competicion_entrenador.php';
+require_once dirname(__DIR__, 2) . '/includes/records_relevos.php';
 require_once dirname(__DIR__, 2) . '/includes/asistencia.php';
 require_once dirname(__DIR__, 2) . '/includes/entrenos.php';
 
@@ -99,11 +100,13 @@ $nombre_mes = ucfirst($meses_es[(int)date('m', strtotime($fecha_inicio)) - 1]) .
 $anio = (int)substr($mes, 0, 4);
 [$anio_presente, $anio_registrado, $anio_pct] = resumen_asistencia_anio($pdo, [$id], $anio)[$id];
 
+$records_relevos = records_relevos_de_usuario($pdo, $id);
+
 render_header('Perfil de ' . $nadador['nombre'], 'admin-deportistas');
 render_admin_layout('deportistas', function() use (
     $nadador, $marcas, $temporada, $temporadas_disp, $filtroPrueba, $filtroPiscina, $tiempos, $entrenos, $mes,
     $dias_mes, $asistencia_data, $mes_anterior, $mes_siguiente, $nombre_mes,
-    $total_presente, $total_registrado, $pct, $anio, $anio_presente, $anio_registrado, $anio_pct
+    $total_presente, $total_registrado, $pct, $anio, $anio_presente, $anio_registrado, $anio_pct, $records_relevos
 ) {
 ?>
 
@@ -158,6 +161,14 @@ render_admin_layout('deportistas', function() use (
     </div>
   <?php endif; ?>
 </div>
+
+<?php if ($records_relevos): ?>
+<!-- Récords de relevo -->
+<div class="card mb-6">
+  <h2 style="font-size:15px;font-weight:700;margin-bottom:14px;"><i class="bi bi-trophy-fill" style="color:#15803d;"></i> Récords de relevo del club</h2>
+  <?php render_records_relevos_usuario($records_relevos); ?>
+</div>
+<?php endif; ?>
 
 <!-- Tiempos de competición -->
 <div class="card mb-6">

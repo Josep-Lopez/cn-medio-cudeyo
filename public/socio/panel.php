@@ -3,6 +3,7 @@ require_once dirname(__DIR__, 2) . '/config/db.php';
 require_once dirname(__DIR__, 2) . '/includes/auth.php';
 require_once dirname(__DIR__, 2) . '/includes/layout.php';
 require_once dirname(__DIR__, 2) . '/includes/minimas.php';
+require_once dirname(__DIR__, 2) . '/includes/records_relevos.php';
 
 require_login();
 $user = current_user();
@@ -129,6 +130,8 @@ $records_batidos_p = [
     '50m' => count($records_historicos_set['50m']),
 ];
 $records_actuales = $records_actuales_p['25m'] + $records_actuales_p['50m'];
+$records_relevos_user = records_relevos_de_usuario($pdo, (int)$user['id']);
+$records_relevos_vigentes = count(array_filter($records_relevos_user, fn($r) => $r['vigente']));
 $records_batidos = $records_batidos_p['25m'] + $records_batidos_p['50m'];
 
 // Top 10 absoluto: en cuántas prueba+piscina está este usuario en el top 10
@@ -241,6 +244,11 @@ render_header('Mi panel', 'socio-panel');
             <span style="font-size:13px;font-weight:700;color:#a16207;" id="recBatidoNum" data-p25="0" data-p50="0">0 históricos</span>
             <?php endif; ?>
           </div>
+          <?php if ($records_relevos_user): ?>
+          <div style="margin-top:4px;">
+            <span style="font-size:13px;font-weight:700;color:var(--blue);cursor:pointer;text-decoration:underline dotted;" title="Ver récords de relevo" onclick="openRelevosModal()"><i class="bi bi-people-fill"></i> <?= count($records_relevos_user) ?> en relevo<?= count($records_relevos_user) !== 1 ? 's' : '' ?><?= $records_relevos_vigentes ? ' (' . $records_relevos_vigentes . ' vigente' . ($records_relevos_vigentes !== 1 ? 's' : '') . ')' : '' ?></span>
+          </div>
+          <?php endif; ?>
         </div>
       </div>
     </div>
@@ -454,6 +462,13 @@ function openActualesModal() {
 function closeActualesModal() {
   document.getElementById('actualesModal').style.display = 'none';
 }
+function openRelevosModal() {
+  document.getElementById('relevosModal').style.display = 'flex';
+}
+function closeRelevosModal() {
+  var m = document.getElementById('relevosModal');
+  if (m) m.style.display = 'none';
+}
 function openHistoricosModal() {
   document.getElementById('historicosModal').style.display = 'flex';
 }
@@ -461,7 +476,7 @@ function closeHistoricosModal() {
   document.getElementById('historicosModal').style.display = 'none';
 }
 document.addEventListener('keydown', function(e) {
-  if (e.key === 'Escape') { closeActualesModal(); closeHistoricosModal(); }
+  if (e.key === 'Escape') { closeActualesModal(); closeHistoricosModal(); closeRelevosModal(); }
 });
 </script>
 
@@ -564,5 +579,25 @@ document.addEventListener('keydown', function(e) {
     </div>
   </div>
 </div>
+
+<?php if ($records_relevos_user): ?>
+<!-- Modal Récords de relevo -->
+<div id="relevosModal" class="modal-overlay" style="display:none;" onclick="if(event.target===this)closeRelevosModal()">
+  <div class="modal-box" style="max-width:760px;width:95%;">
+    <div class="modal-header">
+      <h3><i class="bi bi-people-fill" style="color:var(--blue);margin-right:8px;"></i>Mis récords de relevo</h3>
+      <button class="modal-close" onclick="closeRelevosModal()"><i class="bi bi-x-lg"></i></button>
+    </div>
+    <div class="modal-body" style="padding:16px 24px;">
+      <p class="text-sm text-muted" style="margin:0 0 14px;">Relevos del club que han sido récord y en los que has nadado.</p>
+      <?php render_records_relevos_usuario($records_relevos_user); ?>
+    </div>
+    <div class="modal-footer" style="justify-content:flex-end;">
+      <a href="/socio/records" class="btn btn-secondary js-loading-link" style="font-size:13px;">Ver tabla de récords</a>
+      <button class="btn btn-primary" onclick="closeRelevosModal()">Cerrar</button>
+    </div>
+  </div>
+</div>
+<?php endif; ?>
 
 <?php render_footer(); ?>

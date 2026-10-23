@@ -2,6 +2,7 @@
 require_once dirname(__DIR__, 2) . '/config/db.php';
 require_once dirname(__DIR__, 2) . '/includes/auth.php';
 require_once dirname(__DIR__, 2) . '/includes/layout.php';
+require_once dirname(__DIR__, 2) . '/includes/records_relevos.php';
 
 require_login();
 require_nadador_activo();
@@ -207,6 +208,8 @@ function tabla_records_unica(array $records, array $PRUEBAS, string $piscina, in
     </p>
 
     <?php tabla_records_unica($records, $PRUEBAS, $filterPiscina, (int)$user['id'], $temporada_actual); ?>
+
+    <?php if ($filterPrueba === '') render_tabla_records_relevos(records_relevos_vigentes($pdo, $filterPiscina), $filterPiscina, $temporada_actual); ?>
   </div>
 
   <script>
