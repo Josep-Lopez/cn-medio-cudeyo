@@ -26,12 +26,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!$d || $d->format('Y-m-d') !== $fecha || !puede_autoregistrar_dia($fecha, $liga)) {
         flash('No puedes apuntarte ese día.', 'danger');
     } elseif ($action === 'apuntar') {
-        // Solo crea o edita si no hay un registro ya verificado por el entrenador.
+        // Solo crea o edita si no hay un registro ya verificado por el entrenador
+        // (salvo falta en día extra, que pasa a presente pendiente de verificar).
+        $sobrescribe = es_dia_extra($fecha) ? 1 : 0;
         $pdo->prepare('
             INSERT INTO asistencia (user_id, fecha, presente, verificada, observaciones, registrado_por)
             VALUES (?, ?, 1, 0, ?, ?)
-            ON DUPLICATE KEY UPDATE observaciones = IF(verificada = 0, VALUES(observaciones), observaciones)
-        ')->execute([$user['id'], $fecha, mb_substr($obs, 0, 500) ?: null, $user['id']]);
+            ON DUPLICATE KEY UPDATE
+                observaciones  = IF(verificada = 0 OR (presente = 0 AND ?), VALUES(observaciones), observaciones),
+                registrado_por = IF(presente = 0 AND ?, VALUES(registrado_por), registrado_por),
+                verificada     = IF(presente = 0 AND ?, 0, verificada),
+                presente       = IF(presente = 0 AND ?, 1, presente)
+        ')->execute([$user['id'], $fecha, mb_substr($obs, 0, 500) ?: null, $user['id'],
+                     $sobrescribe, $sobrescribe, $sobrescribe, $sobrescribe]);
         flash('Entrenamiento del ' . $d->format('d/m/Y') . ' apuntado. El entrenador lo verificará.', 'success');
     } elseif ($action === 'quitar') {
         $pdo->prepare('DELETE FROM asistencia WHERE user_id=? AND fecha=? AND verificada=0')->execute([$user['id'], $fecha]);
@@ -99,7 +106,7 @@ render_header('Mi asistencia', 'socio-asistencia');
 
   <div class="card">
     <?php render_calendario_asistencia($dias_mes, $asistencia_data,
-        fn($dia, $reg) => puede_autoregistrar_dia($dia, $liga) && ($reg === null || !$reg['verificada'])); ?>
+        fn($dia, $reg) => autoregistro_editable($dia, $liga, $reg)); ?>
     <p class="text-muted text-sm" style="margin-top:10px;">
       <?= $liga === 'master'
           ? 'Haz clic en un día para apuntar que fuiste a entrenar.'

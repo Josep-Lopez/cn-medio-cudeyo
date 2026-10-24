@@ -97,6 +97,19 @@ function puede_autoregistrar_dia(string $fecha, ?string $liga): bool
     return $liga === 'master' || es_dia_extra($fecha);
 }
 
+// Un registro verificado no se toca, salvo una falta en día extra: no cuenta, y aparece cuando
+// el entrenador pasa lista un finde/festivo (o marca festivo después), así que el deportista puede apuntarse.
+function falta_sobrescribible(string $fecha, ?array $registro): bool
+{
+    return $registro !== null && !$registro['presente'] && es_dia_extra($fecha);
+}
+
+function autoregistro_editable(string $fecha, ?string $liga, ?array $registro): bool
+{
+    return puede_autoregistrar_dia($fecha, $liga)
+        && ($registro === null || !$registro['verificada'] || falta_sobrescribible($fecha, $registro));
+}
+
 // Pinta un calendario mensual de asistencia (grid Lun-Dom).
 // $dias_mes: array de fechas 'Y-m-d' del mes.
 // $asistencia_data: [fecha => ['presente'=>0|1, 'verificada'=>0|1, 'observaciones'=>?string]]
