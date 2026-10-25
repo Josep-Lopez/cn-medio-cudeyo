@@ -21,6 +21,10 @@ if (!$nadador) {
     exit;
 }
 
+$TABS = ['asistencia' => 'Asistencia', 'entrenos' => 'Entrenos', 'competiciones' => 'Competiciones', 'marcas' => 'Marcas', 'records' => 'Récords'];
+$tab = $_GET['tab'] ?? 'asistencia';
+if (!isset($TABS[$tab])) $tab = 'asistencia';
+
 // --- POST: cambiar asistencia de un día desde el calendario ---
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'asistencia_dia') {
     csrf_verify();
@@ -41,7 +45,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'asist
         ')->execute([$id, $fecha, $estado === 'presente' ? 1 : 0, $obs ?: null, current_user()['id']]);
         flash('Asistencia del ' . $d->format('d/m/Y') . ' guardada.', 'success');
     }
-    header('Location: ' . $_SERVER['REQUEST_URI'] . '#asistencia');
+    header('Location: /admin/deportista?' . http_build_query(['id' => $id, 'tab' => 'asistencia', 'mes' => substr($fecha, 0, 7)]));
     exit;
 }
 
@@ -102,27 +106,60 @@ $anio = (int)substr($mes, 0, 4);
 
 $records_relevos = records_relevos_de_usuario($pdo, $id);
 
+// --- Récords individuales: pruebas en las que tiene la mejor marca vigente del club
+// (mismo cálculo que /admin/records: todas las temporadas, sin parciales, por prueba × piscina × sexo) ---
+$stmt = $pdo->prepare("
+    WITH ranked AS (
+        SELECT m.id, m.user_id, m.prueba, m.piscina, m.tiempo, m.tiempo_seg, m.fecha_marca, m.lugar, m.temporada,
+               ROW_NUMBER() OVER (
+                   PARTITION BY m.prueba, m.piscina, u.sexo
+                   ORDER BY m.tiempo_seg ASC, m.fecha_marca ASC, m.id ASC
+               ) AS rn
+        FROM marcas m
+        JOIN users u ON u.id = m.user_id
+        WHERE u.estado = 'activo' AND m.es_parcial = 0
+    )
+    SELECT * FROM ranked WHERE rn = 1 AND user_id = ?
+    ORDER BY piscina, FIELD(prueba, $orden_pruebas)
+");
+$stmt->execute([$id]);
+$records_individuales = $stmt->fetchAll();
+
+$num_tab = [
+    'records'       => count($records_individuales) + count($records_relevos),
+    'competiciones' => count($tiempos),
+];
+
 render_header('Perfil de ' . $nadador['nombre'], 'admin-deportistas');
 render_admin_layout('deportistas', function() use (
-    $nadador, $marcas, $temporada, $temporadas_disp, $filtroPrueba, $filtroPiscina, $tiempos, $entrenos, $mes,
+    $nadador, $marcas, $temporada, $temporadas_disp, $filtroPrueba, $filtroPiscina, $tiempos, $entrenos,
     $dias_mes, $asistencia_data, $mes_anterior, $mes_siguiente, $nombre_mes,
-    $total_presente, $total_registrado, $pct, $anio, $anio_presente, $anio_registrado, $anio_pct, $records_relevos
+    $total_presente, $total_registrado, $pct, $anio, $anio_presente, $anio_registrado, $anio_pct, $records_relevos,
+    $records_individuales, $TABS, $tab, $num_tab
 ) {
+    $temporada_actual = $temporadas_disp[0];
 ?>
 
 <a href="/admin/deportistas" class="btn btn-gray btn-sm mb-4"><i class="bi bi-arrow-left"></i> Volver al listado</a>
 
 <h1><?= e($nadador['nombre']) ?></h1>
-<p class="text-muted"><?= e(format_liga($nadador['liga'] ?? '')) ?> · <?= e($nadador['sexo'] ?? '') ?></p>
+<p class="text-muted" style="margin-bottom:20px;"><?= e(format_liga($nadador['liga'] ?? '')) ?> · <?= e($nadador['sexo'] ?? '') ?></p>
 <?php render_flash(); ?>
 
+<nav class="ranking-tabs ce-tabs">
+  <?php foreach ($TABS as $k => $label): ?>
+    <a href="?<?= e(http_build_query(['id' => $nadador['id'], 'tab' => $k])) ?>" class="<?= $tab === $k ? 'tab--active' : '' ?>"><?= $label ?><?= !empty($num_tab[$k]) ? ' <span class="text-muted">(' . $num_tab[$k] . ')</span>' : '' ?></a>
+  <?php endforeach; ?>
+</nav>
+
+<?php if ($tab === 'marcas'): ?>
 <!-- Marcas oficiales -->
 <div class="card mb-6">
   <div class="d-flex align-center justify-between flex-wrap gap-2 mb-4">
     <h2 style="font-size:15px;font-weight:700;margin:0;">Marcas oficiales</h2>
     <form method="GET" class="d-flex gap-2 flex-wrap" style="margin:0;">
       <input type="hidden" name="id" value="<?= (int)$nadador['id'] ?>">
-      <input type="hidden" name="mes" value="<?= e($mes) ?>">
+      <input type="hidden" name="tab" value="marcas">
       <select name="temporada" class="form-control" style="width:auto;" onchange="this.form.submit()">
         <?php foreach ($temporadas_disp as $t): ?>
           <option value="<?= e($t) ?>" <?= $temporada === $t ? 'selected' : '' ?>><?= e($t) ?></option>
@@ -162,14 +199,45 @@ render_admin_layout('deportistas', function() use (
   <?php endif; ?>
 </div>
 
-<?php if ($records_relevos): ?>
+<?php elseif ($tab === 'records'): ?>
+<!-- Récords individuales -->
+<div class="card mb-6">
+  <h2 style="font-size:15px;font-weight:700;margin-bottom:14px;"><i class="bi bi-trophy-fill" style="color:#15803d;"></i> Récords individuales del club</h2>
+  <?php if (!$records_individuales): ?>
+    <p class="text-muted">No tiene ningún récord individual vigente.</p>
+  <?php else: ?>
+    <div class="table-wrapper">
+      <table>
+        <thead><tr><th>Prueba</th><th>Piscina</th><th>Tiempo</th><th>AQUA</th><th>Fecha</th><th>Lugar</th></tr></thead>
+        <tbody>
+          <?php foreach ($records_individuales as $r):
+              $wa = calcular_aqua((float)$r['tiempo_seg'], $r['prueba'], $r['piscina'], $nadador['sexo']);
+              $bg = $r['temporada'] === $temporada_actual ? ' style="background:#dcfce7;"' : ''; ?>
+            <tr<?= $bg ?>>
+              <td><strong><?= e(format_prueba($r['prueba'])) ?></strong></td>
+              <td><?= e($r['piscina']) ?></td>
+              <td><span class="mark-time"><?= e($r['tiempo']) ?></span></td>
+              <td class="text-sm"><?= $wa !== null ? (int)$wa : '—' ?></td>
+              <td class="text-sm text-muted"><?= date('d/m/Y', strtotime($r['fecha_marca'])) ?></td>
+              <td class="text-sm text-muted"><?= e($r['lugar'] ?: '—') ?></td>
+            </tr>
+          <?php endforeach; ?>
+        </tbody>
+      </table>
+    </div>
+    <p class="text-muted text-sm" style="margin-top:10px;">En verde, los conseguidos esta temporada.</p>
+  <?php endif; ?>
+</div>
+
 <!-- Récords de relevo -->
 <div class="card mb-6">
   <h2 style="font-size:15px;font-weight:700;margin-bottom:14px;"><i class="bi bi-trophy-fill" style="color:#15803d;"></i> Récords de relevo del club</h2>
-  <?php render_records_relevos_usuario($records_relevos); ?>
+  <?php if (!$records_relevos): ?>
+    <p class="text-muted">No ha nadado ningún récord de relevo del club.</p>
+  <?php else: render_records_relevos_usuario($records_relevos); endif; ?>
 </div>
-<?php endif; ?>
 
+<?php elseif ($tab === 'competiciones'): ?>
 <!-- Tiempos de competición -->
 <div class="card mb-6">
   <h2 style="font-size:15px;font-weight:700;margin-bottom:14px;">Tiempos de competición</h2>
@@ -195,6 +263,7 @@ render_admin_layout('deportistas', function() use (
   <?php endif; ?>
 </div>
 
+<?php elseif ($tab === 'entrenos'): ?>
 <!-- Entrenos -->
 <div class="card mb-6">
   <h2 style="font-size:15px;font-weight:700;margin-bottom:14px;">Entrenos</h2>
@@ -221,15 +290,15 @@ render_admin_layout('deportistas', function() use (
   <?php endif; ?>
 </div>
 
+<?php elseif ($tab === 'asistencia'): ?>
 <!-- Asistencia -->
-<?php $filtros = array_filter(['temporada' => $temporada, 'prueba' => $filtroPrueba, 'piscina' => $filtroPiscina]); ?>
 <div class="card" id="asistencia">
   <div class="d-flex gap-3 align-center flex-wrap mb-4">
     <h2 style="font-size:15px;font-weight:700;margin:0;">Asistencia</h2>
     <div class="d-flex gap-2 align-center" style="margin-left:auto;">
-      <a href="?<?= e(http_build_query(['id' => $nadador['id'], 'mes' => $mes_anterior] + $filtros)) ?>#asistencia" class="btn btn-gray btn-sm"><i class="bi bi-chevron-left"></i></a>
+      <a href="?<?= e(http_build_query(['id' => $nadador['id'], 'tab' => 'asistencia', 'mes' => $mes_anterior])) ?>" class="btn btn-gray btn-sm"><i class="bi bi-chevron-left"></i></a>
       <span style="font-weight:600;min-width:140px;text-align:center;"><?= e($nombre_mes) ?></span>
-      <a href="?<?= e(http_build_query(['id' => $nadador['id'], 'mes' => $mes_siguiente] + $filtros)) ?>#asistencia" class="btn btn-gray btn-sm"><i class="bi bi-chevron-right"></i></a>
+      <a href="?<?= e(http_build_query(['id' => $nadador['id'], 'tab' => 'asistencia', 'mes' => $mes_siguiente])) ?>" class="btn btn-gray btn-sm"><i class="bi bi-chevron-right"></i></a>
     </div>
     <div style="font-weight:700;">
       <?= $total_presente ?>/<?= $total_registrado ?>
@@ -247,6 +316,7 @@ render_admin_layout('deportistas', function() use (
   <?php render_calendario_asistencia($dias_mes, $asistencia_data, true); ?>
   <p class="text-muted text-sm" style="margin-top:10px;">Haz clic en un día para cambiar la asistencia.</p>
 </div>
+<?php endif; ?>
 
 <div class="modal-overlay" id="modal-asistencia" style="display:none;" onclick="if(event.target===this)cerrarModalAsistencia()">
   <div class="modal-box" style="max-width:400px;">
