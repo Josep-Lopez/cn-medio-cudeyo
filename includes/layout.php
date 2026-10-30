@@ -10,10 +10,11 @@ function render_header(string $title, string $activePage = '', string $extraHead
   if ($user && !$isAdmin && $pdo) {
     $stmtN = $pdo->prepare("
             SELECT COUNT(*) FROM comunicaciones c
-            WHERE (c.destinatario_tipo='todos' OR (c.destinatario_tipo='liga' AND c.destinatario_valor=?) OR (c.destinatario_tipo='individual' AND c.destinatario_valor=?))
+            WHERE (c.destinatario_tipo='todos' OR (c.destinatario_tipo='liga' AND c.destinatario_valor=?) OR (c.destinatario_tipo='individual' AND c.destinatario_valor=?)
+                   OR (c.destinatario_tipo='convocados' AND EXISTS (SELECT 1 FROM competicion_entrenador_convocados v WHERE v.competicion_id=c.destinatario_valor AND v.user_id=?)))
             AND c.id NOT IN (SELECT comunicacion_id FROM comunicaciones_leidas WHERE user_id=?)
         ");
-    $stmtN->execute([$user['liga'] ?? '', $user['id'], $user['id']]);
+    $stmtN->execute([$user['liga'] ?? '', $user['id'], $user['id'], $user['id']]);
     $notif_count = (int)$stmtN->fetchColumn();
   }
   $entrenos_nuevos = 0;

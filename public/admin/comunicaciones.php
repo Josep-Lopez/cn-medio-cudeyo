@@ -31,6 +31,15 @@ function comunicacion_editable(array $c): bool
 function num_destinatarios(PDO $pdo, array $c): int
 {
     if ($c['destinatario_tipo'] === 'individual') return 1;
+    if ($c['destinatario_tipo'] === 'convocados') {
+        $stmt = $pdo->prepare("
+            SELECT COUNT(*) FROM competicion_entrenador_convocados v
+            JOIN users u ON u.id = v.user_id
+            WHERE v.competicion_id = ? AND u.estado = 'activo'
+        ");
+        $stmt->execute([(int)$c['destinatario_valor']]);
+        return (int)$stmt->fetchColumn();
+    }
     $sql = "SELECT COUNT(*) FROM users WHERE estado = 'activo' AND rol = 'socio'";
     if ($c['destinatario_tipo'] === 'liga') {
         $stmt = $pdo->prepare($sql . ' AND liga = ?');
@@ -41,10 +50,14 @@ function num_destinatarios(PDO $pdo, array $c): int
     return (int)$stmt->fetchColumn();
 }
 
-function destinatario_label(array $c, array $usuarios_por_id): string
+function destinatario_label(array $c, array $usuarios_por_id, array $competiciones_por_id): string
 {
     if ($c['destinatario_tipo'] === 'todos') return 'Todos';
     if ($c['destinatario_tipo'] === 'liga') return 'Liga: ' . format_liga($c['destinatario_valor']);
+    if ($c['destinatario_tipo'] === 'convocados') {
+        $comp = $competiciones_por_id[(int)$c['destinatario_valor']] ?? null;
+        return 'Convocados: ' . ($comp ? $comp['nombre'] : 'competición eliminada');
+    }
     return $usuarios_por_id[$c['destinatario_valor']] ?? 'Individual';
 }
 
@@ -85,9 +98,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if (!$contenido) $errors[] = 'El contenido es obligatorio.';
         elseif (strlen($contenido) > 65000) $errors[] = 'El contenido es demasiado largo.';
         if (!in_array($tipo, ['mensaje', 'encuesta'], true)) $errors[] = 'Tipo inválido.';
-        if (!in_array($dest_tipo, ['todos', 'liga', 'individual'], true)) $errors[] = 'Destinatario inválido.';
+        if (!in_array($dest_tipo, ['todos', 'liga', 'individual', 'convocados'], true)) $errors[] = 'Destinatario inválido.';
         if ($dest_tipo === 'liga' && !in_array($dest_valor, COM_LIGAS, true)) $errors[] = 'Selecciona una liga.';
         if ($dest_tipo === 'individual' && empty($dest_valor)) $errors[] = 'Selecciona un usuario.';
+        if ($dest_tipo === 'convocados') {
+            $stmt = $pdo->prepare('SELECT 1 FROM competicion_entrenador WHERE id = ?');
+            $stmt->execute([(int)$dest_valor]);
+            if (!$stmt->fetchColumn()) $errors[] = 'Selecciona una competición.';
+        }
         if ($dest_tipo === 'todos') $dest_valor = null;
 
         $preguntas = [];
@@ -149,6 +167,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 $usuarios = $pdo->query("SELECT id, nombre, liga FROM users WHERE estado='activo' AND rol='socio' ORDER BY nombre")->fetchAll();
 $usuarios_por_id = array_column($usuarios, 'nombre', 'id');
 
+// Competiciones del entrenador para enviar a sus convocados
+$competiciones = $pdo->query('
+    SELECT c.id, c.nombre, c.fecha,
+           (SELECT COUNT(*) FROM competicion_entrenador_convocados v WHERE v.competicion_id = c.id) AS num_convocados
+    FROM competicion_entrenador c
+    ORDER BY c.fecha DESC, c.id DESC
+')->fetchAll();
+$competiciones_por_id = array_column($competiciones, null, 'id');
+
 // ── Vista ────────────────────────────────────────────────────────────────────
 $vista = 'listado';
 $detalle = null;
@@ -204,7 +231,10 @@ if (isset($_GET['ver'])) {
     } else {
         $form = [
             'id' => null, 'tipo' => ($_GET['nueva'] ?? '') === 'encuesta' ? 'encuesta' : 'mensaje',
-            'titulo' => '', 'contenido' => '', 'destinatario_tipo' => 'todos', 'destinatario_valor' => '',
+            'titulo' => '', 'contenido' => '',
+            // ?convocados=ID llega desde la ficha de la competición
+            'destinatario_tipo'  => isset($_GET['convocados']) ? 'convocados' : 'todos',
+            'destinatario_valor' => isset($_GET['convocados']) ? (string)(int)$_GET['convocados'] : '',
             'fecha_cierre' => '', 'preguntas' => [],
         ];
     }
@@ -232,7 +262,7 @@ function estado_encuesta_badge(array $c): string
 }
 
 render_header('Comunicaciones', 'admin-comunicaciones');
-render_admin_layout('comunicaciones', function() use ($vista, $comunicaciones, $usuarios, $usuarios_por_id, $detalle, $resultados, $num_dest, $form, $errors) {
+render_admin_layout('comunicaciones', function() use ($vista, $comunicaciones, $usuarios, $usuarios_por_id, $competiciones, $competiciones_por_id, $detalle, $resultados, $num_dest, $form, $errors) {
 ?>
 
 <h1>Comunicaciones</h1>
@@ -245,7 +275,7 @@ render_admin_layout('comunicaciones', function() use ($vista, $comunicaciones, $
     <div class="d-flex flex-wrap gap-2" style="align-items:center;">
       <span class="badge <?= $detalle['tipo'] === 'encuesta' ? 'badge-success' : 'badge-blue' ?>"><?= $detalle['tipo'] === 'encuesta' ? 'Encuesta' : 'Mensaje' ?></span>
       <?php if ($detalle['tipo'] === 'encuesta'): ?><?= estado_encuesta_badge($detalle) ?><?php endif; ?>
-      <span class="text-muted text-sm"><?= e(destinatario_label($detalle, $usuarios_por_id)) ?></span>
+      <span class="text-muted text-sm"><?= e(destinatario_label($detalle, $usuarios_por_id, $competiciones_por_id)) ?></span>
     </div>
     <div class="d-flex flex-wrap gap-2">
       <?php if (comunicacion_editable($detalle)): ?>
@@ -415,6 +445,7 @@ render_admin_layout('comunicaciones', function() use ($vista, $comunicaciones, $
             <option value="todos">Todos los socios</option>
             <option value="liga" <?= $dt === 'liga' ? 'selected' : '' ?>>Por liga</option>
             <option value="individual" <?= $dt === 'individual' ? 'selected' : '' ?>>Individual</option>
+            <option value="convocados" <?= $dt === 'convocados' ? 'selected' : '' ?>>Convocados a competición</option>
           </select>
         </div>
         <div class="form-group" style="margin:0;min-width:180px;display:none;" id="destLiga">
@@ -432,6 +463,15 @@ render_admin_layout('comunicaciones', function() use ($vista, $comunicaciones, $
             <option value="">— Seleccionar —</option>
             <?php foreach ($usuarios as $u): ?>
               <option value="<?= $u['id'] ?>" <?= $dt === 'individual' && $dv === (string)$u['id'] ? 'selected' : '' ?>><?= e($u['nombre']) ?><?= $u['liga'] ? ' · ' . e(format_liga($u['liga'])) : '' ?></option>
+            <?php endforeach; ?>
+          </select>
+        </div>
+        <div class="form-group" style="margin:0;min-width:240px;display:none;" id="destComp">
+          <label class="form-label">Competición</label>
+          <select name="destinatario_valor" class="form-control" id="destCompSelect">
+            <option value="">— Seleccionar —</option>
+            <?php foreach ($competiciones as $cp): ?>
+              <option value="<?= $cp['id'] ?>" <?= $dt === 'convocados' && $dv === (string)$cp['id'] ? 'selected' : '' ?>><?= e($cp['nombre']) ?> · <?= date('d/m/Y', strtotime($cp['fecha'])) ?> (<?= (int)$cp['num_convocados'] ?> convocado<?= (int)$cp['num_convocados'] !== 1 ? 's' : '' ?>)</option>
             <?php endforeach; ?>
           </select>
         </div>
@@ -490,6 +530,8 @@ function toggleDest() {
   document.getElementById('destUser').style.display = tipo === 'individual' ? '' : 'none';
   document.getElementById('destLigaSelect').disabled = tipo !== 'liga';
   document.getElementById('destUserSelect').disabled = tipo !== 'individual';
+  document.getElementById('destComp').style.display = tipo === 'convocados' ? '' : 'none';
+  document.getElementById('destCompSelect').disabled = tipo !== 'convocados';
   if (tipo === 'individual') {
     const sel = document.getElementById('destUserSelect');
     if (typeof initSearchable === 'function') initSearchable(sel);
@@ -534,6 +576,7 @@ document.getElementById('formCom').addEventListener('submit', function(ev) {
   const dt = document.getElementById('destTipo').value;
   if (dt === 'liga' && !document.getElementById('destLigaSelect').value) errs.push('Selecciona una liga.');
   if (dt === 'individual' && !document.getElementById('destUserSelect').value) errs.push('Selecciona un usuario.');
+  if (dt === 'convocados' && !document.getElementById('destCompSelect').value) errs.push('Selecciona una competición.');
   if (esEncuesta()) {
     JSON.parse(document.getElementById('preguntasJson').value || '[]').forEach(function(q, i) {
       if (!q.texto.trim()) errs.push('La pregunta ' + (i + 1) + ' no tiene texto.');
@@ -587,7 +630,7 @@ toggleDest();
             <tr>
               <td><span class="badge <?= $c['tipo'] === 'encuesta' ? 'badge-success' : 'badge-blue' ?>"><?= $c['tipo'] === 'encuesta' ? 'Encuesta' : 'Mensaje' ?></span></td>
               <td><a href="/admin/comunicaciones?ver=<?= $c['id'] ?>" style="font-weight:600;"><?= e($c['titulo']) ?></a></td>
-              <td class="text-sm"><?= e(destinatario_label($c, $usuarios_por_id)) ?></td>
+              <td class="text-sm"><?= e(destinatario_label($c, $usuarios_por_id, $competiciones_por_id)) ?></td>
               <td class="text-sm">
                 <?php if ($c['tipo'] === 'encuesta'): ?>
                   <?= estado_encuesta_badge($c) ?> <span class="text-muted"><?= (int)$c['envios'] ?> resp.</span>

@@ -170,6 +170,17 @@ $user_top10_total = $user_top10['25m'] + $user_top10['50m'];
 
 $entrenos_nuevos = contar_entrenos_nuevos($pdo, (int)$user['id']);
 
+// Próximas competiciones a las que el entrenador le ha convocado
+$stmt = $pdo->prepare('
+    SELECT c.id, c.nombre, c.fecha
+    FROM competicion_entrenador_convocados v
+    JOIN competicion_entrenador c ON c.id = v.competicion_id
+    WHERE v.user_id = ? AND c.fecha >= CURDATE()
+    ORDER BY c.fecha, c.id
+');
+$stmt->execute([(int)$user['id']]);
+$proximas_convocatorias = $stmt->fetchAll();
+
 render_header('Mi panel', 'socio-panel');
 ?>
 
@@ -200,6 +211,15 @@ render_header('Mi panel', 'socio-panel');
     <a href="/socio/entrenos" class="alert alert-info" style="display:flex;align-items:center;gap:10px;text-decoration:none;">
       <i class="bi bi-clipboard2-pulse-fill" style="font-size:20px;flex-shrink:0;"></i>
       <span>Tu entrenador ha publicado <strong><?= $entrenos_nuevos ?> entreno<?= $entrenos_nuevos > 1 ? 's' : '' ?> nuevo<?= $entrenos_nuevos > 1 ? 's' : '' ?></strong>. Pulsa para verlo<?= $entrenos_nuevos > 1 ? 's' : '' ?>.</span>
+    </a>
+  <?php endif; ?>
+
+  <?php if ($proximas_convocatorias): ?>
+    <a href="/socio/competiciones" class="alert alert-info" style="display:flex;align-items:center;gap:10px;text-decoration:none;">
+      <i class="bi bi-trophy-fill" style="font-size:20px;flex-shrink:0;"></i>
+      <span>Estás convocado/a a
+        <?php foreach ($proximas_convocatorias as $i => $pc): ?><?= $i ? ', ' : '' ?><strong><?= e($pc['nombre']) ?></strong> (<?= date('d/m', strtotime($pc['fecha'])) ?>)<?php endforeach; ?>.
+        Pulsa para ver tus pruebas.</span>
     </a>
   <?php endif; ?>
 

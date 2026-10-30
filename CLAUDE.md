@@ -88,7 +88,7 @@ cn-medio-cudeyo/
         ├── records.php        ← Récords del club (mejor marca vigente por prueba×piscina×sexo)
         ├── puntos-aqua.php    ← Ranking equipo por puntos AQUA (suma N mejores; filtro 1/2/3/4/8/18)
         ├── comunicaciones.php ← Mensajes recibidos + responder encuestas
-        ├── competiciones.php  ← Mis convocatorias (pruebas, marca, mínima, relevos) + mis tiempos de competición
+        ├── competiciones.php  ← Mis convocatorias (próximas/anteriores: pruebas, marca, mínima, relevos, comunicados) + mis tiempos de competición
         ├── competicion_tiempo.php ← Detalle de tiempo propio + hilo de comentarios (solo el dueño o admin)
         └── entrenos.php       ← Entrenos de mis grupos (solo los publicados tras entrar al grupo); marca vistos
 ```
@@ -171,8 +171,8 @@ render_directiva_layout($activePage, fn)   // Sidebar directiva + main
 | `competicion_entrenador_tiempos` | Tiempos por nadador×prueba×competición, con parciales en texto libre |
 | `competicion_entrenador_convocados` / `competicion_entrenador_pruebas` | Nadadores convocados y sus pruebas; la mejor marca (ventana `marcas_desde/hasta`, sin tiempos de la propia competición) se guarda como foto y se recalcula al cambiar datos/mínimas |
 | `competicion_entrenador_minimas` | Mínimas propias de una competición (`minimas_fuente='propias'`): prueba × piscina × sexo × rango año nacimiento (gana el rango más estrecho) |
-| `competicion_entrenador_relevos` / `competicion_entrenador_relevo_nadadores` | Relevos (4x50/100/200 L, 4x50/100 X; M/F/X mixto 2+2) con 4 postas (tiempo de posta opcional) y tiempo final opcional; estimado = suma mejores marcas |
-| `comunicaciones` | Mensajes y encuestas (destinatario todos/liga/individual; encuestas: `fecha_cierre`, `cerrada`) |
+| `competicion_entrenador_relevos` / `competicion_entrenador_relevo_nadadores` | Relevos (4x50/100/200 L, 8x50 L, 4x50/100 X; M/F/X mixto mitad y mitad) con 4 u 8 postas (`relevo_num_postas()`, tiempo de posta opcional) y tiempo final opcional; estimado = suma mejores marcas |
+| `comunicaciones` | Mensajes y encuestas (destinatario todos/liga/individual/**convocados** = `competicion_entrenador.id`, resuelto en vivo; encuestas: `fecha_cierre`, `cerrada`) |
 | `encuestas_preguntas` / `encuestas_opciones` | Preguntas (tipos: opciones, casillas, desplegable, escala, texto_corto, texto_libre; `obligatoria`) y opciones (`es_libre` = «Otro») |
 | `encuestas_respuestas` | Respuestas (casillas = varias filas por pregunta; escala en `valor`) |
 | `encuestas_envios` | Quién ha respondido cada encuesta (UNIQUE comunicacion+user) |
@@ -180,7 +180,7 @@ render_directiva_layout($activePage, fn)   // Sidebar directiva + main
 | `entrenos` / `entreno_grupos` | Entrenos publicados por el entrenador (título, fecha, descripción) y grupos destino (N:N) |
 | `entreno_archivos` | Fotos/PDF por entreno (JPG/PNG/WEBP/PDF, máx 10 MB, máx 10/entreno) en `public/uploads/entrenos/` (acceso directo denegado) |
 | `entreno_vistos` | Qué entrenos ha visto cada nadador (aviso de nuevos en navbar y panel) |
-| `records_relevos` | Récords de relevo del club introducidos a mano (nadadores en texto libre + `parcialN` por posta; `userN_id` si el nombre coincide con un socio → sale en su perfil; histórico, el vigente es el mejor tiempo) |
+| `records_relevos` | Récords de relevo del club introducidos a mano (nadadores en texto libre `nadador1..8` + `parcialN` por posta, 5-8 solo en 8x50; `userN_id` si el nombre coincide con un socio → sale en su perfil; histórico, el vigente es el mejor tiempo) |
 | `festivos` | Días festivos marcados a mano desde Pasar lista; cuentan como fin de semana en asistencia (`es_dia_extra()`) |
 
 **Tiempo format:** Almacenado como `mm:ss.cc` string + `tiempo_seg` float para ordenar.

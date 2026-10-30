@@ -240,7 +240,8 @@ $base_filters = [
 $vigentesIds = [];
 foreach ($relevosVigentes as $porPrueba) foreach ($porPrueba as $r) $vigentesIds[(int)$r['id']] = true;
 $rv = $editarRelevo ?? ['id' => 0, 'prueba' => '4x50L', 'piscina' => $filterPiscina, 'sexo' => 'M', 'tiempo' => '', 'fecha' => date('Y-m-d'), 'lugar' => '',
-                        'nadador1' => '', 'nadador2' => '', 'nadador3' => '', 'nadador4' => ''];
+                        'nadador1' => '', 'nadador2' => '', 'nadador3' => '', 'nadador4' => '',
+                        'nadador5' => '', 'nadador6' => '', 'nadador7' => '', 'nadador8' => ''];
 ?>
 <div class="card" id="gestion-relevos" style="padding:24px;margin-top:32px;scroll-margin-top:90px;">
   <h3 style="margin-top:0;">Gestionar récords de relevo · <?= e($filterPiscina) ?></h3>
@@ -323,11 +324,11 @@ $rv = $editarRelevo ?? ['id' => 0, 'prueba' => '4x50L', 'piscina' => $filterPisc
       </div>
     </div>
     <div class="d-flex gap-3 flex-wrap">
-      <?php for ($i = 1; $i <= 4; $i++): ?>
-        <div class="form-group" style="flex:1;min-width:200px;">
+      <?php for ($i = 1; $i <= CE_RELEVO_MAX_POSTAS; $i++): ?>
+        <div class="form-group relevo-posta-grupo" data-pos="<?= $i ?>" style="flex:1 1 22%;min-width:200px;">
           <label class="form-label relevo-posta-label" data-pos="<?= $i ?>"><?= e(relevo_nombre_posta($rv['prueba'], $i)) ?> *</label>
           <div class="d-flex gap-2">
-            <input type="text" name="nadador<?= $i ?>" class="form-control" maxlength="100" list="socios-nombres" required placeholder="Nombre" value="<?= e($rv['nadador' . $i]) ?>" style="flex:1;min-width:0;">
+            <input type="text" name="nadador<?= $i ?>" class="form-control" maxlength="100" list="socios-nombres" required placeholder="Nombre" value="<?= e($rv['nadador' . $i] ?? '') ?>" style="flex:1;min-width:0;">
             <input type="text" name="parcial<?= $i ?>" class="form-control" maxlength="20" placeholder="Tiempo" inputmode="decimal" title="Tiempo de su posta (opcional)" value="<?= e($rv['parcial' . $i] ?? '') ?>" style="width:90px;flex:none;">
           </div>
         </div>
@@ -348,13 +349,20 @@ $rv = $editarRelevo ?? ['id' => 0, 'prueba' => '4x50L', 'piscina' => $filterPisc
 (function () {
   var sel = document.getElementById('rr-prueba'), estilos = ['Espalda', 'Braza', 'Mariposa', 'Libre'];
   function etiquetas() {
-    var x = sel.value.slice(-1) === 'X';
+    var x = sel.value.slice(-1) === 'X', numPostas = parseInt(sel.value, 10);
+    // Postas que sobran (relevo de 4): ocultas, sin enviar y sin exigir
+    document.querySelectorAll('.relevo-posta-grupo').forEach(function (g) {
+      var fuera = +g.dataset.pos > numPostas;
+      g.style.display = fuera ? 'none' : '';
+      g.querySelectorAll('input').forEach(function (el) { el.disabled = fuera; });
+    });
     document.querySelectorAll('.relevo-posta-label').forEach(function (l) {
       var p = +l.dataset.pos;
       l.textContent = (x ? estilos[p - 1] : 'Posta ' + p) + ' *';
     });
   }
   sel.addEventListener('change', etiquetas);
+  etiquetas();
 })();
 </script>
 

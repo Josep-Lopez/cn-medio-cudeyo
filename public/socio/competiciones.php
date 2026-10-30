@@ -9,6 +9,24 @@ $user = current_user();
 $tiempos = listar_tiempos_socio($pdo, (int)$user['id']);
 $convocatorias = listar_convocatorias_socio($pdo, (int)$user['id']);
 
+// Próximas primero (la más cercana arriba); anteriores de la más reciente a la más antigua
+$hoy = date('Y-m-d');
+$proximas = array_reverse(array_values(array_filter($convocatorias, fn($c) => $c['fecha'] >= $hoy)));
+$anteriores = array_values(array_filter($convocatorias, fn($c) => $c['fecha'] < $hoy));
+
+// Comunicados enviados a los convocados de cada competición
+$comunicados = [];
+if ($convocatorias) {
+    $ids = array_map(fn($c) => (string)$c['id'], $convocatorias);
+    $stmt = $pdo->prepare("
+        SELECT id, titulo, tipo, destinatario_valor FROM comunicaciones
+        WHERE destinatario_tipo = 'convocados' AND destinatario_valor IN (" . implode(',', array_fill(0, count($ids), '?')) . ")
+        ORDER BY created_at DESC
+    ");
+    $stmt->execute($ids);
+    foreach ($stmt->fetchAll() as $m) $comunicados[(int)$m['destinatario_valor']][] = $m;
+}
+
 $stmt = $pdo->prepare('SELECT id, nombre, sexo, fecha_nacimiento FROM users WHERE id = ?');
 $stmt->execute([(int)$user['id']]);
 $yo = $stmt->fetch();
@@ -16,10 +34,17 @@ $yo = $stmt->fetch();
 render_header('Mis competiciones', 'socio-competiciones');
 ?>
 <main class="container" style="padding:24px 16px;">
-  <?php if ($convocatorias): ?>
-    <h1>Mis convocatorias</h1>
+  <h1>Mis convocatorias</h1>
+  <?php if (!$convocatorias): ?>
+    <div class="card text-center mb-6" style="padding:32px;">
+      <p class="text-muted">Aún no te han convocado a ninguna competición.</p>
+    </div>
+  <?php endif; ?>
+  <?php foreach (['Próximas' => $proximas, 'Anteriores' => $anteriores] as $grupo_label => $grupo): ?>
+    <?php if (!$grupo) continue; ?>
+    <h2 style="font-size:16px;margin:0 0 10px;"><?= $grupo_label ?></h2>
     <div class="ce-convocados mb-6">
-      <?php foreach ($convocatorias as $c): ?>
+      <?php foreach ($grupo as $c): ?>
         <div class="card ce-convocatoria-socio">
           <div class="ce-nadador__head">
             <div>
@@ -62,10 +87,15 @@ render_header('Mis competiciones', 'socio-competiciones');
               <?php endforeach; ?>
             </p>
           <?php endif; ?>
+          <?php foreach ($comunicados[(int)$c['id']] ?? [] as $m): ?>
+            <p class="text-sm" style="margin:10px 0 0;">
+              <a href="/socio/comunicaciones?ver=<?= (int)$m['id'] ?>"><i class="bi bi-<?= $m['tipo'] === 'encuesta' ? 'ui-checks' : 'envelope' ?>"></i> <?= e($m['titulo']) ?></a>
+            </p>
+          <?php endforeach; ?>
         </div>
       <?php endforeach; ?>
     </div>
-  <?php endif; ?>
+  <?php endforeach; ?>
 
   <h1>Mis tiempos de competición</h1>
 

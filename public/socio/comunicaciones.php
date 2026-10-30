@@ -11,13 +11,16 @@ $user = current_user();
 function comunicacion_para_usuario(PDO $pdo, int $id, array $user): ?array
 {
     $stmt = $pdo->prepare("
-        SELECT * FROM comunicaciones
-        WHERE id = ?
-          AND (destinatario_tipo = 'todos'
-               OR (destinatario_tipo = 'liga' AND destinatario_valor = ?)
-               OR (destinatario_tipo = 'individual' AND destinatario_valor = ?))
+        SELECT * FROM comunicaciones c
+        WHERE c.id = ?
+          AND (c.destinatario_tipo = 'todos'
+               OR (c.destinatario_tipo = 'liga' AND c.destinatario_valor = ?)
+               OR (c.destinatario_tipo = 'individual' AND c.destinatario_valor = ?)
+               OR (c.destinatario_tipo = 'convocados' AND EXISTS (
+                   SELECT 1 FROM competicion_entrenador_convocados v
+                   WHERE v.competicion_id = c.destinatario_valor AND v.user_id = ?)))
     ");
-    $stmt->execute([$id, $user['liga'], $user['id']]);
+    $stmt->execute([$id, $user['liga'], $user['id'], $user['id']]);
     return $stmt->fetch() ?: null;
 }
 
@@ -69,9 +72,12 @@ $stmt = $pdo->prepare("
     WHERE c.destinatario_tipo = 'todos'
        OR (c.destinatario_tipo = 'liga' AND c.destinatario_valor = ?)
        OR (c.destinatario_tipo = 'individual' AND c.destinatario_valor = ?)
+       OR (c.destinatario_tipo = 'convocados' AND EXISTS (
+           SELECT 1 FROM competicion_entrenador_convocados v
+           WHERE v.competicion_id = c.destinatario_valor AND v.user_id = ?))
     ORDER BY c.created_at DESC
 ");
-$stmt->execute([$user['id'], $user['id'], $user['liga'], $user['id']]);
+$stmt->execute([$user['id'], $user['id'], $user['liga'], $user['id'], $user['id']]);
 $comunicaciones = $stmt->fetchAll();
 
 $no_leidas = 0;

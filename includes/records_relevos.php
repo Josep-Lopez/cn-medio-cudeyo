@@ -55,9 +55,12 @@ function records_relevos_guardar(PDO $pdo, ?int $id, array $d, int $user_id): in
     if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $fecha)) throw new InvalidArgumentException('Fecha inválida');
     $lugar = mb_substr(trim($d['lugar'] ?? ''), 0, 255);
     $nadadores = []; $parciales = []; $userIds = [];
-    for ($i = 1; $i <= 4; $i++) {
+    $numPostas = relevo_num_postas($prueba);
+    for ($i = 1; $i <= CE_RELEVO_MAX_POSTAS; $i++) {
+        // Postas que no existen en este relevo (5-8 en los de 4) quedan vacías
+        if ($i > $numPostas) { $nadadores[] = null; $parciales[] = null; $userIds[] = null; continue; }
         $n = trim($d['nadador' . $i] ?? '');
-        if ($n === '') throw new InvalidArgumentException('Faltan nadadores: un relevo lleva 4');
+        if ($n === '') throw new InvalidArgumentException("Faltan nadadores: un relevo lleva $numPostas");
         $socio = records_relevos_socio_por_nombre($pdo, $n);
         $nadadores[] = $socio ? $socio['nombre'] : mb_substr($n, 0, 100);
         $userIds[] = $socio ? (int)$socio['id'] : null;
@@ -76,18 +79,19 @@ function records_relevos_guardar(PDO $pdo, ?int $id, array $d, int $user_id): in
         $pdo->prepare('
             UPDATE records_relevos
             SET prueba = ?, piscina = ?, sexo = ?, tiempo = ?, tiempo_seg = ?, fecha = ?, lugar = ?,
-                nadador1 = ?, nadador2 = ?, nadador3 = ?, nadador4 = ?,
-                parcial1 = ?, parcial2 = ?, parcial3 = ?, parcial4 = ?,
-                user1_id = ?, user2_id = ?, user3_id = ?, user4_id = ?
+                nadador1 = ?, nadador2 = ?, nadador3 = ?, nadador4 = ?, nadador5 = ?, nadador6 = ?, nadador7 = ?, nadador8 = ?,
+                parcial1 = ?, parcial2 = ?, parcial3 = ?, parcial4 = ?, parcial5 = ?, parcial6 = ?, parcial7 = ?, parcial8 = ?,
+                user1_id = ?, user2_id = ?, user3_id = ?, user4_id = ?, user5_id = ?, user6_id = ?, user7_id = ?, user8_id = ?
             WHERE id = ?
         ')->execute([...$vals, $id]);
         return $id;
     }
     $pdo->prepare('
         INSERT INTO records_relevos (prueba, piscina, sexo, tiempo, tiempo_seg, fecha, lugar,
-            nadador1, nadador2, nadador3, nadador4, parcial1, parcial2, parcial3, parcial4,
-            user1_id, user2_id, user3_id, user4_id, creado_por)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            nadador1, nadador2, nadador3, nadador4, nadador5, nadador6, nadador7, nadador8,
+            parcial1, parcial2, parcial3, parcial4, parcial5, parcial6, parcial7, parcial8,
+            user1_id, user2_id, user3_id, user4_id, user5_id, user6_id, user7_id, user8_id, creado_por)
+        VALUES (' . implode(', ', array_fill(0, 32, '?')) . ')
     ')->execute([...$vals, $user_id]);
     return (int)$pdo->lastInsertId();
 }
@@ -109,13 +113,13 @@ function records_relevos_de_usuario(PDO $pdo, int $user_id): array
                (SELECT MIN(b.tiempo_seg) FROM records_relevos b
                 WHERE b.prueba = r.prueba AND b.piscina = r.piscina AND b.sexo = r.sexo) AS best_seg
         FROM records_relevos r
-        WHERE ? IN (r.user1_id, r.user2_id, r.user3_id, r.user4_id)
+        WHERE ? IN (r.user1_id, r.user2_id, r.user3_id, r.user4_id, r.user5_id, r.user6_id, r.user7_id, r.user8_id)
         ORDER BY r.piscina, FIELD(r.prueba, ' . implode(',', array_fill(0, count(CE_RELEVOS), '?')) . '), r.tiempo_seg
     ');
     $stmt->execute(array_merge([$user_id], array_keys(CE_RELEVOS)));
     $out = [];
     foreach ($stmt->fetchAll() as $r) {
-        for ($i = 1; $i <= 4; $i++) {
+        for ($i = 1; $i <= CE_RELEVO_MAX_POSTAS; $i++) {
             if ((int)$r['user' . $i . '_id'] === $user_id) { $r['posicion'] = $i; break; }
         }
         $r['vigente'] = (float)$r['tiempo_seg'] <= (float)$r['best_seg'];
@@ -167,11 +171,11 @@ function records_relevos_temporada(string $fecha): string
     return $ini . '-' . substr((string)($ini + 1), 2);
 }
 
-// Nombres de las 4 postas, con el parcial de cada una si se conoce.
+// Nombres de las postas, con el parcial de cada una si se conoce.
 function records_relevos_nadadores(array $r, string $sep = '<br>'): string
 {
     $out = [];
-    for ($i = 1; $i <= 4; $i++) {
+    for ($i = 1, $n = relevo_num_postas($r['prueba']); $i <= $n; $i++) {
         $txt = e(nombre_corto($r['nadador' . $i]));
         if (!empty($r['parcial' . $i])) $txt .= ' <span class="text-muted">' . e($r['parcial' . $i]) . '</span>';
         $out[] = $txt;

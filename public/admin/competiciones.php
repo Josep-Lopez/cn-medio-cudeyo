@@ -280,7 +280,12 @@ render_admin_layout('competiciones', function() use ($accion, $verId, $tab, $com
 ?>
 <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;gap:12px;flex-wrap:wrap;">
   <h1 style="margin:0;"><?= e($comp['nombre']) ?></h1>
-  <a href="/admin/competiciones" class="btn btn-gray btn-sm">← Volver al listado</a>
+  <div class="d-flex gap-2 flex-wrap">
+    <?php if ($convocados && (is_admin() || user_tiene_cargo('director_tecnico'))): ?>
+      <a href="/admin/comunicaciones?nueva&convocados=<?= $cid ?>" class="btn btn-primary btn-sm"><i class="bi bi-megaphone"></i> Comunicado a convocados</a>
+    <?php endif; ?>
+    <a href="/admin/competiciones" class="btn btn-gray btn-sm">← Volver al listado</a>
+  </div>
 </div>
 <?php render_flash(); ?>
 
@@ -469,7 +474,7 @@ render_admin_layout('competiciones', function() use ($accion, $verId, $tab, $com
     </div>
     <table class="ce-pruebas">
       <tbody>
-      <?php for ($pos = 1; $pos <= 4; $pos++): $p = $r['postas'][$pos] ?? null; ?>
+      <?php for ($pos = 1, $nPostas = relevo_num_postas($r['prueba']); $pos <= $nPostas; $pos++): $p = $r['postas'][$pos] ?? null; ?>
         <tr>
           <td class="text-muted text-sm" style="width:90px;"><?= e(relevo_nombre_posta($r['prueba'], $pos)) ?></td>
           <td><?= $p ? e($p['nombre']) : '<span class="text-muted">— sin asignar —</span>' ?></td>
@@ -534,8 +539,8 @@ render_admin_layout('competiciones', function() use ($accion, $verId, $tab, $com
     </div>
   </div>
   <div class="d-flex gap-3 flex-wrap">
-    <?php for ($pos = 1; $pos <= 4; $pos++): ?>
-    <div class="form-group" style="flex:1;min-width:170px;">
+    <?php for ($pos = 1; $pos <= CE_RELEVO_MAX_POSTAS; $pos++): ?>
+    <div class="form-group relevo-posta-grupo" data-pos="<?= $pos ?>" style="flex:1 1 22%;min-width:170px;">
       <label class="form-label relevo-posta-label" data-pos="<?= $pos ?>"><?= e(relevo_nombre_posta($rv['prueba'], $pos)) ?></label>
       <div class="d-flex gap-2">
         <select name="postas[<?= $pos ?>]" class="form-control relevo-posta" style="flex:1;min-width:0;">
@@ -565,6 +570,13 @@ render_admin_layout('competiciones', function() use ($accion, $verId, $tab, $com
   var estilos = ['Espalda', 'Braza', 'Mariposa', 'Libre'];
   function actualizar() {
     var esEstilos = prueba.value.slice(-1) === 'X';
+    var numPostas = parseInt(prueba.value, 10);
+    // Postas que sobran (relevo de 4): ocultas y sin enviar
+    document.querySelectorAll('.relevo-posta-grupo').forEach(function (g) {
+      var fuera = +g.dataset.pos > numPostas;
+      g.style.display = fuera ? 'none' : '';
+      g.querySelectorAll('select, input').forEach(function (el) { el.disabled = fuera; });
+    });
     document.querySelectorAll('.relevo-posta-label').forEach(function (l) {
       var pos = +l.dataset.pos;
       l.textContent = esEstilos ? estilos[pos - 1] : 'Posta ' + pos;

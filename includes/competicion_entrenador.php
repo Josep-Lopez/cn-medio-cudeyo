@@ -8,8 +8,9 @@ require_once __DIR__ . '/minimas.php';
 const CE_PRUEBAS = ['50L','100L','200L','400L','800L','1500L','50E','100E','200E','50B','100B','200B','50M','100M','200M','100X','200X','400X'];
 const CE_PISCINAS = ['25m','50m'];
 const CE_MINIMAS_FUENTES = ['ninguna' => 'Sin mínimas', 'rfen' => 'Mínimas RFEN (configuración)', 'propias' => 'Mínimas propias de la competición'];
-// Relevos: código => [distancia por posta, estilo]. Estilos: E, B, M, L por orden de posta.
-const CE_RELEVOS = ['4x50L' => [50, 'L'], '4x100L' => [100, 'L'], '4x200L' => [200, 'L'], '4x50X' => [50, 'X'], '4x100X' => [100, 'X']];
+// Relevos: código (postas x distancia + estilo) => [distancia por posta, estilo]. Estilos: E, B, M, L por orden de posta.
+const CE_RELEVOS = ['4x50L' => [50, 'L'], '4x100L' => [100, 'L'], '4x200L' => [200, 'L'], '4x50X' => [50, 'X'], '4x100X' => [100, 'X'], '8x50L' => [50, 'L']];
+const CE_RELEVO_MAX_POSTAS = 8;
 const CE_RELEVO_SEXOS = ['M' => 'Masculino', 'F' => 'Femenino', 'X' => 'Mixto'];
 
 function listar_competiciones_entrenador(PDO $pdo): array
@@ -561,7 +562,13 @@ function format_relevo(string $codigo): string
 {
     [$dist, $estilo] = CE_RELEVOS[$codigo] ?? [0, ''];
     if (!$dist) return $codigo;
-    return '4×' . $dist . ' ' . ($estilo === 'X' ? 'Estilos' : 'Libre');
+    return relevo_num_postas($codigo) . '×' . $dist . ' ' . ($estilo === 'X' ? 'Estilos' : 'Libre');
+}
+
+// Número de postas del relevo (4 u 8), sacado del código
+function relevo_num_postas(string $codigo): int
+{
+    return isset(CE_RELEVOS[$codigo]) ? (int)$codigo : 4;
 }
 
 // Prueba individual de cada posta (1..4). Estilos: espalda, braza, mariposa, libre.
@@ -621,7 +628,7 @@ function obtener_relevo(PDO $pdo, int $id): ?array
     return $r;
 }
 
-// Crea o actualiza un relevo. postas = [1 => user_id|0, ..., 4 => ...], parciales = [pos => tiempo de la posta].
+// Crea o actualiza un relevo. postas = [1 => user_id|0, ..., N => ...], parciales = [pos => tiempo de la posta].
 // Los nadadores deben estar convocados.
 function guardar_relevo(PDO $pdo, int $competicion_id, ?int $relevo_id, array $data): int
 {
@@ -643,7 +650,8 @@ function guardar_relevo(PDO $pdo, int $competicion_id, ?int $relevo_id, array $d
     foreach (listar_convocados($pdo, $competicion_id) as $n) $convocados[(int)$n['id']] = $n;
     $postas = []; $parciales = [];
     $cuenta = ['M' => 0, 'F' => 0];
-    for ($pos = 1; $pos <= 4; $pos++) {
+    $numPostas = relevo_num_postas($prueba);
+    for ($pos = 1; $pos <= $numPostas; $pos++) {
         $uid = (int)($data['postas'][$pos] ?? 0);
         if (!$uid) continue;
         if (!isset($convocados[$uid])) throw new InvalidArgumentException('Solo puedes poner nadadores convocados');
@@ -661,8 +669,9 @@ function guardar_relevo(PDO $pdo, int $competicion_id, ?int $relevo_id, array $d
             $parciales[$pos] = segundos_a_tiempo($pSeg);
         }
     }
-    if ($sexo === 'X' && ($cuenta['M'] > 2 || $cuenta['F'] > 2)) {
-        throw new InvalidArgumentException('Un relevo mixto lleva 2 chicos y 2 chicas');
+    $mitad = intdiv($numPostas, 2);
+    if ($sexo === 'X' && ($cuenta['M'] > $mitad || $cuenta['F'] > $mitad)) {
+        throw new InvalidArgumentException("Un relevo mixto lleva $mitad chicos y $mitad chicas");
     }
 
     $pdo->beginTransaction();
@@ -697,7 +706,7 @@ function eliminar_relevo(PDO $pdo, int $competicion_id, int $relevo_id): void
 function estimar_relevo(PDO $pdo, array $comp, array $relevo): array
 {
     $out = ['total' => 0.0, 'postas' => []];
-    for ($pos = 1; $pos <= 4; $pos++) {
+    for ($pos = 1, $n = relevo_num_postas($relevo['prueba']); $pos <= $n; $pos++) {
         $p = $relevo['postas'][$pos] ?? null;
         $seg = null;
         if ($p) {
