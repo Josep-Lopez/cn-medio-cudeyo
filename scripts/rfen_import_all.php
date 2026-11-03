@@ -21,6 +21,7 @@ $root = dirname(__DIR__);
 require_once $root . '/config/db.php';
 require_once $root . '/includes/auth.php';
 require_once $root . '/includes/rfen.php';
+require_once $root . '/includes/competicion_entrenador.php';
 
 // ── Parse CLI args ────────────────────────────────────────────────────────────
 
@@ -83,6 +84,11 @@ foreach ($users as $user) {
     }
 
     usleep(500_000);
+}
+
+// Copiar tiempos a las competiciones del entrenador recientes
+foreach (ce_importar_tiempos_rfen_recientes($pdo) as $nombreComp => $n) {
+    if ($n) echo "[" . date('Y-m-d H:i:s') . "] Competición «{$nombreComp}»: {$n} tiempo(s) importados." . PHP_EOL;
 }
 
 $ts = date('Y-m-d H:i:s');

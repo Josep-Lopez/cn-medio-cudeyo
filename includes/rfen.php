@@ -157,15 +157,18 @@ function rfen_parse_rows(DOMXPath $xpath): array
  * @param int         $user_id    ID del usuario local.
  * @param string      $rfen_id    ID del deportista en la intranet RFEN.
  * @param string|null $temporada  Cadena de temporada como '2024-25', o null/'todas' para todas.
+ * @param array|null  $rango      [desde, hasta] en Y-m-d; si se pasa, sustituye a la temporada.
  *
  * @return array{procesadas:int, insertadas:int, actualizadas:int, sin_cambios:int, error:?string}
  */
-function rfen_import_marks(PDO $pdo, int $user_id, string $rfen_id, ?string $temporada = null): array
+function rfen_import_marks(PDO $pdo, int $user_id, string $rfen_id, ?string $temporada = null, ?array $rango = null): array
 {
   // Construir rango de fechas
   $rfen_inicio = '';
   $rfen_fin    = '';
-  if ($temporada && $temporada !== 'todas' && preg_match('/^(\d{4})-(\d{2})$/', $temporada, $m)) {
+  if ($rango) {
+    [$rfen_inicio, $rfen_fin] = $rango;
+  } elseif ($temporada && $temporada !== 'todas' && preg_match('/^(\d{4})-(\d{2})$/', $temporada, $m)) {
     $y_start     = (int)$m[1];
     $rfen_inicio = $y_start       . '-09-01';
     $rfen_fin    = ($y_start + 1) . '-08-31';

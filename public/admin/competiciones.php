@@ -4,6 +4,7 @@ require_once dirname(__DIR__, 2) . '/includes/auth.php';
 require_once dirname(__DIR__, 2) . '/includes/layout.php';
 require_once dirname(__DIR__, 2) . '/includes/competicion_entrenador.php';
 require_once dirname(__DIR__, 2) . '/includes/grupos.php';
+require_once dirname(__DIR__, 2) . '/includes/rfen.php';
 
 require_admin_area(['director_tecnico', 'entrenador']);
 
@@ -122,9 +123,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             case 'guardar_relevo':
                 $relevoId = (int)($_POST['relevo_id'] ?? 0);
-                guardar_relevo($pdo, $competicionId, $relevoId ?: null, $_POST);
+                $guardadoId = guardar_relevo($pdo, $competicionId, $relevoId ?: null, $_POST);
                 flash($relevoId ? 'Relevo actualizado.' : 'Relevo creado.', 'success');
-                ce_volver($competicionId, 'relevos');
+                ce_volver($competicionId, 'relevos', '#r' . $guardadoId);
 
             case 'eliminar_relevo':
                 eliminar_relevo($pdo, $competicionId, (int)($_POST['relevo_id'] ?? 0));
@@ -143,6 +144,29 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 ]);
                 flash('Tiempo añadido.', 'success');
                 ce_volver($competicionId, 'resultados');
+
+            case 'importar_rfen':
+                // Refresca de RFEN solo los días de la competición para los convocados vinculados y copia los tiempos
+                set_time_limit(0);
+                $rango = [$comp['fecha'], date('Y-m-d', strtotime($comp['fecha'] . ' +' . CE_RFEN_DIAS_COMPETICION . ' days'))];
+                $sinRfen = [];
+                $stmtRfen = $pdo->prepare('SELECT rfen_id FROM users WHERE id = ?');
+                foreach (listar_convocados($pdo, $competicionId) as $nad) {
+                    $stmtRfen->execute([$nad['id']]);
+                    $rfenId = (string)$stmtRfen->fetchColumn();
+                    if ($rfenId === '') { $sinRfen[] = $nad['nombre']; continue; }
+                    rfen_import_marks($pdo, (int)$nad['id'], $rfenId, null, $rango);
+                }
+                $n = ce_importar_tiempos_rfen($pdo, $comp, (int)current_user()['id']);
+                $msg = $n ? "$n tiempo(s) importados de RFEN." : 'No hay tiempos nuevos en RFEN para estas fechas (puede que aún no estén publicados).';
+                if ($sinRfen) $msg .= ' Sin RFEN vinculado: ' . implode(', ', $sinRfen) . '.';
+                flash($msg, $n ? 'success' : 'info');
+                ce_volver($competicionId, 'resultados');
+
+            case 'eliminar_tiempo':
+                eliminar_tiempo_entrenador($pdo, $competicionId, (int)($_POST['tiempo_id'] ?? 0));
+                flash('Tiempo eliminado.', 'success');
+                ce_volver($competicionId, 'resultados');
         }
     } catch (Throwable $ex) {
         flash('Error: ' . $ex->getMessage(), 'danger');
@@ -150,7 +174,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             'editar' => 'datos',
             'guardar_minimas', 'eliminar_minimas' => 'minimas',
             'guardar_relevo', 'eliminar_relevo' => 'relevos',
-            'agregar_tiempo' => 'resultados',
+            'agregar_tiempo', 'eliminar_tiempo', 'importar_rfen' => 'resultados',
             default => 'convocatoria',
         };
         $extra = '';
@@ -456,61 +480,13 @@ render_admin_layout('competiciones', function() use ($accion, $verId, $tab, $com
         $edit = $editId ? obtener_relevo($pdo, $editId) : null;
         if ($edit && (int)$edit['competicion_id'] !== $cid) $edit = null;
 ?>
-<?php if ($relevos): ?>
-<div class="ce-relevos">
-  <?php foreach ($relevos as $r):
-      $est = estimar_relevo($pdo, $comp, $r);
-  ?>
-  <div class="card ce-relevo">
-    <div class="ce-nadador__head">
-      <div>
-        <strong><?= e(format_relevo($r['prueba'])) ?></strong>
-        <span class="text-muted text-sm"><?= e(CE_RELEVO_SEXOS[$r['sexo']]) ?><?= $r['nombre'] ? ' · ' . e($r['nombre']) : '' ?></span>
-      </div>
-      <div class="d-flex gap-2">
-        <a href="/admin/competiciones?ver=<?= $cid ?>&tab=relevos&relevo=<?= (int)$r['id'] ?>#form-relevo" class="btn btn-gray btn-sm"><i class="bi bi-pencil"></i></a>
-        <?php ce_form_borrar($cid, 'eliminar_relevo', ['relevo_id' => (int)$r['id']], '¿Eliminar este relevo?', '<i class="bi bi-trash"></i>', 'btn btn-gray btn-sm'); ?>
-      </div>
-    </div>
-    <table class="ce-pruebas">
-      <tbody>
-      <?php for ($pos = 1, $nPostas = relevo_num_postas($r['prueba']); $pos <= $nPostas; $pos++): $p = $r['postas'][$pos] ?? null; ?>
-        <tr>
-          <td class="text-muted text-sm" style="width:90px;"><?= e(relevo_nombre_posta($r['prueba'], $pos)) ?></td>
-          <td><?= $p ? e($p['nombre']) : '<span class="text-muted">— sin asignar —</span>' ?></td>
-          <td style="text-align:right;white-space:nowrap;">
-            <?php if ($p): ?>
-              <span class="text-muted text-sm" title="Mejor marca individual"><?= $est['postas'][$pos] !== null ? e(segundos_a_tiempo($est['postas'][$pos])) : 'sin marca ' . e(format_prueba(relevo_prueba_posta($r['prueba'], $pos))) ?></span>
-              <?php if ($p['parcial']): ?><strong style="margin-left:8px;" title="Tiempo de la posta"><?= e($p['parcial']) ?></strong><?php endif; ?>
-            <?php endif; ?>
-          </td>
-        </tr>
-      <?php endfor; ?>
-      </tbody>
-    </table>
-    <div class="ce-relevo__foot">
-      <span>Estimado (<?= e($comp['piscina']) ?>): <strong><?= $est['total'] !== null ? e(segundos_a_tiempo($est['total'])) : '—' ?></strong></span>
-      <?php if ($r['tiempo']): ?>
-        <span>Final: <strong><?= e($r['tiempo']) ?></strong>
-          <?php if ($est['total'] !== null): $d = (float)$r['tiempo_seg'] - $est['total']; ?>
-            <span class="ce-diff <?= $d < 0 ? 'ce-diff--mejor' : 'ce-diff--peor' ?>"><?= $d < 0 ? '−' : '+' ?><?= number_format(abs($d), 2, ',', '') ?></span>
-          <?php endif; ?>
-        </span>
-      <?php endif; ?>
-    </div>
-  </div>
-  <?php endforeach; ?>
-</div>
-<?php else: ?>
-  <div class="card text-center mb-6" style="padding:24px;"><p class="text-muted" style="margin:0;">No hay relevos todavía.</p></div>
-<?php endif; ?>
-
+<?php ob_start(); ?>
 <?php if (!$convocados): ?>
   <div class="card" style="padding:20px;"><p class="text-muted" style="margin:0;">Convoca nadadores primero para poder formar relevos.</p></div>
 <?php else:
     $rv = $edit ?? ['id' => 0, 'prueba' => '4x50L', 'sexo' => 'M', 'nombre' => '', 'tiempo' => '', 'postas' => [], 'parciales' => []];
 ?>
-<form method="POST" action="/admin/competiciones" class="card" id="form-relevo" style="padding:24px;">
+<form method="POST" action="/admin/competiciones" class="card mb-6" id="form-relevo" style="padding:24px;scroll-margin-top:90px;">
   <?= csrf_field() ?>
   <input type="hidden" name="accion" value="guardar_relevo">
   <input type="hidden" name="competicion_id" value="<?= $cid ?>">
@@ -560,7 +536,7 @@ render_admin_layout('competiciones', function() use ($accion, $verId, $tab, $com
   </div>
   <div style="display:flex;gap:12px;">
     <button type="submit" class="btn btn-primary"><?= $edit ? 'Guardar relevo' : 'Crear relevo' ?></button>
-    <?php if ($edit): ?><a href="/admin/competiciones?ver=<?= $cid ?>&tab=relevos" class="btn btn-gray">Cancelar</a><?php endif; ?>
+    <?php if ($edit): ?><a href="/admin/competiciones?ver=<?= $cid ?>&tab=relevos#r<?= (int)$edit['id'] ?>" class="btn btn-gray">Cancelar</a><?php endif; ?>
   </div>
 </form>
 <script>
@@ -593,6 +569,58 @@ render_admin_layout('competiciones', function() use ($accion, $verId, $tab, $com
 })();
 </script>
 <?php endif; ?>
+<?php $htmlFormRelevo = ob_get_clean();
+    if ($edit) echo $htmlFormRelevo; ?>
+<?php if ($relevos): ?>
+<div class="ce-relevos">
+  <?php foreach ($relevos as $r):
+      $est = estimar_relevo($pdo, $comp, $r);
+  ?>
+  <div class="card ce-relevo" id="r<?= (int)$r['id'] ?>">
+    <div class="ce-nadador__head">
+      <div>
+        <strong><?= e(format_relevo($r['prueba'])) ?></strong>
+        <span class="text-muted text-sm"><?= e(CE_RELEVO_SEXOS[$r['sexo']]) ?><?= $r['nombre'] ? ' · ' . e($r['nombre']) : '' ?></span>
+      </div>
+      <div class="d-flex gap-2">
+        <a href="/admin/competiciones?ver=<?= $cid ?>&tab=relevos&relevo=<?= (int)$r['id'] ?>#form-relevo" class="btn btn-gray btn-sm"><i class="bi bi-pencil"></i></a>
+        <?php ce_form_borrar($cid, 'eliminar_relevo', ['relevo_id' => (int)$r['id']], '¿Eliminar este relevo?', '<i class="bi bi-trash"></i>', 'btn btn-gray btn-sm'); ?>
+      </div>
+    </div>
+    <table class="ce-pruebas">
+      <tbody>
+      <?php for ($pos = 1, $nPostas = relevo_num_postas($r['prueba']); $pos <= $nPostas; $pos++): $p = $r['postas'][$pos] ?? null; ?>
+        <tr>
+          <td class="text-muted text-sm" style="width:90px;"><?= e(relevo_nombre_posta($r['prueba'], $pos)) ?></td>
+          <td><?= $p ? e($p['nombre']) : '<span class="text-muted">— sin asignar —</span>' ?></td>
+          <td style="text-align:right;white-space:nowrap;">
+            <?php if ($p): ?>
+              <span class="text-muted text-sm" title="Mejor marca individual"><?= $est['postas'][$pos] !== null ? e(segundos_a_tiempo($est['postas'][$pos])) : 'sin marca ' . e(format_prueba(relevo_prueba_posta($r['prueba'], $pos))) ?></span>
+              <?php if ($p['parcial']): ?><strong style="margin-left:8px;" title="Tiempo de la posta"><?= e($p['parcial']) ?></strong><?php endif; ?>
+            <?php endif; ?>
+          </td>
+        </tr>
+      <?php endfor; ?>
+      </tbody>
+    </table>
+    <div class="ce-relevo__foot">
+      <span>Estimado (<?= e($comp['piscina']) ?>): <strong><?= $est['total'] !== null ? e(segundos_a_tiempo($est['total'])) : '—' ?></strong></span>
+      <?php if ($r['tiempo']): ?>
+        <span>Final: <strong><?= e($r['tiempo']) ?></strong>
+          <?php if ($est['total'] !== null): $d = (float)$r['tiempo_seg'] - $est['total']; ?>
+            <span class="ce-diff <?= $d < 0 ? 'ce-diff--mejor' : 'ce-diff--peor' ?>"><?= $d < 0 ? '−' : '+' ?><?= number_format(abs($d), 2, ',', '') ?></span>
+          <?php endif; ?>
+        </span>
+      <?php endif; ?>
+    </div>
+  </div>
+  <?php endforeach; ?>
+</div>
+<?php else: ?>
+  <div class="card text-center mb-6" style="padding:24px;"><p class="text-muted" style="margin:0;">No hay relevos todavía.</p></div>
+<?php endif; ?>
+
+<?php if (!$edit) echo $htmlFormRelevo; ?>
 
 <?php elseif ($tab === 'minimas'):
         $bloques = agrupar_minimas(listar_minimas_competicion($pdo, $cid));
@@ -700,7 +728,27 @@ render_admin_layout('competiciones', function() use ($accion, $verId, $tab, $com
         }
 ?>
 <div class="card mb-6" style="padding:24px;">
-  <h3>Tiempos registrados (<?= count($tiempos) ?>)</h3>
+  <div class="d-flex gap-2 flex-wrap" style="justify-content:space-between;align-items:center;">
+    <h3 style="margin:0;">Tiempos registrados (<?= count($tiempos) ?>)</h3>
+    <?php if ($convocados): ?>
+      <form method="POST" action="/admin/competiciones" class="js-loading">
+        <?= csrf_field() ?>
+        <input type="hidden" name="accion" value="importar_rfen">
+        <input type="hidden" name="competicion_id" value="<?= $cid ?>">
+        <button type="submit" class="btn btn-gray btn-sm"><i class="bi bi-cloud-download"></i> Traer tiempos de RFEN</button>
+      </form>
+      <script>
+      document.querySelector('form.js-loading').addEventListener('submit', function () {
+        var b = this.querySelector('button');
+        b.disabled = true;
+        b.textContent = 'Consultando RFEN…';
+      });
+      </script>
+    <?php endif; ?>
+  </div>
+  <p class="text-muted text-sm" style="margin:8px 0 16px;">
+    Los tiempos de los convocados se importan solos de RFEN cada semana (competiciones de los últimos <?= CE_RFEN_DIAS_SINCRONIZAR ?> días). Los parciales no vienen de RFEN.
+  </p>
   <?php if ($tiempos): ?>
     <div class="table-wrapper">
       <table>
@@ -711,9 +759,12 @@ render_admin_layout('competiciones', function() use ($accion, $verId, $tab, $com
               <td><?= e($t['nadador_nombre']) ?></td>
               <td><?= e(format_prueba($t['prueba'])) ?></td>
               <td><?= e($t['piscina']) ?></td>
-              <td style="font-weight:600;"><?= e($t['tiempo']) ?></td>
+              <td style="font-weight:600;"><?= e($t['tiempo']) ?><?php if ($t['origen'] === 'rfen'): ?> <span class="badge badge-blue" title="Importado de RFEN">RFEN</span><?php endif; ?></td>
               <td class="text-muted text-sm"><?= e($t['parciales'] ?? '—') ?></td>
-              <td><a href="/admin/competicion_tiempo?id=<?= (int)$t['id'] ?>" class="btn btn-gray btn-sm">Ver / comentar</a></td>
+              <td style="white-space:nowrap;">
+                <a href="/admin/competicion_tiempo?id=<?= (int)$t['id'] ?>" class="btn btn-gray btn-sm">Ver / comentar</a>
+                <?php ce_form_borrar($cid, 'eliminar_tiempo', ['tiempo_id' => (int)$t['id']], '¿Eliminar el tiempo de ' . $t['nadador_nombre'] . ' en ' . format_prueba($t['prueba']) . ' (' . $t['tiempo'] . ')? Se borrarán también sus comentarios.', '<i class="bi bi-trash"></i>', 'btn btn-gray btn-sm'); ?>
+              </td>
             </tr>
           <?php endforeach; ?>
         </tbody>

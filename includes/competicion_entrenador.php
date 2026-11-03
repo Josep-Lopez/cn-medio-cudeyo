@@ -167,6 +167,77 @@ function agregar_tiempo_entrenador(PDO $pdo, array $data): int
     return (int)$pdo->lastInsertId();
 }
 
+// Borra un tiempo de la competición (sus comentarios caen por ON DELETE CASCADE).
+// Si venía de RFEN se anota como descarte para que la importación no lo vuelva a meter.
+function eliminar_tiempo_entrenador(PDO $pdo, int $competicion_id, int $tiempo_id): void
+{
+    $stmt = $pdo->prepare('SELECT * FROM competicion_entrenador_tiempos WHERE id = ? AND competicion_id = ?');
+    $stmt->execute([$tiempo_id, $competicion_id]);
+    $t = $stmt->fetch();
+    if (!$t) return;
+    if ($t['origen'] === 'rfen') {
+        $pdo->prepare('INSERT IGNORE INTO competicion_entrenador_rfen_descartes (competicion_id, user_id, prueba, piscina) VALUES (?, ?, ?, ?)')
+            ->execute([$competicion_id, $t['user_id'], $t['prueba'], $t['piscina']]);
+    }
+    $pdo->prepare('DELETE FROM competicion_entrenador_tiempos WHERE id = ?')->execute([$tiempo_id]);
+}
+
+// ─── Resultados desde RFEN ───────────────────────────────────────────────────
+
+// Días tras `fecha` que cuentan como la misma competición (competiciones de varios días)
+const CE_RFEN_DIAS_COMPETICION = 2;
+// El cron revisa las competiciones celebradas en los últimos N días
+const CE_RFEN_DIAS_SINCRONIZAR = 30;
+
+// Copia a la competición las marcas (ya importadas de RFEN) que los convocados hicieron en sus fechas.
+// Por nadador×prueba×piscina se queda la mejor; no toca lo que ya tenga tiempo ni lo descartado.
+function ce_importar_tiempos_rfen(PDO $pdo, array $comp, ?int $registrado_por = null): int
+{
+    $stmt = $pdo->prepare('
+        SELECT m.user_id, m.prueba, m.piscina, m.tiempo, m.tiempo_seg
+        FROM marcas m
+        JOIN competicion_entrenador_convocados v ON v.user_id = m.user_id AND v.competicion_id = ?
+        WHERE m.es_parcial = 0 AND m.tiempo_seg > 0
+          AND m.fecha_marca BETWEEN ? AND DATE_ADD(?, INTERVAL ? DAY)
+          AND NOT EXISTS (SELECT 1 FROM competicion_entrenador_tiempos t
+                          WHERE t.competicion_id = v.competicion_id AND t.user_id = m.user_id
+                            AND t.prueba = m.prueba AND t.piscina = m.piscina)
+          AND NOT EXISTS (SELECT 1 FROM competicion_entrenador_rfen_descartes d
+                          WHERE d.competicion_id = v.competicion_id AND d.user_id = m.user_id
+                            AND d.prueba = m.prueba AND d.piscina = m.piscina)
+        ORDER BY m.tiempo_seg
+    ');
+    $stmt->execute([$comp['id'], $comp['fecha'], $comp['fecha'], CE_RFEN_DIAS_COMPETICION]);
+
+    $mejores = [];
+    foreach ($stmt->fetchAll() as $m) {
+        $mejores[$m['user_id'] . '|' . $m['prueba'] . '|' . $m['piscina']] ??= $m;
+    }
+
+    $ins = $pdo->prepare("
+        INSERT INTO competicion_entrenador_tiempos
+            (competicion_id, user_id, prueba, piscina, tiempo, tiempo_seg, origen, registrado_por)
+        VALUES (?, ?, ?, ?, ?, ?, 'rfen', ?)
+    ");
+    foreach ($mejores as $m) {
+        $ins->execute([$comp['id'], $m['user_id'], $m['prueba'], $m['piscina'], $m['tiempo'], $m['tiempo_seg'],
+            $registrado_por ?? (int)$comp['creado_por']]);
+    }
+    return count($mejores);
+}
+
+// Para el cron: importa en todas las competiciones recientes. Devuelve [nombre competición => tiempos añadidos].
+function ce_importar_tiempos_rfen_recientes(PDO $pdo): array
+{
+    $stmt = $pdo->prepare('SELECT * FROM competicion_entrenador WHERE fecha BETWEEN DATE_SUB(CURDATE(), INTERVAL ? DAY) AND CURDATE()');
+    $stmt->execute([CE_RFEN_DIAS_SINCRONIZAR]);
+    $res = [];
+    foreach ($stmt->fetchAll() as $comp) {
+        $res[$comp['nombre']] = ce_importar_tiempos_rfen($pdo, $comp);
+    }
+    return $res;
+}
+
 function listar_tiempos_socio(PDO $pdo, int $user_id): array
 {
     $stmt = $pdo->prepare('

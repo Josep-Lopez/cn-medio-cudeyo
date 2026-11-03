@@ -22,6 +22,7 @@ header('Content-Type: text/plain; charset=utf-8');
 require_once dirname(__DIR__, 2) . '/config/db.php';
 require_once dirname(__DIR__, 2) . '/includes/auth.php';
 require_once dirname(__DIR__, 2) . '/includes/rfen.php';
+require_once dirname(__DIR__, 2) . '/includes/competicion_entrenador.php';
 
 $log_file = dirname(__DIR__, 2) . '/storage/rfen_import.log';
 
@@ -89,6 +90,11 @@ foreach ($users as $u) {
     }
 
     usleep(500_000);
+}
+
+// Con las marcas ya al día, se copian a las competiciones recientes (en cada chunk: es idempotente)
+foreach (ce_importar_tiempos_rfen_recientes($pdo) as $nombreComp => $n) {
+    if ($n) log_line("[" . date('Y-m-d H:i:s') . "] Competición «{$nombreComp}»: {$n} tiempo(s) importados.");
 }
 
 if ($has_more) {
