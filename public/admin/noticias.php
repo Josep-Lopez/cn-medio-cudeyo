@@ -45,7 +45,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             } elseif ($_FILES['imagen']['size'] > 8 * 1024 * 1024) {
                 $errors[] = 'La imagen no puede superar los 8 MB.';
             } else {
-                $ext = strtolower(pathinfo($_FILES['imagen']['name'], PATHINFO_EXTENSION));
+                // Extensión según el tipo real, no el nombre que trae el fichero
+                $ext = ['image/jpeg' => 'jpg', 'image/png' => 'png', 'image/webp' => 'webp', 'image/gif' => 'gif'][$info['mime']];
                 $dir = dirname(__DIR__, 2) . '/public/uploads/noticias/';
                 if (!is_dir($dir)) mkdir($dir, 0755, true);
                 $filename = 'noticia_' . uniqid() . '.' . $ext;
