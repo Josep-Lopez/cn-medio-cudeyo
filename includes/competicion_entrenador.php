@@ -7,6 +7,7 @@ require_once __DIR__ . '/minimas.php';
 
 const CE_PRUEBAS = ['50L','100L','200L','400L','800L','1500L','50E','100E','200E','50B','100B','200B','50M','100M','200M','100X','200X','400X'];
 const CE_PISCINAS = ['25m','50m'];
+const CE_LIGAS = ['benjamin', 'alevin', 'infantil', 'junior', 'absoluto', 'master'];
 const CE_MINIMAS_FUENTES = ['ninguna' => 'Sin mínimas', 'rfen' => 'Mínimas RFEN (configuración)', 'propias' => 'Mínimas propias de la competición'];
 // Relevos: código (postas x distancia + estilo) => [distancia por posta, estilo]. Estilos: E, B, M, L por orden de posta.
 const CE_RELEVOS = ['4x50L' => [50, 'L'], '4x100L' => [100, 'L'], '4x200L' => [200, 'L'], '4x50X' => [50, 'X'], '4x100X' => [100, 'X'], '8x50L' => [50, 'L']];
@@ -129,9 +130,13 @@ function obtener_tiempo_entrenador(PDO $pdo, int $id): ?array
     return $row ?: null;
 }
 
+// Guarda el tiempo en la competición y también como marca (para ranking, perfil y récords).
+// La marca usa fecha y lugar de la competición. Si ya hay una con esa clave se queda la mejor
+// y no se enlaza (no es nuestra, no se borra con el tiempo).
 function agregar_tiempo_entrenador(PDO $pdo, array $data): int
 {
-    if (empty($data['competicion_id']) || !obtener_competicion_entrenador($pdo, (int)$data['competicion_id'])) {
+    $comp = !empty($data['competicion_id']) ? obtener_competicion_entrenador($pdo, (int)$data['competicion_id']) : null;
+    if (!$comp) {
         throw new InvalidArgumentException('Competición no válida');
     }
     if (empty($data['user_id'])) {
@@ -149,22 +154,47 @@ function agregar_tiempo_entrenador(PDO $pdo, array $data): int
         throw new InvalidArgumentException('Formato de tiempo incorrecto. Usa mm:ss.cc o ss.cc');
     }
     $parciales = trim($data['parciales'] ?? '');
-    $stmt = $pdo->prepare('
-        INSERT INTO competicion_entrenador_tiempos
-            (competicion_id, user_id, prueba, piscina, tiempo, tiempo_seg, parciales, registrado_por)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-    ');
-    $stmt->execute([
-        (int)$data['competicion_id'],
-        (int)$data['user_id'],
-        $data['prueba'],
-        $data['piscina'],
-        $tiempoStr,
-        $secs,
-        $parciales !== '' ? $parciales : null,
-        (int)$data['registrado_por'],
-    ]);
-    return (int)$pdo->lastInsertId();
+    $userId = (int)$data['user_id'];
+    $lugar = trim((string)($comp['lugar'] ?? '')) ?: $comp['nombre'];
+
+    $pdo->beginTransaction();
+    try {
+        $stmt = $pdo->prepare('SELECT id, tiempo_seg FROM marcas WHERE user_id = ? AND prueba = ? AND piscina = ? AND fecha_marca = ? AND lugar = ?');
+        $stmt->execute([$userId, $data['prueba'], $data['piscina'], $comp['fecha'], $lugar]);
+        $prev = $stmt->fetch();
+        $marcaId = null;
+        if (!$prev) {
+            $pdo->prepare('INSERT INTO marcas (user_id, prueba, piscina, tiempo, tiempo_seg, fecha_marca, lugar) VALUES (?, ?, ?, ?, ?, ?, ?)')
+                ->execute([$userId, $data['prueba'], $data['piscina'], $tiempoStr, $secs, $comp['fecha'], $lugar]);
+            $marcaId = (int)$pdo->lastInsertId();
+        } elseif ($secs < (float)$prev['tiempo_seg']) {
+            $pdo->prepare('UPDATE marcas SET tiempo = ?, tiempo_seg = ?, updated_at = NOW() WHERE id = ?')
+                ->execute([$tiempoStr, $secs, $prev['id']]);
+        }
+
+        $stmt = $pdo->prepare('
+            INSERT INTO competicion_entrenador_tiempos
+                (competicion_id, user_id, prueba, piscina, tiempo, tiempo_seg, parciales, marca_id, registrado_por)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ');
+        $stmt->execute([
+            (int)$comp['id'],
+            $userId,
+            $data['prueba'],
+            $data['piscina'],
+            $tiempoStr,
+            $secs,
+            $parciales !== '' ? $parciales : null,
+            $marcaId,
+            (int)$data['registrado_por'],
+        ]);
+        $id = (int)$pdo->lastInsertId();
+        $pdo->commit();
+    } catch (Throwable $ex) {
+        $pdo->rollBack();
+        throw $ex;
+    }
+    return $id;
 }
 
 // Borra un tiempo de la competición (sus comentarios caen por ON DELETE CASCADE).
@@ -180,6 +210,10 @@ function eliminar_tiempo_entrenador(PDO $pdo, int $competicion_id, int $tiempo_i
             ->execute([$competicion_id, $t['user_id'], $t['prueba'], $t['piscina']]);
     }
     $pdo->prepare('DELETE FROM competicion_entrenador_tiempos WHERE id = ?')->execute([$tiempo_id]);
+    // La marca que se creó con este tiempo se va con él
+    if (!empty($t['marca_id'])) {
+        $pdo->prepare('DELETE FROM marcas WHERE id = ?')->execute([$t['marca_id']]);
+    }
 }
 
 // ─── Resultados desde RFEN ───────────────────────────────────────────────────
@@ -199,6 +233,7 @@ function ce_importar_tiempos_rfen(PDO $pdo, array $comp, ?int $registrado_por = 
         JOIN competicion_entrenador_convocados v ON v.user_id = m.user_id AND v.competicion_id = ?
         WHERE m.es_parcial = 0 AND m.tiempo_seg > 0
           AND m.fecha_marca BETWEEN ? AND DATE_ADD(?, INTERVAL ? DAY)
+          AND NOT EXISTS (SELECT 1 FROM competicion_entrenador_tiempos x WHERE x.marca_id = m.id)
           AND NOT EXISTS (SELECT 1 FROM competicion_entrenador_tiempos t
                           WHERE t.competicion_id = v.competicion_id AND t.user_id = m.user_id
                             AND t.prueba = m.prueba AND t.piscina = m.piscina)
@@ -327,6 +362,43 @@ function convocar_grupo(PDO $pdo, int $competicion_id, int $grupo_id): int
     ");
     $stmt->execute([$competicion_id, $grupo_id]);
     return $stmt->rowCount();
+}
+
+// Convoca a todos los nadadores activos de una liga (categoría). Devuelve cuántos se han añadido.
+function convocar_liga(PDO $pdo, int $competicion_id, string $liga): int
+{
+    if (!in_array($liga, CE_LIGAS, true)) throw new InvalidArgumentException('Categoría no válida');
+    $stmt = $pdo->prepare("
+        INSERT IGNORE INTO competicion_entrenador_convocados (competicion_id, user_id)
+        SELECT ?, u.id FROM users u
+        WHERE u.liga = ? AND u.rol = 'socio' AND u.estado = 'activo' AND u.nadador_activo = 1
+    ");
+    $stmt->execute([$competicion_id, $liga]);
+    return $stmt->rowCount();
+}
+
+// Nadadores activos por liga, para el desplegable de convocar por categoría
+function contar_nadadores_por_liga(PDO $pdo): array
+{
+    $rows = $pdo->query("
+        SELECT liga, COUNT(*) AS n FROM users
+        WHERE rol = 'socio' AND estado = 'activo' AND nadador_activo = 1 AND liga IS NOT NULL AND liga <> ''
+        GROUP BY liga
+    ")->fetchAll(PDO::FETCH_KEY_PAIR);
+    $res = [];
+    foreach (CE_LIGAS as $l) if (!empty($rows[$l])) $res[$l] = (int)$rows[$l];
+    return $res;
+}
+
+// Si cambian fecha o lugar de la competición, las marcas creadas desde sus tiempos manuales también
+function sincronizar_marcas_competicion(PDO $pdo, array $comp): void
+{
+    $lugar = trim((string)($comp['lugar'] ?? '')) ?: $comp['nombre'];
+    $pdo->prepare('
+        UPDATE IGNORE marcas m JOIN competicion_entrenador_tiempos t ON t.marca_id = m.id
+        SET m.fecha_marca = ?, m.lugar = ?
+        WHERE t.competicion_id = ?
+    ')->execute([$comp['fecha'], $lugar, $comp['id']]);
 }
 
 // Quita al nadador de la convocatoria: sus pruebas caen por FK; las postas de relevo se borran aquí.

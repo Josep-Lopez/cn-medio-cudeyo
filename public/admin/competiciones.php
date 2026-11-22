@@ -5,6 +5,7 @@ require_once dirname(__DIR__, 2) . '/includes/layout.php';
 require_once dirname(__DIR__, 2) . '/includes/competicion_entrenador.php';
 require_once dirname(__DIR__, 2) . '/includes/grupos.php';
 require_once dirname(__DIR__, 2) . '/includes/rfen.php';
+require_once dirname(__DIR__, 2) . '/includes/logros.php';
 
 require_admin_area(['director_tecnico', 'entrenador']);
 
@@ -59,6 +60,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             case 'editar':
                 actualizar_competicion_entrenador($pdo, $competicionId, $_POST);
                 $comp = obtener_competicion_entrenador($pdo, $competicionId);
+                sincronizar_marcas_competicion($pdo, $comp);
                 recalcular_marcas_convocatoria($pdo, $comp);
                 flash('Datos guardados. Marcas de inscripción recalculadas.', 'success');
                 ce_volver($competicionId, 'datos');
@@ -71,6 +73,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             case 'convocar_grupo':
                 $n = convocar_grupo($pdo, $competicionId, (int)($_POST['grupo_id'] ?? 0));
                 flash($n ? "$n nadador(es) convocados." : 'Todos los nadadores del grupo ya estaban convocados.', $n ? 'success' : 'info');
+                ce_volver($competicionId, 'convocatoria');
+
+            case 'convocar_liga':
+                $liga = $_POST['liga'] ?? '';
+                $n = convocar_liga($pdo, $competicionId, $liga);
+                flash($n ? "$n nadador(es) convocados." : 'Todos los nadadores de ' . format_liga($liga) . ' ya estaban convocados.', $n ? 'success' : 'info');
                 ce_volver($competicionId, 'convocatoria');
 
             case 'desconvocar':
@@ -133,7 +141,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 ce_volver($competicionId, 'relevos');
 
             case 'agregar_tiempo':
-                agregar_tiempo_entrenador($pdo, [
+                $tiempoId = agregar_tiempo_entrenador($pdo, [
                     'competicion_id' => $competicionId,
                     'user_id' => $_POST['user_id'] ?? '',
                     'prueba' => $_POST['prueba'] ?? '',
@@ -142,7 +150,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     'parciales' => $_POST['parciales'] ?? '',
                     'registrado_por' => current_user()['id'],
                 ]);
-                flash('Tiempo añadido.', 'success');
+                $marcaId = (int)(obtener_tiempo_entrenador($pdo, $tiempoId)['marca_id'] ?? 0);
+                flash('Tiempo añadido.' . ($marcaId ? logros_resumen($pdo, [$marcaId]) : ''), 'success');
                 ce_volver($competicionId, 'resultados');
 
             case 'importar_rfen':
@@ -150,16 +159,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 set_time_limit(0);
                 $rango = [$comp['fecha'], date('Y-m-d', strtotime($comp['fecha'] . ' +' . CE_RFEN_DIAS_COMPETICION . ' days'))];
                 $sinRfen = [];
+                $marcaIds = [];
                 $stmtRfen = $pdo->prepare('SELECT rfen_id FROM users WHERE id = ?');
                 foreach (listar_convocados($pdo, $competicionId) as $nad) {
                     $stmtRfen->execute([$nad['id']]);
                     $rfenId = (string)$stmtRfen->fetchColumn();
                     if ($rfenId === '') { $sinRfen[] = $nad['nombre']; continue; }
-                    rfen_import_marks($pdo, (int)$nad['id'], $rfenId, null, $rango);
+                    $r = rfen_import_marks($pdo, (int)$nad['id'], $rfenId, null, $rango);
+                    $marcaIds = array_merge($marcaIds, $r['marca_ids'] ?? []);
                 }
                 $n = ce_importar_tiempos_rfen($pdo, $comp, (int)current_user()['id']);
                 $msg = $n ? "$n tiempo(s) importados de RFEN." : 'No hay tiempos nuevos en RFEN para estas fechas (puede que aún no estén publicados).';
                 if ($sinRfen) $msg .= ' Sin RFEN vinculado: ' . implode(', ', $sinRfen) . '.';
+                $msg .= logros_resumen($pdo, $marcaIds);
                 flash($msg, $n ? 'success' : 'info');
                 ce_volver($competicionId, 'resultados');
 
@@ -339,6 +351,7 @@ render_admin_layout('competiciones', function() use ($accion, $verId, $tab, $com
 <?php if ($tab === 'convocatoria'):
         $noConvocados = listar_no_convocados($pdo, $cid);
         $grupos = listar_grupos($pdo);
+        $ligasConv = contar_nadadores_por_liga($pdo);
 ?>
 <div class="card mb-6" style="padding:20px;">
   <div class="d-flex gap-3 flex-wrap" style="align-items:flex-end;">
@@ -368,6 +381,23 @@ render_admin_layout('competiciones', function() use ($accion, $verId, $tab, $com
           <option value="">— Grupo —</option>
           <?php foreach ($grupos as $g): ?>
             <option value="<?= (int)$g['id'] ?>"><?= e($g['nombre']) ?> (<?= (int)$g['num_nadadores'] ?>)</option>
+          <?php endforeach; ?>
+        </select>
+      </div>
+      <button type="submit" class="btn btn-gray btn-sm">Añadir</button>
+    </form>
+    <?php endif; ?>
+    <?php if ($ligasConv): ?>
+    <form method="POST" action="/admin/competiciones" class="d-flex gap-2" style="flex:1;min-width:220px;align-items:flex-end;">
+      <?= csrf_field() ?>
+      <input type="hidden" name="accion" value="convocar_liga">
+      <input type="hidden" name="competicion_id" value="<?= $cid ?>">
+      <div class="form-group" style="flex:1;margin:0;">
+        <label class="form-label">Añadir categoría entera</label>
+        <select name="liga" class="form-control" required>
+          <option value="">— Categoría —</option>
+          <?php foreach ($ligasConv as $liga => $num): ?>
+            <option value="<?= e($liga) ?>"><?= e(format_liga($liga)) ?> (<?= $num ?>)</option>
           <?php endforeach; ?>
         </select>
       </div>

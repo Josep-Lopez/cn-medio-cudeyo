@@ -3,6 +3,7 @@ require_once dirname(__DIR__, 2) . '/config/db.php';
 require_once dirname(__DIR__, 2) . '/includes/auth.php';
 require_once dirname(__DIR__, 2) . '/includes/layout.php';
 require_once dirname(__DIR__, 2) . '/includes/rfen.php';
+require_once dirname(__DIR__, 2) . '/includes/logros.php';
 
 require_admin_area(['director_tecnico']);
 
@@ -55,16 +56,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
   $actualizadas = 0;
   $sin_cambios = 0;
   $procesadas = 0;
-  $stmtImport = $pdo->prepare('
-            INSERT INTO marcas (user_id, prueba, piscina, tiempo, tiempo_seg, fecha_marca, lugar)
-            VALUES (?,?,?,?,?,?,?)
-            ON DUPLICATE KEY UPDATE
-                tiempo=IF(VALUES(tiempo_seg)<tiempo_seg, VALUES(tiempo), tiempo),
-                tiempo_seg=IF(VALUES(tiempo_seg)<tiempo_seg, VALUES(tiempo_seg), tiempo_seg),
-                fecha_marca=IF(VALUES(tiempo_seg)<tiempo_seg, VALUES(fecha_marca), fecha_marca),
-                lugar=IF(VALUES(tiempo_seg)<tiempo_seg, VALUES(lugar), lugar),
-                updated_at=NOW()
-        ');
+  $marca_ids = [];
   foreach (array_keys($_POST['imp_sel'] ?? []) as $idx) {
     $idx = (string)$idx;
     if (!isset($payload[$idx]) || !is_array($payload[$idx])) {
@@ -83,18 +75,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($secs <= 0) {
       continue;
     }
-    $stmtImport->execute([$user_id, $prueba, $piscina, $tiempo, $secs, $fecha_m, $lugar]);
+    [$estado, $mid] = rfen_guardar_marca($pdo, $user_id, $prueba, $piscina, $tiempo, $secs, $fecha_m, $lugar);
     $procesadas++;
-    $affected = $stmtImport->rowCount();
-    if ($affected === 1) {
+    if ($estado === 'insertada') {
       $insertadas++;
-    } elseif ($affected === 2) {
+    } elseif ($estado === 'actualizada') {
       $actualizadas++;
     } else {
       $sin_cambios++;
     }
+    if ($estado !== 'sin_cambios') $marca_ids[] = $mid;
   }
-  flash("RFEN: {$procesadas} procesadas · {$insertadas} insertadas · {$actualizadas} actualizadas · {$sin_cambios} sin cambios.", 'success');
+  flash("RFEN: {$procesadas} procesadas · {$insertadas} insertadas · {$actualizadas} actualizadas · {$sin_cambios} sin cambios."
+    . logros_resumen($pdo, $marca_ids, false), 'success');
   header('Location: /admin/marcas?user_id=' . $user_id);
   exit;
 }

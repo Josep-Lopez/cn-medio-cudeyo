@@ -4,6 +4,7 @@ require_once dirname(__DIR__, 2) . '/includes/auth.php';
 require_once dirname(__DIR__, 2) . '/includes/layout.php';
 require_once dirname(__DIR__, 2) . '/includes/minimas.php';
 require_once dirname(__DIR__, 2) . '/includes/rfen.php';
+require_once dirname(__DIR__, 2) . '/includes/logros.php';
 
 require_admin_area(['director_tecnico']);
 
@@ -40,8 +41,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         VALUES (?,?,?,?,?,?,?,?)
                     ');
                     $stmt->execute([$user_id, $prueba, $piscina, $tiempo, $secs, $fecha_m, $lugar, $es_parcial]);
+                    $marca_id = (int)$pdo->lastInsertId();
                 }
-                flash('Marca guardada correctamente.', 'success');
+                flash('Marca guardada correctamente.' . logros_resumen($pdo, [$marca_id]), 'success');
             } else {
                 flash('Formato de tiempo incorrecto. Usa mm:ss.cc o ss.cc', 'danger');
             }
@@ -56,7 +58,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if ($r['error']) {
                 flash('Error RFEN: ' . $r['error'], 'danger');
             } else {
-                flash("RFEN (todas): {$r['procesadas']} procesadas · {$r['insertadas']} insertadas · {$r['actualizadas']} actualizadas · {$r['sin_cambios']} sin cambios.", 'success');
+                flash("RFEN (todas): {$r['procesadas']} procesadas · {$r['insertadas']} insertadas · {$r['actualizadas']} actualizadas · {$r['sin_cambios']} sin cambios."
+                    . logros_resumen($pdo, $r['marca_ids'] ?? [], false), 'success');
             }
         } else {
             flash('Este usuario no tiene vinculación RFEN.', 'danger');

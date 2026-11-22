@@ -33,6 +33,7 @@ cn-medio-cudeyo/
 │   ├── grupos.php         ← Helpers dominio grupos de entrenamiento
 │   ├── competicion_entrenador.php ← Helpers competiciones del entrenador: convocatoria, mejor marca auto, mínimas (RFEN/propias), relevos
 │   ├── records_relevos.php ← Récords de relevo manuales (vigente = mejor tiempo por relevo×piscina×M/F/X)
+│   ├── logros.php         ← marca_logros()/logros_resumen(): ¿la marca es récord del club, marca de edad o mejor personal? (flash al guardar)
 │   ├── entrenos.php       ← Helpers entrenos por grupo (subida fotos/PDF, visibilidad, avisos de nuevos)
 │   └── encuestas.php      ← Helpers encuestas estilo Google Forms (ENC_TIPOS, validar, guardar, resultados, export)
 └── public/                ← DocumentRoot de Apache
@@ -168,7 +169,7 @@ render_directiva_layout($activePage, fn)   // Sidebar directiva + main
 | `grupos_entrenamiento` | Grupos de entrenamiento del entrenador (nombre, descripción) |
 | `grupo_nadadores` | Relación N:N grupo↔nadador (un nadador puede estar en varios grupos) |
 | `competicion_entrenador` | Competiciones registradas por el entrenador (nombre, lugar, fecha) — **no** confundir con `competiciones`/`competicion_resultados` de otra feature |
-| `competicion_entrenador_tiempos` | Tiempos por nadador×prueba×competición, con parciales en texto libre |
+| `competicion_entrenador_tiempos` | Tiempos por nadador×prueba×competición, con parciales en texto libre. Los manuales crean también una fila en `marcas` (`marca_id`; se borra con el tiempo o cuando llega la oficial de RFEN) |
 | `competicion_entrenador_convocados` / `competicion_entrenador_pruebas` | Nadadores convocados y sus pruebas; la mejor marca (ventana `marcas_desde/hasta`, sin tiempos de la propia competición) se guarda como foto y se recalcula al cambiar datos/mínimas |
 | `competicion_entrenador_minimas` | Mínimas propias de una competición (`minimas_fuente='propias'`): prueba × piscina × sexo × rango año nacimiento (gana el rango más estrecho) |
 | `competicion_entrenador_relevos` / `competicion_entrenador_relevo_nadadores` | Relevos (4x50/100/200 L, 8x50 L, 4x50/100 X; M/F/X mixto mitad y mitad) con 4 u 8 postas (`relevo_num_postas()`, tiempo de posta opcional) y tiempo final opcional; estimado = suma mejores marcas |

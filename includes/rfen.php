@@ -280,35 +280,20 @@ function rfen_import_marks(PDO $pdo, int $user_id, string $rfen_id, ?string $tem
   }
 
   // Insert / update
-  $stmtImport = $pdo->prepare('
-        INSERT INTO marcas (user_id, prueba, piscina, tiempo, tiempo_seg, fecha_marca, lugar)
-        VALUES (?,?,?,?,?,?,?)
-        ON DUPLICATE KEY UPDATE
-            tiempo=IF(VALUES(tiempo_seg)<tiempo_seg, VALUES(tiempo), tiempo),
-            tiempo_seg=IF(VALUES(tiempo_seg)<tiempo_seg, VALUES(tiempo_seg), tiempo_seg),
-            fecha_marca=IF(VALUES(tiempo_seg)<tiempo_seg, VALUES(fecha_marca), fecha_marca),
-            lugar=IF(VALUES(tiempo_seg)<tiempo_seg, VALUES(lugar), lugar),
-            updated_at=NOW()
-    ');
-
   $procesadas   = 0;
   $insertadas   = 0;
   $actualizadas = 0;
   $sin_cambios  = 0;
+  $marca_ids    = [];
 
   foreach ($agrupados as $r) {
-    $secs = $r['tiempo_seg'];
-    if ($secs <= 0) continue;
-    $stmtImport->execute([$user_id, $r['prueba'], $r['piscina'], $r['tiempo'], $secs, $r['fecha_iso'], $r['lugar']]);
+    if ($r['tiempo_seg'] <= 0) continue;
+    [$estado, $id] = rfen_guardar_marca($pdo, $user_id, $r['prueba'], $r['piscina'], $r['tiempo'], $r['tiempo_seg'], $r['fecha_iso'], $r['lugar']);
     $procesadas++;
-    $affected = $stmtImport->rowCount();
-    if ($affected === 1) {
-      $insertadas++;
-    } elseif ($affected === 2) {
-      $actualizadas++;
-    } else {
-      $sin_cambios++;
-    }
+    if ($estado === 'insertada') $insertadas++;
+    elseif ($estado === 'actualizada') $actualizadas++;
+    else $sin_cambios++;
+    if ($estado !== 'sin_cambios') $marca_ids[] = $id;
   }
 
   return [
@@ -316,6 +301,47 @@ function rfen_import_marks(PDO $pdo, int $user_id, string $rfen_id, ?string $tem
     'insertadas'   => $insertadas,
     'actualizadas' => $actualizadas,
     'sin_cambios'  => $sin_cambios,
+    'marca_ids'    => $marca_ids,
     'error'        => null,
   ];
+}
+
+// Guarda una marca de RFEN (clave única: nadador+prueba+piscina+fecha+lugar; si ya existe se queda la mejor).
+// Devuelve [estado 'insertada'|'actualizada'|'sin_cambios', id de la marca].
+// La marca oficial sustituye a la que el entrenador metió a mano en una competición de esas fechas.
+function rfen_guardar_marca(PDO $pdo, int $user_id, string $prueba, string $piscina, string $tiempo, float $secs, string $fecha, ?string $lugar): array
+{
+  $lugar = (string)$lugar;
+  $stmt = $pdo->prepare('SELECT id, tiempo_seg FROM marcas WHERE user_id=? AND prueba=? AND piscina=? AND fecha_marca=? AND lugar=?');
+  $stmt->execute([$user_id, $prueba, $piscina, $fecha, $lugar]);
+  $prev = $stmt->fetch();
+
+  if ($prev) {
+    if ($secs >= (float)$prev['tiempo_seg']) return ['sin_cambios', (int)$prev['id']];
+    $pdo->prepare('UPDATE marcas SET tiempo=?, tiempo_seg=?, updated_at=NOW() WHERE id=?')
+      ->execute([$tiempo, $secs, $prev['id']]);
+    $estado = 'actualizada';
+    $id = (int)$prev['id'];
+  } else {
+    $pdo->prepare('INSERT INTO marcas (user_id, prueba, piscina, tiempo, tiempo_seg, fecha_marca, lugar) VALUES (?,?,?,?,?,?,?)')
+      ->execute([$user_id, $prueba, $piscina, $tiempo, $secs, $fecha, $lugar]);
+    $estado = 'insertada';
+    $id = (int)$pdo->lastInsertId();
+  }
+
+  // Marcas creadas desde un tiempo manual de competición en esas fechas → sobran (el tiempo de la competición se queda)
+  $stmt = $pdo->prepare('
+        SELECT t.marca_id FROM competicion_entrenador_tiempos t
+        JOIN competicion_entrenador c ON c.id = t.competicion_id
+        WHERE t.marca_id IS NOT NULL AND t.marca_id <> ? AND t.user_id = ? AND t.prueba = ? AND t.piscina = ?
+          AND ? BETWEEN c.fecha AND DATE_ADD(c.fecha, INTERVAL 2 DAY)
+    ');
+  $stmt->execute([$id, $user_id, $prueba, $piscina, $fecha]);
+  $sobran = $stmt->fetchAll(PDO::FETCH_COLUMN);
+  if ($sobran) {
+    $in = implode(',', array_fill(0, count($sobran), '?'));
+    $pdo->prepare("DELETE FROM marcas WHERE id IN ($in)")->execute($sobran);
+  }
+
+  return [$estado, $id];
 }

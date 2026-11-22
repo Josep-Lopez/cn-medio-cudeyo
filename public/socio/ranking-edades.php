@@ -33,6 +33,8 @@ if ($filterTemporada !== 'todas' && !in_array($filterTemporada, $temporadas_disp
 
 $vista_a_grupos = [];
 $vista_b_matriz = [];
+// Marcas de los últimos 30 días: se pintan en verde como nuevas
+$limite_nueva = date('Y-m-d', strtotime('-30 days'));
 
 if ($filterPrueba !== '') {
     // --- Vista A: top-10 por edad ---
@@ -229,7 +231,7 @@ render_header('Ranking por edad', 'socio-ranking');
                 </thead>
                 <tbody>
                   <?php foreach ($filas as $i => $row): ?>
-                    <tr <?= $row['uid'] == $user['id'] ? 'style="background:#eef2ff;"' : '' ?>>
+                    <tr <?= $row['uid'] == $user['id'] ? 'style="background:#eef2ff;"' : '' ?><?= $row['fecha_marca'] >= $limite_nueva ? ' class="marca-nueva" title="Marca de los últimos 30 días"' : '' ?>>
                       <td>
                         <span class="rank-pos <?= $i === 0 ? 'top1' : ($i === 1 ? 'top2' : ($i === 2 ? 'top3' : '')) ?>">
                           <?= $i + 1 ?>
@@ -260,7 +262,7 @@ render_header('Ranking por edad', 'socio-ranking');
         <?php if ($filterSexo === 'F') echo ' · Femenino'; ?>
       </h2>
       <p class="text-muted text-sm" style="margin-bottom:12px;">
-        Cada celda es la mejor marca a esa edad y prueba. Click para ver el top-10 completo.
+        Cada celda es la mejor marca a esa edad y prueba. Click para ver el top-10 completo. <span class="leyenda-nueva">En verde: marcas de edad nuevas (últimos 30 días).</span>
       </p>
 
       <div id="matriz-scroll-ctrls" style="display:flex;justify-content:flex-end;gap:8px;margin-bottom:8px;">
@@ -311,7 +313,7 @@ render_header('Ranking por edad', 'socio-ranking');
                         'temporada' => $filterTemporada,
                       ], static fn($v) => $v !== '' && $v !== null)) . '#edad-' . $edad;
                     ?>
-                      <a href="<?= e($link) ?>" class="cell-line cell-line-<?= strtolower($sx) ?> js-loading-link" title="<?= e($r['nombre']) ?> · Top-10 edad <?= $edad ?> · <?= e(format_prueba($p)) ?> · <?= $sx === 'M' ? 'Masculino' : 'Femenino' ?>">
+                      <a href="<?= e($link) ?>" class="cell-line cell-line-<?= strtolower($sx) ?><?= $r['fecha_marca'] >= $limite_nueva ? ' cell-nueva' : '' ?> js-loading-link" title="<?= e($r['nombre']) ?> · Top-10 edad <?= $edad ?> · <?= e(format_prueba($p)) ?> · <?= $sx === 'M' ? 'Masculino' : 'Femenino' ?>">
                         <span class="cell-time"><?= e($r['tiempo']) ?></span>
                         <span class="cell-name"><?= e(nombre_corto($r['nombre'])) ?></span>
                       </a>
