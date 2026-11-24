@@ -91,7 +91,7 @@ cn-medio-cudeyo/
         ├── comunicaciones.php ← Mensajes recibidos + responder encuestas
         ├── competiciones.php  ← Mis convocatorias (próximas/anteriores: pruebas, marca, mínima, relevos, comunicados) + mis tiempos de competición
         ├── competicion_tiempo.php ← Detalle de tiempo propio + hilo de comentarios (solo el dueño o admin)
-        └── entrenos.php       ← Entrenos de mis grupos (solo los publicados tras entrar al grupo); marca vistos
+        └── entrenos.php       ← Entrenos de mis grupos (solo los publicados tras entrar al grupo) y los enviados a mí; marca vistos
 ```
 
 ## Convenciones PHP
@@ -180,6 +180,7 @@ render_directiva_layout($activePage, fn)   // Sidebar directiva + main
 | `encuestas_envios` | Quién ha respondido cada encuesta (UNIQUE comunicacion+user) |
 | `competicion_entrenador_comentarios` | Hilo de comentarios privado entrenador↔nadador por tiempo |
 | `entrenos` / `entreno_grupos` | Entrenos publicados por el entrenador (título, fecha, descripción) y grupos destino (N:N) |
+| `entreno_nadadores` | Nadadores concretos a los que se envía un entreno (además de, o en vez de, grupos) |
 | `entreno_archivos` | Fotos/PDF por entreno (JPG/PNG/WEBP/PDF, máx 10 MB, máx 10/entreno) en `public/uploads/entrenos/` (acceso directo denegado) |
 | `entreno_vistos` | Qué entrenos ha visto cada nadador (aviso de nuevos en navbar y panel) |
 | `records_relevos` | Récords de relevo del club introducidos a mano (nadadores en texto libre `nadador1..8` + `parcialN` por posta, 5-8 solo en 8x50; `userN_id` si el nombre coincide con un socio → sale en su perfil; histórico, el vigente es el mejor tiempo) |

@@ -1,5 +1,5 @@
 <?php
-// Helpers de dominio para entrenos (entrenamientos publicados por el entrenador por grupo).
+// Helpers de dominio para entrenos (entrenamientos publicados por el entrenador para grupos o nadadores concretos).
 // Requiere $pdo (config/db.php).
 
 const ENTRENO_UPLOAD_DIR = __DIR__ . '/../public/uploads/entrenos/';
@@ -17,6 +17,9 @@ function listar_entrenos(PDO $pdo, int $grupo_id = 0): array
     $sql = '
         SELECT e.*,
                GROUP_CONCAT(DISTINCT g.nombre ORDER BY g.nombre SEPARATOR \', \') AS grupos,
+               (SELECT GROUP_CONCAT(u.nombre ORDER BY u.nombre SEPARATOR \', \')
+                FROM entreno_nadadores en JOIN users u ON u.id = en.user_id
+                WHERE en.entreno_id = e.id) AS nadadores,
                (SELECT COUNT(*) FROM entreno_archivos a WHERE a.entreno_id = e.id) AS num_archivos
         FROM entrenos e
         LEFT JOIN entreno_grupos eg ON eg.entreno_id = e.id
@@ -47,6 +50,27 @@ function grupos_de_entreno(PDO $pdo, int $entreno_id): array
     return array_map('intval', $stmt->fetchAll(PDO::FETCH_COLUMN));
 }
 
+function nadadores_de_entreno(PDO $pdo, int $entreno_id): array
+{
+    $stmt = $pdo->prepare('SELECT user_id FROM entreno_nadadores WHERE entreno_id = ?');
+    $stmt->execute([$entreno_id]);
+    return array_map('intval', $stmt->fetchAll(PDO::FETCH_COLUMN));
+}
+
+// Nadadores a los que se puede enviar un entreno (más los ya elegidos, aunque hayan dejado de estar activos).
+function listar_nadadores_para_entreno(PDO $pdo, array $ya_elegidos = []): array
+{
+    $ids = $ya_elegidos ?: [0];
+    $stmt = $pdo->prepare("
+        SELECT id, nombre, liga FROM users
+        WHERE (rol = 'socio' AND estado = 'activo' AND nadador_activo = 1)
+           OR id IN (" . implode(',', array_fill(0, count($ids), '?')) . ")
+        ORDER BY nombre
+    ");
+    $stmt->execute(array_values($ids));
+    return $stmt->fetchAll();
+}
+
 function archivos_de_entrenos(PDO $pdo, array $entreno_ids): array
 {
     if (!$entreno_ids) return [];
@@ -60,7 +84,7 @@ function archivos_de_entrenos(PDO $pdo, array $entreno_ids): array
     return $por_entreno;
 }
 
-function validar_datos_entreno(string $titulo, string $fecha, array $grupo_ids): array
+function validar_datos_entreno(string $titulo, string $fecha): array
 {
     $titulo = trim($titulo);
     if ($titulo === '' || mb_strlen($titulo) > 150) {
@@ -70,33 +94,41 @@ function validar_datos_entreno(string $titulo, string $fecha, array $grupo_ids):
     if (!$d || $d->format('Y-m-d') !== $fecha) {
         throw new InvalidArgumentException('Fecha no válida');
     }
-    $grupo_ids = array_values(array_unique(array_filter(array_map('intval', $grupo_ids))));
-    if (!$grupo_ids) {
-        throw new InvalidArgumentException('Elige al menos un grupo');
-    }
-    return [$titulo, $fecha, $grupo_ids];
+    return [$titulo, $fecha];
 }
 
-function guardar_grupos_entreno(PDO $pdo, int $entreno_id, array $grupo_ids): void
+// Sustituye los destinatarios (grupos y/o nadadores). Llamar dentro de una transacción.
+function guardar_destinatarios_entreno(PDO $pdo, int $entreno_id, array $grupo_ids, array $nadador_ids): void
 {
+    $limpiar = fn(array $ids) => array_unique(array_filter(array_map('intval', $ids)));
+    $permitidos = array_map('intval', array_column(listar_nadadores_para_entreno($pdo, nadadores_de_entreno($pdo, $entreno_id)), 'id'));
+    $n = 0;
     $pdo->prepare('DELETE FROM entreno_grupos WHERE entreno_id = ?')->execute([$entreno_id]);
     $stmt = $pdo->prepare('INSERT IGNORE INTO entreno_grupos (entreno_id, grupo_id)
                            SELECT ?, id FROM grupos_entrenamiento WHERE id = ?');
-    foreach ($grupo_ids as $gid) {
+    foreach ($limpiar($grupo_ids) as $gid) {
         $stmt->execute([$entreno_id, $gid]);
+        $n += $stmt->rowCount();
     }
+    $pdo->prepare('DELETE FROM entreno_nadadores WHERE entreno_id = ?')->execute([$entreno_id]);
+    $stmt = $pdo->prepare('INSERT INTO entreno_nadadores (entreno_id, user_id) VALUES (?, ?)');
+    foreach (array_intersect($limpiar($nadador_ids), $permitidos) as $uid) {
+        $stmt->execute([$entreno_id, $uid]);
+        $n++;
+    }
+    if (!$n) throw new InvalidArgumentException('Elige al menos un grupo o un nadador');
 }
 
-function crear_entreno(PDO $pdo, string $titulo, string $fecha, ?string $descripcion, array $grupo_ids, int $creado_por): int
+function crear_entreno(PDO $pdo, string $titulo, string $fecha, ?string $descripcion, array $grupo_ids, array $nadador_ids, int $creado_por): int
 {
-    [$titulo, $fecha, $grupo_ids] = validar_datos_entreno($titulo, $fecha, $grupo_ids);
+    [$titulo, $fecha] = validar_datos_entreno($titulo, $fecha);
     $desc = $descripcion !== null && trim($descripcion) !== '' ? trim($descripcion) : null;
     $pdo->beginTransaction();
     try {
         $pdo->prepare('INSERT INTO entrenos (titulo, fecha, descripcion, creado_por) VALUES (?, ?, ?, ?)')
             ->execute([$titulo, $fecha, $desc, $creado_por]);
         $id = (int)$pdo->lastInsertId();
-        guardar_grupos_entreno($pdo, $id, $grupo_ids);
+        guardar_destinatarios_entreno($pdo, $id, $grupo_ids, $nadador_ids);
         $pdo->commit();
         return $id;
     } catch (Throwable $ex) {
@@ -105,15 +137,15 @@ function crear_entreno(PDO $pdo, string $titulo, string $fecha, ?string $descrip
     }
 }
 
-function actualizar_entreno(PDO $pdo, int $id, string $titulo, string $fecha, ?string $descripcion, array $grupo_ids): void
+function actualizar_entreno(PDO $pdo, int $id, string $titulo, string $fecha, ?string $descripcion, array $grupo_ids, array $nadador_ids): void
 {
-    [$titulo, $fecha, $grupo_ids] = validar_datos_entreno($titulo, $fecha, $grupo_ids);
+    [$titulo, $fecha] = validar_datos_entreno($titulo, $fecha);
     $desc = $descripcion !== null && trim($descripcion) !== '' ? trim($descripcion) : null;
     $pdo->beginTransaction();
     try {
         $pdo->prepare('UPDATE entrenos SET titulo = ?, fecha = ?, descripcion = ? WHERE id = ?')
             ->execute([$titulo, $fecha, $desc, $id]);
-        guardar_grupos_entreno($pdo, $id, $grupo_ids);
+        guardar_destinatarios_entreno($pdo, $id, $grupo_ids, $nadador_ids);
         $pdo->commit();
     } catch (Throwable $ex) {
         $pdo->rollBack();
@@ -230,12 +262,18 @@ function eliminar_archivo_entreno(PDO $pdo, int $id): void
     if (is_file($path)) @unlink($path);
 }
 
-// Condición SQL de visibilidad: el nadador está en alguno de los grupos del entreno
-// y el entreno se publicó después de que entrara en ese grupo. Alias de entrenos: e.
+// Condición SQL de visibilidad: se le envió a él en concreto, o está en alguno de los grupos del entreno
+// y el entreno se publicó después de que entrara en ese grupo. Alias de entrenos: e. Un parámetro: user_id.
 const ENTRENO_VISIBLE_SQL = 'EXISTS (
-    SELECT 1 FROM entreno_grupos eg
-    JOIN grupo_nadadores gn ON gn.grupo_id = eg.grupo_id
-    WHERE eg.entreno_id = e.id AND gn.user_id = ? AND e.created_at >= gn.added_at
+    SELECT 1 FROM users vu
+    WHERE vu.id = ? AND (
+        EXISTS (SELECT 1 FROM entreno_nadadores en WHERE en.entreno_id = e.id AND en.user_id = vu.id)
+        OR EXISTS (
+            SELECT 1 FROM entreno_grupos eg
+            JOIN grupo_nadadores gn ON gn.grupo_id = eg.grupo_id
+            WHERE eg.entreno_id = e.id AND gn.user_id = vu.id AND e.created_at >= gn.added_at
+        )
+    )
 )';
 
 function listar_entrenos_nadador(PDO $pdo, int $user_id, int $limite = 0): array
@@ -247,6 +285,7 @@ function listar_entrenos_nadador(PDO $pdo, int $user_id, int $limite = 0): array
                 JOIN grupo_nadadores gn2 ON gn2.grupo_id = eg2.grupo_id AND gn2.user_id = ?
                 JOIN grupos_entrenamiento g ON g.id = eg2.grupo_id
                 WHERE eg2.entreno_id = e.id) AS grupos,
+               EXISTS (SELECT 1 FROM entreno_nadadores en3 WHERE en3.entreno_id = e.id AND en3.user_id = ?) AS individual,
                (ev.user_id IS NULL) AS nuevo
         FROM entrenos e
         LEFT JOIN entreno_vistos ev ON ev.entreno_id = e.id AND ev.user_id = ?
@@ -254,7 +293,7 @@ function listar_entrenos_nadador(PDO $pdo, int $user_id, int $limite = 0): array
         ORDER BY e.fecha DESC, e.id DESC';
     if ($limite > 0) $sql .= ' LIMIT ' . $limite;
     $stmt = $pdo->prepare($sql);
-    $stmt->execute([$user_id, $user_id, $user_id]);
+    $stmt->execute([$user_id, $user_id, $user_id, $user_id]);
     return $stmt->fetchAll();
 }
 

@@ -18,7 +18,7 @@ render_header('Mis entrenos', 'socio-entrenos');
 
   <?php if (!$entrenos): ?>
     <div class="card text-center" style="padding:32px;">
-      <p class="text-muted">Todavía no hay entrenos publicados para tus grupos de entrenamiento.</p>
+      <p class="text-muted">Todavía no hay entrenos publicados para ti.</p>
     </div>
   <?php else: ?>
     <?php foreach ($entrenos as $en): ?>
@@ -30,7 +30,7 @@ render_header('Mis entrenos', 'socio-entrenos');
           </h2>
           <span class="text-muted text-sm"><i class="bi bi-calendar3"></i> <?= date('d/m/Y', strtotime($en['fecha'])) ?></span>
         </div>
-        <p class="text-muted text-sm" style="margin:4px 0 0;"><i class="bi bi-diagram-3"></i> <?= e($en['grupos'] ?? '') ?></p>
+        <p class="text-muted text-sm" style="margin:4px 0 0;"><i class="bi bi-<?= $en['individual'] ? 'person' : 'diagram-3' ?>"></i> <?= e(implode(' · ', array_filter([$en['individual'] ? 'Para ti' : null, $en['grupos']]))) ?></p>
         <?php if ($en['descripcion']): ?>
           <div style="margin-top:12px;white-space:pre-line;"><?= e($en['descripcion']) ?></div>
         <?php endif; ?>

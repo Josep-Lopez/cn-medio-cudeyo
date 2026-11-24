@@ -266,9 +266,12 @@ render_admin_layout('deportistas', function() use (
 <?php elseif ($tab === 'entrenos'): ?>
 <!-- Entrenos -->
 <div class="card mb-6">
-  <h2 style="font-size:15px;font-weight:700;margin-bottom:14px;">Entrenos</h2>
+  <div class="d-flex justify-between align-center flex-wrap gap-2" style="margin-bottom:14px;">
+    <h2 style="font-size:15px;font-weight:700;margin:0;">Entrenos</h2>
+    <a href="/admin/entrenos?accion=nuevo&nadador=<?= (int)$nadador['id'] ?>" class="btn btn-primary btn-sm"><i class="bi bi-plus-lg"></i> Enviar entreno</a>
+  </div>
   <?php if (!$entrenos): ?>
-    <p class="text-muted">Sin entrenos publicados para sus grupos.</p>
+    <p class="text-muted">Sin entrenos publicados para este nadador.</p>
   <?php else: ?>
     <div class="table-wrapper">
       <table>
@@ -278,7 +281,7 @@ render_admin_layout('deportistas', function() use (
             <tr>
               <td><?= date('d/m/Y', strtotime($en['fecha'])) ?></td>
               <td style="font-weight:600;"><?= e($en['titulo']) ?></td>
-              <td class="text-muted"><?= e($en['grupos'] ?? '') ?></td>
+              <td class="text-muted"><?= e(implode(' · ', array_filter([$en['individual'] ? 'Individual' : null, $en['grupos']]))) ?></td>
               <td><?= $en['nuevo'] ? '<span class="text-muted">No</span>' : '<i class="bi bi-check2" style="color:var(--green);"></i>' ?></td>
               <td><a href="/admin/entrenos?ver=<?= (int)$en['id'] ?>" class="btn btn-gray btn-sm">Ver →</a></td>
             </tr>

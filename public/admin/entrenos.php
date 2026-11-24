@@ -20,7 +20,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($accion === 'crear') {
         try {
             $id = crear_entreno($pdo, $_POST['titulo'] ?? '', $_POST['fecha'] ?? '', $_POST['descripcion'] ?? null,
-                (array)($_POST['grupos'] ?? []), (int)current_user()['id']);
+                (array)($_POST['grupos'] ?? []), (array)($_POST['nadadores'] ?? []), (int)current_user()['id']);
         } catch (Throwable $ex) {
             flash('Error: ' . $ex->getMessage(), 'danger');
             header('Location: /admin/entrenos?accion=nuevo');
@@ -40,7 +40,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $id = (int)$_POST['id'];
         try {
             actualizar_entreno($pdo, $id, $_POST['titulo'] ?? '', $_POST['fecha'] ?? '', $_POST['descripcion'] ?? null,
-                (array)($_POST['grupos'] ?? []));
+                (array)($_POST['grupos'] ?? []), (array)($_POST['nadadores'] ?? []));
             $errores = subir_archivos_entreno($pdo, $id, $_FILES['archivos'] ?? []);
             if ($errores) {
                 flash('Cambios guardados, pero algunos archivos no se subieron: ' . implode(' · ', $errores), 'warning');
@@ -82,7 +82,10 @@ render_header('Entrenos', 'admin-entrenos');
 render_admin_layout('entrenos', function() use ($accion, $verId, $filtroGrupo, $grupos, $pdo) {
 
     // Formulario común a nuevo/editar
-    $form = function(?array $entreno, array $seleccionados) use ($grupos) {
+    $form = function(?array $entreno, array $seleccionados, array $nadSel) use ($grupos, $pdo) {
+        $nadadores = listar_nadadores_para_entreno($pdo, $entreno ? $nadSel : []);
+        // Los elegidos primero
+        usort($nadadores, fn($a, $b) => in_array((int)$b['id'], $nadSel, true) <=> in_array((int)$a['id'], $nadSel, true));
 ?>
   <?= csrf_field() ?>
   <div class="form-group">
@@ -96,7 +99,7 @@ render_admin_layout('entrenos', function() use ($accion, $verId, $filtroGrupo, $
            value="<?= e($entreno['fecha'] ?? date('Y-m-d')) ?>">
   </div>
   <div class="form-group">
-    <label class="form-label">Grupos *</label>
+    <label class="form-label">Grupos</label>
     <?php if (!$grupos): ?>
       <p class="text-muted">No hay grupos de entrenamiento. <a href="/admin/grupos?accion=nuevo">Crea uno primero</a>.</p>
     <?php else: ?>
@@ -111,6 +114,36 @@ render_admin_layout('entrenos', function() use ($accion, $verId, $filtroGrupo, $
       </div>
     <?php endif; ?>
   </div>
+  <div class="form-group">
+    <label class="form-label" for="entreno-buscar">Nadadores concretos</label>
+    <input type="search" id="entreno-buscar" class="form-control" placeholder="Buscar deportista…" autocomplete="off">
+    <div class="entreno-grupos entreno-nadadores" id="entreno-nadadores">
+      <?php foreach ($nadadores as $n): ?>
+        <label class="entreno-grupo">
+          <input type="checkbox" name="nadadores[]" value="<?= (int)$n['id'] ?>" <?= in_array((int)$n['id'], $nadSel, true) ? 'checked' : '' ?>>
+          <span><?= e($n['nombre']) ?></span>
+        </label>
+      <?php endforeach; ?>
+    </div>
+    <p class="text-muted text-sm" style="margin-top:6px;"><strong id="entreno-nad-num">0</strong> elegidos. Elige al menos un grupo o un nadador; si solo eliges nadadores, solo lo verán ellos.</p>
+  </div>
+  <script>
+  (function () {
+    var caja = document.getElementById('entreno-nadadores'), buscar = document.getElementById('entreno-buscar');
+    function norm(s) { return s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, ''); }
+    function contar() { document.getElementById('entreno-nad-num').textContent = caja.querySelectorAll('input:checked').length; }
+    buscar.addEventListener('keydown', function (ev) { if (ev.key === 'Enter') ev.preventDefault(); });
+    buscar.addEventListener('input', function () {
+      var palabras = norm(buscar.value).split(/\s+/);
+      caja.querySelectorAll('label').forEach(function (l) {
+        var t = norm(l.textContent);
+        l.style.display = palabras.every(function (p) { return t.indexOf(p) !== -1; }) ? '' : 'none';
+      });
+    });
+    caja.addEventListener('change', contar);
+    contar();
+  })();
+  </script>
   <div class="form-group">
     <label class="form-label">Descripción</label>
     <textarea name="descripcion" class="form-control" rows="6" placeholder="Calentamiento, series, vuelta a la calma…"><?= e($entreno['descripcion'] ?? '') ?></textarea>
@@ -133,7 +166,7 @@ render_admin_layout('entrenos', function() use ($accion, $verId, $filtroGrupo, $
 <?php render_flash(); ?>
 <form method="POST" action="/admin/entrenos" enctype="multipart/form-data" class="card entreno-form" style="padding:24px;max-width:720px;">
   <input type="hidden" name="accion" value="crear">
-  <?php $form(null, $filtroGrupo ? [$filtroGrupo] : []); ?>
+  <?php $form(null, $filtroGrupo ? [$filtroGrupo] : [], isset($_GET['nadador']) ? [(int)$_GET['nadador']] : []); ?>
   <div style="display:flex;gap:12px;">
     <button type="submit" class="btn btn-primary">Publicar</button>
     <a href="/admin/entrenos" class="btn btn-gray">Cancelar</a>
@@ -168,7 +201,7 @@ render_admin_layout('entrenos', function() use ($accion, $verId, $filtroGrupo, $
 <form method="POST" action="/admin/entrenos" enctype="multipart/form-data" class="card mb-6 entreno-form" style="padding:24px;">
   <input type="hidden" name="accion" value="editar">
   <input type="hidden" name="id" value="<?= (int)$entreno['id'] ?>">
-  <?php $form($entreno, grupos_de_entreno($pdo, $verId)); ?>
+  <?php $form($entreno, grupos_de_entreno($pdo, $verId), nadadores_de_entreno($pdo, $verId)); ?>
   <button type="submit" class="btn btn-primary btn-sm">Guardar cambios</button>
 </form>
 
@@ -251,13 +284,13 @@ function confirmarBorrarArchivo(id, nombre) {
   <div class="card">
     <div class="table-wrapper">
       <table>
-        <thead><tr><th>Fecha</th><th>Título</th><th>Grupos</th><th>Archivos</th><th></th></tr></thead>
+        <thead><tr><th>Fecha</th><th>Título</th><th>Destinatarios</th><th>Archivos</th><th></th></tr></thead>
         <tbody>
           <?php foreach ($entrenos as $en): ?>
             <tr>
               <td><?= date('d/m/Y', strtotime($en['fecha'])) ?></td>
               <td style="font-weight:600;"><?= e($en['titulo']) ?></td>
-              <td class="text-muted"><?= e($en['grupos'] ?? '— sin grupo —') ?></td>
+              <td class="text-muted"><?= e(implode(' · ', array_filter([$en['grupos'], $en['nadadores']])) ?: '— sin destinatarios —') ?></td>
               <td><?= (int)$en['num_archivos'] ?: '—' ?></td>
               <td><a href="/admin/entrenos?ver=<?= (int)$en['id'] ?>" class="btn btn-gray btn-sm">Ver →</a></td>
             </tr>
