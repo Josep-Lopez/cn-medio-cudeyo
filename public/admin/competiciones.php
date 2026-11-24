@@ -92,12 +92,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     if ((int)$n['id'] === $uid) $nadador = $n;
                 }
                 if (!$nadador) throw new InvalidArgumentException('El nadador no está convocado');
-                inscribir_prueba($pdo, $comp, $nadador, $_POST['prueba'] ?? '');
+                inscribir_prueba($pdo, $comp, $nadador, $_POST['prueba'] ?? '', ce_datos_objetivo($_POST));
                 ce_volver($competicionId, 'convocatoria', '#n' . $uid);
 
             case 'desinscribir_prueba':
                 desinscribir_prueba($pdo, $competicionId, $uid, $_POST['prueba'] ?? '');
                 ce_volver($competicionId, 'convocatoria', '#n' . $uid);
+
+            case 'guardar_objetivo':
+            case 'comentar_prueba':
+                $insc = obtener_inscripcion($pdo, (int)($_POST['inscripcion_id'] ?? 0));
+                if (!$insc || (int)$insc['competicion_id'] !== $competicionId) throw new InvalidArgumentException('Inscripción no encontrada');
+                if ($accion === 'guardar_objetivo') {
+                    guardar_objetivo_prueba($pdo, (int)$insc['id'], ce_datos_objetivo($_POST));
+                    flash('Objetivo guardado.', 'success');
+                } else {
+                    agregar_comentario_prueba($pdo, (int)$insc['id'], (int)current_user()['id'], $_POST['contenido'] ?? '');
+                    flash('Comentario añadido.', 'success');
+                }
+                ce_volver($competicionId, 'convocatoria', '&abrir=' . (int)$insc['id'] . '#i' . (int)$insc['id']);
 
             case 'recalcular':
                 $n = recalcular_marcas_convocatoria($pdo, $comp);
@@ -134,6 +147,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $guardadoId = guardar_relevo($pdo, $competicionId, $relevoId ?: null, $_POST);
                 flash($relevoId ? 'Relevo actualizado.' : 'Relevo creado.', 'success');
                 ce_volver($competicionId, 'relevos', '#r' . $guardadoId);
+
+            case 'resultado_relevo':
+                $relevoId = (int)($_POST['relevo_id'] ?? 0);
+                guardar_resultado_relevo($pdo, $competicionId, $relevoId, (string)($_POST['tiempo'] ?? ''), (array)($_POST['parcial'] ?? []));
+                flash('Resultado del relevo guardado.', 'success');
+                ce_volver($competicionId, 'relevos', '#r' . $relevoId);
 
             case 'eliminar_relevo':
                 eliminar_relevo($pdo, $competicionId, (int)($_POST['relevo_id'] ?? 0));
@@ -185,7 +204,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $tabError = match ($accion) {
             'editar' => 'datos',
             'guardar_minimas', 'eliminar_minimas' => 'minimas',
-            'guardar_relevo', 'eliminar_relevo' => 'relevos',
+            'guardar_relevo', 'eliminar_relevo', 'resultado_relevo' => 'relevos',
             'agregar_tiempo', 'eliminar_tiempo', 'importar_rfen' => 'resultados',
             default => 'convocatoria',
         };
@@ -262,6 +281,17 @@ function ce_form_datos(?array $comp): void
 <?php
 }
 
+// Buscador que filtra en la página los elementos $selector por su data-buscar
+function ce_buscador(string $selector, string $placeholder = 'Buscar deportista…'): void
+{
+?>
+<div class="ce-buscador">
+  <input type="search" class="form-control ce-buscar" data-filtra="<?= e($selector) ?>" placeholder="<?= e($placeholder) ?>" aria-label="<?= e($placeholder) ?>" autocomplete="off">
+  <span class="text-muted text-sm ce-buscar-vacio" hidden>Sin resultados</span>
+</div>
+<?php
+}
+
 // Botón de borrado con modal de confirmación propio (ver JS al final)
 function ce_form_borrar(int $compId, string $accion, array $campos, string $mensaje, string $texto = '×', string $clase = 'ce-x'): void
 {
@@ -300,11 +330,7 @@ render_admin_layout('competiciones', function() use ($accion, $verId, $tab, $com
         foreach ($convocados as $n) $porId[(int)$n['id']] = $n;
         $inscripciones = listar_pruebas_convocatoria($pdo, $cid);
         $tiempos = listar_tiempos_competicion($pdo, $cid);
-        $resultados = [];
-        foreach ($tiempos as $t) {
-            $k = $t['user_id'] . '|' . $t['prueba'];
-            if (!isset($resultados[$k]) || $t['tiempo_seg'] < $resultados[$k]['tiempo_seg']) $resultados[$k] = $t;
-        }
+        $resultados = ce_mejores_resultados($tiempos, $comp['piscina']);
 
         $numPruebas = 0; $numMinimas = 0;
         foreach ($inscripciones as $u => $ps) {
@@ -352,6 +378,10 @@ render_admin_layout('competiciones', function() use ($accion, $verId, $tab, $com
         $noConvocados = listar_no_convocados($pdo, $cid);
         $grupos = listar_grupos($pdo);
         $ligasConv = contar_nadadores_por_liga($pdo);
+        $inscIds = [];
+        foreach ($inscripciones as $ps) foreach ($ps as $f) $inscIds[] = (int)$f['id'];
+        $hilos = listar_comentarios_pruebas($pdo, $inscIds);
+        $abrir = (int)($_GET['abrir'] ?? 0);
 ?>
 <div class="card mb-6" style="padding:20px;">
   <div class="d-flex gap-3 flex-wrap" style="align-items:flex-end;">
@@ -410,7 +440,8 @@ render_admin_layout('competiciones', function() use ($accion, $verId, $tab, $com
 <?php if (!$convocados): ?>
   <div class="card text-center" style="padding:32px;"><p class="text-muted">Todavía no hay nadadores convocados.</p></div>
 <?php else: ?>
-<div style="display:flex;justify-content:flex-end;margin-bottom:10px;">
+<div class="ce-barra">
+  <?php ce_buscador('.ce-convocados > .ce-nadador'); ?>
   <form method="POST" action="/admin/competiciones">
     <?= csrf_field() ?>
     <input type="hidden" name="accion" value="recalcular">
@@ -425,13 +456,13 @@ render_admin_layout('competiciones', function() use ($accion, $verId, $tab, $com
       $mejores = ce_mejores_marcas($pdo, $uid, $comp);
       $anio = $n['fecha_nacimiento'] ? substr($n['fecha_nacimiento'], 0, 4) : null;
   ?>
-  <div class="card ce-nadador" id="n<?= $uid ?>">
+  <div class="card ce-nadador" id="n<?= $uid ?>" data-buscar="<?= e($n['nombre']) ?>">
     <div class="ce-nadador__head">
       <div>
         <strong><?= e($n['nombre']) ?></strong>
         <span class="text-muted text-sm"><?= $n['sexo'] === 'F' ? 'F' : 'M' ?><?= $anio ? ' · ' . $anio : '' ?><?= $n['liga'] ? ' · ' . e(format_liga($n['liga'])) : '' ?></span>
       </div>
-      <?php ce_form_borrar($cid, 'desconvocar', ['user_id' => $uid], '¿Quitar a ' . $n['nombre'] . ' de la convocatoria? Se borrarán sus pruebas y sus postas de relevo.', '<i class="bi bi-person-dash"></i> Quitar', 'btn btn-gray btn-sm'); ?>
+      <?php ce_form_borrar($cid, 'desconvocar', ['user_id' => $uid], '¿Quitar a ' . $n['nombre'] . ' de la convocatoria? Se borrarán sus pruebas (con objetivos y comentarios) y sus postas de relevo.', '<i class="bi bi-person-dash"></i> Quitar', 'btn btn-gray btn-sm'); ?>
     </div>
 
     <?php if ($suyas): ?>
@@ -441,8 +472,11 @@ render_admin_layout('competiciones', function() use ($accion, $verId, $tab, $com
         <tbody>
         <?php foreach ($suyas as $prueba => $f):
             $res = $resultados[$uid . '|' . $prueba] ?? null;
+            $inscId = (int)$f['id'];
+            $hilo = $hilos[$inscId] ?? [];
+            $estadoObj = ce_estado_objetivo($comp, $f, $res);
         ?>
-          <tr>
+          <tr class="ce-fila-prueba" id="i<?= $inscId ?>">
             <td><?= e(format_prueba($prueba)) ?></td>
             <td>
               <?php if ($f['marca_seg']): ?>
@@ -456,15 +490,15 @@ render_admin_layout('competiciones', function() use ($accion, $verId, $tab, $com
             <td>
               <?php if ($res): ?>
                 <strong><?= e($res['tiempo']) ?></strong>
-                <?php if ($f['marca_seg'] && $res['piscina'] === $f['marca_piscina']):
-                    $d = (float)$res['tiempo_seg'] - (float)$f['marca_seg']; ?>
-                  <span class="ce-diff <?= $d < 0 ? 'ce-diff--mejor' : 'ce-diff--peor' ?>"><?= $d < 0 ? '−' : '+' ?><?= number_format(abs($d), 2, ',', '') ?></span>
-                <?php endif; ?>
+                <?= render_ce_diff($f, $res) ?>
               <?php else: ?>
                 <span class="text-muted">—</span>
               <?php endif; ?>
             </td>
             <td style="text-align:right;">
+              <?php if ($estadoObj !== null || $hilo): ?>
+                <?php ce_form_borrar($cid, 'desinscribir_prueba', ['user_id' => $uid, 'prueba' => $prueba], '¿Quitar ' . format_prueba($prueba) . ' de ' . $n['nombre'] . '? Se borrarán su objetivo y sus comentarios.'); ?>
+              <?php else: ?>
               <form method="POST" action="/admin/competiciones" style="display:inline;">
                 <?= csrf_field() ?>
                 <input type="hidden" name="accion" value="desinscribir_prueba">
@@ -473,6 +507,32 @@ render_admin_layout('competiciones', function() use ($accion, $verId, $tab, $com
                 <input type="hidden" name="prueba" value="<?= e($prueba) ?>">
                 <button type="submit" class="ce-x" title="Quitar prueba">×</button>
               </form>
+              <?php endif; ?>
+            </td>
+          </tr>
+          <tr>
+            <td colspan="5" class="ce-detalle">
+              <details <?= $abrir === $inscId ? 'open' : '' ?>>
+                <summary>
+                  <?= render_ce_objetivo($f, $estadoObj) ?: '<i class="bi bi-bullseye"></i> Añadir objetivo' ?>
+                  <span class="text-muted">· <i class="bi bi-chat"></i> <?= $hilo ? count($hilo) . ' comentario' . (count($hilo) > 1 ? 's' : '') : 'Comentar' ?></span>
+                </summary>
+                <form method="POST" action="/admin/competiciones" class="ce-objetivo-form">
+                  <?= csrf_field() ?>
+                  <input type="hidden" name="accion" value="guardar_objetivo">
+                  <input type="hidden" name="competicion_id" value="<?= $cid ?>">
+                  <input type="hidden" name="inscripcion_id" value="<?= $inscId ?>">
+                  <input type="text" name="objetivo" class="form-control" maxlength="255" placeholder="Objetivo" aria-label="Objetivo" value="<?= e($f['objetivo'] ?? '') ?>">
+                  <input type="text" name="objetivo_tiempo" class="form-control ce-objetivo-tiempo" maxlength="20" inputmode="decimal" placeholder="1:05.00" aria-label="Tiempo objetivo" title="Tiempo objetivo (opcional)" value="<?= e($f['objetivo_tiempo'] ?? '') ?>">
+                  <select name="objetivo_estado" class="form-control ce-objetivo-estado" aria-label="Estado del objetivo" title="Automático: compara el resultado con el tiempo objetivo">
+                    <?php foreach (CE_OBJETIVO_ESTADOS as $k => $label): ?>
+                      <option value="<?= $k ?>" <?= (string)$f['objetivo_estado'] === $k ? 'selected' : '' ?>><?= $label ?></option>
+                    <?php endforeach; ?>
+                  </select>
+                  <button type="submit" class="btn btn-primary btn-sm">Guardar</button>
+                </form>
+                <?php render_ce_hilo($hilo, '/admin/competiciones', ['accion' => 'comentar_prueba', 'competicion_id' => $cid, 'inscripcion_id' => $inscId]); ?>
+              </details>
             </td>
           </tr>
         <?php endforeach; ?>
@@ -497,6 +557,8 @@ render_admin_layout('competiciones', function() use ($accion, $verId, $tab, $com
           <option value="<?= $p ?>"><?= e(format_prueba($p) . $hint) ?></option>
         <?php endforeach; ?>
       </select>
+      <input type="text" name="objetivo" class="form-control" maxlength="255" placeholder="Objetivo (opcional)" aria-label="Objetivo">
+      <input type="text" name="objetivo_tiempo" class="form-control ce-objetivo-tiempo" maxlength="20" inputmode="decimal" placeholder="1:05.00" aria-label="Tiempo objetivo" title="Tiempo objetivo (opcional)">
       <button type="submit" class="btn btn-primary btn-sm">Añadir</button>
     </form>
   </div>
@@ -617,16 +679,27 @@ render_admin_layout('competiciones', function() use ($accion, $verId, $tab, $com
         <?php ce_form_borrar($cid, 'eliminar_relevo', ['relevo_id' => (int)$r['id']], '¿Eliminar este relevo?', '<i class="bi bi-trash"></i>', 'btn btn-gray btn-sm'); ?>
       </div>
     </div>
+    <form method="POST" action="/admin/competiciones">
+    <?= csrf_field() ?>
+    <input type="hidden" name="accion" value="resultado_relevo">
+    <input type="hidden" name="competicion_id" value="<?= $cid ?>">
+    <input type="hidden" name="relevo_id" value="<?= (int)$r['id'] ?>">
     <table class="ce-pruebas">
       <tbody>
       <?php for ($pos = 1, $nPostas = relevo_num_postas($r['prueba']); $pos <= $nPostas; $pos++): $p = $r['postas'][$pos] ?? null; ?>
         <tr>
-          <td class="text-muted text-sm" style="width:90px;"><?= e(relevo_nombre_posta($r['prueba'], $pos)) ?></td>
-          <td><?= $p ? e($p['nombre']) : '<span class="text-muted">— sin asignar —</span>' ?></td>
-          <td style="text-align:right;white-space:nowrap;">
+          <td class="ce-relevo__posta">
+            <?= $p ? e($p['nombre']) : '<span class="text-muted">— sin asignar —</span>' ?>
+            <span class="text-muted text-sm">
+              <?= e(relevo_nombre_posta($r['prueba'], $pos)) ?>
+              <?php if ($p): ?>
+                · <span title="Mejor marca individual"><?= $est['postas'][$pos] !== null ? e(segundos_a_tiempo($est['postas'][$pos])) : 'sin marca ' . e(format_prueba(relevo_prueba_posta($r['prueba'], $pos))) ?></span>
+              <?php endif; ?>
+            </span>
+          </td>
+          <td class="ce-relevo__tiempo">
             <?php if ($p): ?>
-              <span class="text-muted text-sm" title="Mejor marca individual"><?= $est['postas'][$pos] !== null ? e(segundos_a_tiempo($est['postas'][$pos])) : 'sin marca ' . e(format_prueba(relevo_prueba_posta($r['prueba'], $pos))) ?></span>
-              <?php if ($p['parcial']): ?><strong style="margin-left:8px;" title="Tiempo de la posta"><?= e($p['parcial']) ?></strong><?php endif; ?>
+              <input type="text" name="parcial[<?= (int)$p['id'] ?>]" class="form-control ce-relevo-tiempo" maxlength="20" inputmode="decimal" placeholder="Posta" aria-label="Tiempo de la posta de <?= e($p['nombre']) ?>" title="Tiempo de la posta (opcional)" value="<?= e($p['parcial'] ?? '') ?>">
             <?php endif; ?>
           </td>
         </tr>
@@ -635,14 +708,15 @@ render_admin_layout('competiciones', function() use ($accion, $verId, $tab, $com
     </table>
     <div class="ce-relevo__foot">
       <span>Estimado (<?= e($comp['piscina']) ?>): <strong><?= $est['total'] !== null ? e(segundos_a_tiempo($est['total'])) : '—' ?></strong></span>
-      <?php if ($r['tiempo']): ?>
-        <span>Final: <strong><?= e($r['tiempo']) ?></strong>
-          <?php if ($est['total'] !== null): $d = (float)$r['tiempo_seg'] - $est['total']; ?>
+      <span class="ce-relevo__resultado">
+        <label>Resultado <input type="text" name="tiempo" class="form-control ce-relevo-tiempo" maxlength="20" inputmode="decimal" placeholder="2:05.43" value="<?= e($r['tiempo'] ?? '') ?>"></label>
+          <?php if ($r['tiempo'] && $est['total'] !== null): $d = (float)$r['tiempo_seg'] - $est['total']; ?>
             <span class="ce-diff <?= $d < 0 ? 'ce-diff--mejor' : 'ce-diff--peor' ?>"><?= $d < 0 ? '−' : '+' ?><?= number_format(abs($d), 2, ',', '') ?></span>
           <?php endif; ?>
-        </span>
-      <?php endif; ?>
+        <button type="submit" class="btn btn-primary btn-sm">Guardar</button>
+      </span>
     </div>
+    </form>
   </div>
   <?php endforeach; ?>
 </div>
@@ -780,12 +854,13 @@ render_admin_layout('competiciones', function() use ($accion, $verId, $tab, $com
     Los tiempos de los convocados se importan solos de RFEN cada semana (competiciones de los últimos <?= CE_RFEN_DIAS_SINCRONIZAR ?> días). Los parciales no vienen de RFEN.
   </p>
   <?php if ($tiempos): ?>
+    <div class="ce-barra"><?php ce_buscador('#ce-tabla-tiempos > tbody > tr', 'Buscar deportista o prueba…'); ?></div>
     <div class="table-wrapper">
-      <table>
+      <table id="ce-tabla-tiempos">
         <thead><tr><th>Nadador</th><th>Prueba</th><th>Piscina</th><th>Tiempo</th><th>Parciales</th><th></th></tr></thead>
         <tbody>
           <?php foreach ($tiempos as $t): ?>
-            <tr>
+            <tr data-buscar="<?= e($t['nadador_nombre'] . ' ' . format_prueba($t['prueba'])) ?>">
               <td><?= e($t['nadador_nombre']) ?></td>
               <td><?= e(format_prueba($t['prueba'])) ?></td>
               <td><?= e($t['piscina']) ?></td>
@@ -900,6 +975,29 @@ render_admin_layout('competiciones', function() use ($accion, $verId, $tab, $com
     pendiente.submit();
   };
   modal.addEventListener('click', function (ev) { if (ev.target === modal) { modal.hidden = true; pendiente = null; } });
+})();
+
+// Buscadores: sin distinguir mayúsculas ni acentos; todas las palabras deben aparecer
+(function () {
+  function norm(s) { return s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, ''); }
+  function coincide(texto, q) {
+    var t = norm(texto);
+    return norm(q).split(/\s+/).every(function (p) { return t.indexOf(p) !== -1; });
+  }
+  function sinEnter(ev) { if (ev.key === 'Enter') ev.preventDefault(); }
+
+  document.querySelectorAll('.ce-buscar').forEach(function (inp) {
+    inp.addEventListener('keydown', sinEnter);
+    inp.addEventListener('input', function () {
+      var visibles = 0;
+      document.querySelectorAll(inp.dataset.filtra).forEach(function (el) {
+        var ok = coincide(el.dataset.buscar, inp.value);
+        el.style.display = ok ? '' : 'none';
+        if (ok) visibles++;
+      });
+      inp.parentNode.querySelector('.ce-buscar-vacio').hidden = visibles > 0;
+    });
+  });
 })();
 </script>
 <?php

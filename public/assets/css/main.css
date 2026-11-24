@@ -1494,8 +1494,22 @@ table tbody tr:hover td { background: #fafcff; }
 .ce-nadador__head strong { margin-right: 6px; }
 .ce-pruebas { min-width: 0 !important; }
 .ce-pruebas th, .ce-pruebas td { padding: 7px 10px; }
-.ce-add-prueba { margin-top: 10px; max-width: 420px; align-items: center; }
-.ce-add-prueba select { flex: 1; }
+.ce-add-prueba { margin-top: 10px; max-width: 760px; align-items: center; flex-wrap: wrap; }
+.ce-add-prueba select, .ce-add-prueba input[name="objetivo"] { flex: 1 1 180px; width: auto; min-width: 0; }
+.ce-add-prueba .ce-objetivo-tiempo, .ce-objetivo-form .ce-objetivo-tiempo { flex: none; width: 100px; }
+.ce-fila-prueba { scroll-margin-top: 90px; }
+.ce-fila-prueba td { border-bottom: none; }
+.ce-detalle { font-size: 14px; white-space: normal; }
+.ce-pruebas td.ce-detalle { padding-top: 0; padding-bottom: 12px; }
+.ce-detalle summary { cursor: pointer; }
+.ce-objetivo { background: #eff4ff; border-left: 3px solid var(--blue); border-radius: 4px; padding: 8px 12px; margin-bottom: 8px; overflow-wrap: anywhere; }
+.ce-objetivo-form { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 10px 0; }
+.ce-objetivo-form input[name="objetivo"] { flex: 1 1 200px; width: auto; min-width: 0; }
+.ce-objetivo-form .ce-objetivo-estado { flex: none; width: 150px; }
+.ce-comentario { border-left: 3px solid var(--blue); background: #f9fafb; padding: 6px 12px; margin: 8px 0; }
+.ce-comentario__texto { white-space: pre-wrap; overflow-wrap: anywhere; }
+.ce-comentar { display: flex; flex-wrap: wrap; gap: 8px; align-items: flex-end; margin-top: 8px; }
+.ce-comentar textarea { flex: 1 1 200px; width: auto; min-width: 0; }
 .ce-x { background: none; border: none; color: var(--gray); font-size: 20px; line-height: 1; cursor: pointer; padding: 2px 6px; border-radius: 4px; }
 .ce-x:hover { color: var(--red); background: #fef2f2; }
 .ce-badge { display: inline-block; font-size: 12px; font-weight: 700; border-radius: 4px; padding: 2px 7px; white-space: nowrap; }
@@ -1507,6 +1521,15 @@ table tbody tr:hover td { background: #fafcff; }
 .ce-diff--mejor { color: var(--green); }
 .ce-diff--peor  { color: var(--red); }
 .ce-relevo__foot { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 8px; border-top: 1px solid #eee; margin-top: 8px; padding-top: 10px; font-size: 14px; }
+.ce-relevo-tiempo { display: inline-block; width: 92px; padding: 5px 8px; margin-left: 8px; }
+.ce-relevo .ce-pruebas { width: 100%; }
+.ce-relevo .ce-pruebas td { padding: 7px 0; }
+.ce-relevo__posta { overflow-wrap: anywhere; }
+.ce-relevo__posta > span:last-child { display: block; }
+.ce-relevo__tiempo { width: 104px; text-align: right; }
+.ce-relevo__resultado { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.ce-barra { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 10px; }
+.ce-buscador { display: flex; align-items: center; gap: 10px; flex: 1 1 220px; max-width: 420px; }
 .ce-minimas-grid { display: grid; grid-template-columns: minmax(110px, 160px) minmax(80px, 120px) minmax(80px, 120px); gap: 6px 10px; align-items: center; }
 .ce-minimas-grid__h { font-size: 12px; font-weight: 700; color: var(--gray); text-transform: uppercase; }
 .ce-minimas-grid__p { font-size: 14px; }

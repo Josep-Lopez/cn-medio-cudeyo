@@ -435,18 +435,20 @@ function listar_pruebas_convocatoria(PDO $pdo, int $competicion_id): array
     return $out;
 }
 
-function inscribir_prueba(PDO $pdo, array $comp, array $nadador, string $prueba): void
+// $objetivo: salida de ce_datos_objetivo(). Si la prueba ya estaba inscrita no se toca su objetivo.
+function inscribir_prueba(PDO $pdo, array $comp, array $nadador, string $prueba, ?array $objetivo = null): void
 {
     if (!in_array($prueba, CE_PRUEBAS, true)) throw new InvalidArgumentException('Prueba no válida');
     $marca = ce_marca_inscripcion($pdo, $comp, $nadador, $prueba);
     $pdo->prepare('
         INSERT INTO competicion_entrenador_pruebas
-            (competicion_id, user_id, prueba, marca_tiempo, marca_seg, marca_piscina, marca_fecha)
-        VALUES (?, ?, ?, ?, ?, ?, ?)
+            (competicion_id, user_id, prueba, marca_tiempo, marca_seg, marca_piscina, marca_fecha, objetivo, objetivo_tiempo, objetivo_seg)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ON DUPLICATE KEY UPDATE prueba = prueba
     ')->execute([
         (int)$comp['id'], (int)$nadador['id'], $prueba,
         $marca['tiempo'] ?? null, $marca['seg'] ?? null, $marca['piscina'] ?? null, $marca['fecha'] ?? null,
+        $objetivo['objetivo'] ?? null, $objetivo['tiempo'] ?? null, $objetivo['seg'] ?? null,
     ]);
 }
 
@@ -838,6 +840,28 @@ function guardar_relevo(PDO $pdo, int $competicion_id, ?int $relevo_id, array $d
     return $relevo_id;
 }
 
+// Guarda solo el resultado: tiempo final y tiempo de cada posta ($parciales: [user_id => texto]). Vacío = borrar.
+function guardar_resultado_relevo(PDO $pdo, int $competicion_id, int $relevo_id, string $tiempo, array $parciales): void
+{
+    $relevo = obtener_relevo($pdo, $relevo_id);
+    if (!$relevo || (int)$relevo['competicion_id'] !== $competicion_id) throw new InvalidArgumentException('Relevo no encontrado');
+    $seg = ce_leer_tiempo($tiempo, 'Tiempo final');
+    $segs = [];
+    foreach ($parciales as $uid => $txt) $segs[(int)$uid] = ce_leer_tiempo((string)$txt, 'Tiempo de posta');
+
+    $pdo->beginTransaction();
+    try {
+        $pdo->prepare('UPDATE competicion_entrenador_relevos SET tiempo = ?, tiempo_seg = ? WHERE id = ?')
+            ->execute([$seg !== null ? segundos_a_tiempo($seg) : null, $seg, $relevo_id]);
+        $upd = $pdo->prepare('UPDATE competicion_entrenador_relevo_nadadores SET parcial = ? WHERE relevo_id = ? AND user_id = ?');
+        foreach ($segs as $uid => $s) $upd->execute([$s !== null ? segundos_a_tiempo($s) : null, $relevo_id, $uid]);
+        $pdo->commit();
+    } catch (Throwable $ex) {
+        $pdo->rollBack();
+        throw $ex;
+    }
+}
+
 function eliminar_relevo(PDO $pdo, int $competicion_id, int $relevo_id): void
 {
     $pdo->prepare('DELETE FROM competicion_entrenador_relevos WHERE id = ? AND competicion_id = ?')
@@ -861,6 +885,144 @@ function estimar_relevo(PDO $pdo, array $comp, array $relevo): array
         elseif ($out['total'] !== null) $out['total'] += $seg;
     }
     return $out;
+}
+
+// ─── Objetivos y comentarios por prueba ──────────────────────────────────────
+
+const CE_OBJETIVO_ESTADOS = ['' => 'Automático', 'conseguido' => 'Conseguido', 'no_conseguido' => 'No conseguido'];
+
+// Segundos de un tiempo escrito a mano (null si está vacío); formato estricto mm:ss.cc o ss.cc.
+function ce_leer_tiempo(string $txt, string $campo): ?float
+{
+    $txt = str_replace(',', '.', trim($txt));
+    if ($txt === '') return null;
+    $seg = preg_match('/^(\d{1,2}:[0-5]?\d|\d{1,3})(\.\d{1,2})?$/', $txt) ? round(tiempo_a_segundos($txt), 2) : 0;
+    if ($seg <= 0) throw new InvalidArgumentException("$campo incorrecto. Usa mm:ss.cc o ss.cc");
+    return $seg;
+}
+
+// Valida el objetivo de un formulario: ['objetivo', 'tiempo', 'seg', 'estado'] (null lo que quede vacío).
+function ce_datos_objetivo(array $d): array
+{
+    $texto = trim((string)($d['objetivo'] ?? ''));
+    $tiempo = (string)($d['objetivo_tiempo'] ?? '');
+    $estado = (string)($d['objetivo_estado'] ?? '');
+    if (mb_strlen($texto) > 255) throw new InvalidArgumentException('El objetivo no puede pasar de 255 caracteres');
+    $seg = ce_leer_tiempo($tiempo, 'Tiempo objetivo');
+    if (!isset(CE_OBJETIVO_ESTADOS[$estado])) throw new InvalidArgumentException('Estado de objetivo no válido');
+    $vacio = $texto === '' && $seg === null;
+    return [
+        'objetivo' => $texto !== '' ? $texto : null,
+        'tiempo' => $seg !== null ? segundos_a_tiempo($seg) : null,
+        'seg' => $seg,
+        'estado' => $vacio || $estado === '' ? null : $estado,
+    ];
+}
+
+function obtener_inscripcion(PDO $pdo, int $id): ?array
+{
+    $stmt = $pdo->prepare('SELECT * FROM competicion_entrenador_pruebas WHERE id = ?');
+    $stmt->execute([$id]);
+    return $stmt->fetch() ?: null;
+}
+
+function guardar_objetivo_prueba(PDO $pdo, int $inscripcion_id, array $obj): void
+{
+    $pdo->prepare('UPDATE competicion_entrenador_pruebas SET objetivo = ?, objetivo_tiempo = ?, objetivo_seg = ?, objetivo_estado = ? WHERE id = ?')
+        ->execute([$obj['objetivo'], $obj['tiempo'], $obj['seg'], $obj['estado'], $inscripcion_id]);
+}
+
+// Mejor tiempo por "user|prueba" de una competición; manda la piscina de la competición.
+function ce_mejores_resultados(array $tiempos, string $piscina): array
+{
+    $out = [];
+    foreach ($tiempos as $t) {
+        $k = $t['user_id'] . '|' . $t['prueba'];
+        $clave = fn($x) => [$x['piscina'] === $piscina ? 0 : 1, (float)$x['tiempo_seg']];
+        if (!isset($out[$k]) || $clave($t) < $clave($out[$k])) $out[$k] = $t;
+    }
+    return $out;
+}
+
+// null (sin objetivo) | pendiente | conseguido | no_conseguido. Lo marcado a mano siempre manda.
+function ce_estado_objetivo(array $comp, array $fila, ?array $resultado): ?string
+{
+    if ($fila['objetivo'] === null && $fila['objetivo_seg'] === null) return null;
+    if ($fila['objetivo_estado'] !== null) return $fila['objetivo_estado'];
+    if ($fila['objetivo_seg'] === null || !$resultado || $resultado['piscina'] !== $comp['piscina']) return 'pendiente';
+    return round((float)$resultado['tiempo_seg'], 2) <= (float)$fila['objetivo_seg'] ? 'conseguido' : 'no_conseguido';
+}
+
+function render_ce_objetivo_badge(?string $estado): string
+{
+    return match ($estado) {
+        'conseguido' => '<span class="ce-badge ce-badge--ok"><i class="bi bi-check-lg"></i> Conseguido</span>',
+        'no_conseguido' => '<span class="ce-badge ce-badge--none">No conseguido</span>',
+        'pendiente' => '<span class="ce-badge ce-badge--lejos">Pendiente</span>',
+        default => '',
+    };
+}
+
+// Texto del objetivo en HTML ya escapado, con su estado.
+function render_ce_objetivo(array $fila, ?string $estado): string
+{
+    if ($estado === null) return '';
+    $partes = [];
+    if ($fila['objetivo'] !== null) $partes[] = e($fila['objetivo']);
+    if ($fila['objetivo_tiempo'] !== null) $partes[] = '<strong>' . e($fila['objetivo_tiempo']) . '</strong>';
+    return '<i class="bi bi-bullseye"></i> Objetivo: ' . implode(' · ', $partes) . ' ' . render_ce_objetivo_badge($estado);
+}
+
+// Diferencia del resultado con la marca de inscripción (solo si son de la misma piscina).
+function render_ce_diff(array $fila, array $resultado): string
+{
+    if (!$fila['marca_seg'] || $resultado['piscina'] !== $fila['marca_piscina']) return '';
+    $d = (float)$resultado['tiempo_seg'] - (float)$fila['marca_seg'];
+    return '<span class="ce-diff ' . ($d < 0 ? 'ce-diff--mejor' : 'ce-diff--peor') . '">' . ($d < 0 ? '−' : '+') . number_format(abs($d), 2, ',', '') . '</span>';
+}
+
+// [inscripcion_id => comentarios] de las inscripciones indicadas.
+function listar_comentarios_pruebas(PDO $pdo, array $inscripcion_ids): array
+{
+    if (!$inscripcion_ids) return [];
+    $stmt = $pdo->prepare('
+        SELECT c.*, u.nombre AS autor_nombre
+        FROM competicion_entrenador_prueba_comentarios c
+        JOIN users u ON u.id = c.user_id
+        WHERE c.inscripcion_id IN (' . implode(',', array_fill(0, count($inscripcion_ids), '?')) . ')
+        ORDER BY c.created_at, c.id
+    ');
+    $stmt->execute(array_values($inscripcion_ids));
+    $out = [];
+    foreach ($stmt->fetchAll() as $c) $out[(int)$c['inscripcion_id']][] = $c;
+    return $out;
+}
+
+function agregar_comentario_prueba(PDO $pdo, int $inscripcion_id, int $user_id, string $contenido): void
+{
+    $contenido = trim($contenido);
+    if ($contenido === '') throw new InvalidArgumentException('Comentario vacío');
+    if (mb_strlen($contenido) > 2000) throw new InvalidArgumentException('El comentario no puede pasar de 2000 caracteres');
+    $pdo->prepare('INSERT INTO competicion_entrenador_prueba_comentarios (inscripcion_id, user_id, contenido) VALUES (?, ?, ?)')
+        ->execute([$inscripcion_id, $user_id, $contenido]);
+}
+
+// Hilo de una prueba con su formulario ($campos: inputs ocultos, $action: URL destino).
+function render_ce_hilo(array $comentarios, string $action, array $campos): void
+{
+    foreach ($comentarios as $c): ?>
+  <div class="ce-comentario">
+    <div class="text-sm"><strong><?= e($c['autor_nombre']) ?></strong> <span class="text-muted">· <?= date('d/m/Y H:i', strtotime($c['created_at'])) ?></span></div>
+    <div class="ce-comentario__texto"><?= e($c['contenido']) ?></div>
+  </div>
+<?php endforeach; ?>
+  <form method="POST" action="<?= e($action) ?>" class="ce-comentar">
+    <?= csrf_field() ?>
+    <?php foreach ($campos as $k => $v): ?><input type="hidden" name="<?= e($k) ?>" value="<?= e((string)$v) ?>"><?php endforeach; ?>
+    <textarea name="contenido" class="form-control" rows="2" maxlength="2000" placeholder="Escribe un comentario…" aria-label="Comentario" required></textarea>
+    <button type="submit" class="btn btn-gray btn-sm">Comentar</button>
+  </form>
+<?php
 }
 
 // ─── Vista del nadador ───────────────────────────────────────────────────────
