@@ -1,0 +1,65 @@
+name: Deploy a DonDominio
+
+# Cada push a main se sube a producción por FTPS. También se puede lanzar
+# a mano desde la pestaña Actions (botón "Run workflow").
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# Nunca dos deploys a la vez: varias conexiones FTP seguidas hacen que el
+# cortafuegos de DonDominio bloquee la IP.
+concurrency:
+  group: deploy-produccion
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    # Solo main va a producción, también al lanzarlo a mano con otra rama
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0   # historial completo para git restore-mtime
+
+      - uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962 # 2.40.0
+        with:
+          php-version: '8.4'
+          tools: composer
+
+      # vendor/ no está en el repo: se genera aquí
+      - name: Dependencias PHP
+        run: composer install --no-dev --optimize-autoloader --no-interaction
+
+      - name: Instalar lftp
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq lftp git-restore-mtime
+
+      # Fecha de cada fichero = su último commit, así solo se suben los cambiados
+      - name: Restaurar fechas de los ficheros
+        run: git restore-mtime
+
+      - name: Credenciales FTP
+        env:
+          FTP_USER: ${{ secrets.FTP_USER }}
+          FTP_PASSWORD: ${{ secrets.FTP_PASSWORD }}
+        run: |
+          if [ -z "$FTP_USER" ] || [ -z "$FTP_PASSWORD" ]; then
+            echo "Faltan los secrets FTP_USER / FTP_PASSWORD del repo" >&2
+            exit 1
+          fi
+          umask 077
+          printf 'machine ftp.dondominio.com login %s password %s\n' "$FTP_USER" "$FTP_PASSWORD" > ~/.netrc
+
+      - name: Subir
+        env:
+          DEPLOY_ONLY_NEWER: ''
+        run: scripts/deploy.sh --go
+
+      - name: Borrar credenciales
+        if: always()
+        run: rm -f ~/.netrc

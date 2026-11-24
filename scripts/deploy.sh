@@ -28,6 +28,10 @@ if ! grep -q "machine $HOST" ~/.netrc 2>/dev/null; then
     exit 1
 fi
 
+# En GitHub Actions las fechas son las del último commit de cada fichero
+# (git restore-mtime): ahí se sube lo que difiera, no solo lo más nuevo.
+ONLY_NEWER="${DEPLOY_ONLY_NEWER---only-newer}"
+
 DRY="--dry-run"
 if [[ "${1:-}" == "--go" ]]; then
     DRY=""
@@ -47,6 +51,7 @@ fi
 EXCLUDES=(
     --exclude-glob .git/
     --exclude-glob .vscode/
+    --exclude-glob .github/
     --exclude-glob .claude/
     --exclude-glob .codex
     --exclude-glob .agents/
@@ -80,8 +85,9 @@ EXCLUDES=(
     --exclude-glob .DS_Store
     --exclude-glob Thumbs.db
     # Contenido subido por usuarios: solo se suben los .htaccess de protección
-    --exclude-glob 'public/uploads/*/*'
-    --include-glob 'public/uploads/*/.htaccess'
+    # (lftp no re-incluye con --include-glob tras un exclude: se excluye todo salvo .h*)
+    --exclude-glob 'public/uploads/*/[!.]*'
+    --exclude-glob 'public/uploads/*/.[!h]*'
 )
 
 # Usuario y contraseña los toma lftp de ~/.netrc
@@ -100,7 +106,7 @@ open $HOST
 set cmd:fail-exit yes
 cd /public
 cd /
-mirror --reverse --only-newer --no-perms --verbose $DRY \
+mirror --reverse $ONLY_NEWER --no-perms --verbose $DRY \
     ${EXCLUDES[*]} \
     "$LOCAL_DIR" "$REMOTE_DIR"
 bye
