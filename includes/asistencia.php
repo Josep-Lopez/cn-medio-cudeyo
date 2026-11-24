@@ -89,12 +89,11 @@ function resumen_asistencia_rango(PDO $pdo, array $user_ids, string $desde, stri
     return array_map('resumen_asistencia', $presencias);
 }
 
-// El deportista puede apuntarse a sí mismo: masters cualquier día, el resto solo fines
-// de semana y festivos. Nunca días futuros. Lo apuntado queda pendiente de verificar.
-function puede_autoregistrar_dia(string $fecha, ?string $liga): bool
+// El deportista puede apuntarse a sí mismo cualquier día, nunca futuro. Lo apuntado queda
+// pendiente de verificar; lo que ya registró el entrenador no se toca (ver autoregistro_editable).
+function puede_autoregistrar_dia(string $fecha): bool
 {
-    if ($fecha > date('Y-m-d')) return false;
-    return $liga === 'master' || es_dia_extra($fecha);
+    return $fecha <= date('Y-m-d');
 }
 
 // Un registro verificado no se toca, salvo una falta en día extra: no cuenta, y aparece cuando
@@ -104,9 +103,9 @@ function falta_sobrescribible(string $fecha, ?array $registro): bool
     return $registro !== null && !$registro['presente'] && es_dia_extra($fecha);
 }
 
-function autoregistro_editable(string $fecha, ?string $liga, ?array $registro): bool
+function autoregistro_editable(string $fecha, ?array $registro): bool
 {
-    return puede_autoregistrar_dia($fecha, $liga)
+    return puede_autoregistrar_dia($fecha)
         && ($registro === null || !$registro['verificada'] || falta_sobrescribible($fecha, $registro));
 }
 

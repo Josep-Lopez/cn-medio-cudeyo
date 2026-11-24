@@ -12,10 +12,6 @@ if (!is_nadador_activo()) {
     exit;
 }
 
-$stmt = $pdo->prepare('SELECT liga FROM users WHERE id=?');
-$stmt->execute([$user['id']]);
-$liga = $stmt->fetchColumn() ?: null;
-
 // --- POST: apuntarse / quitarse un día (queda pendiente de verificar) ---
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     csrf_verify();
@@ -23,7 +19,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $action = $_POST['action'] ?? '';
     $obs    = trim($_POST['observaciones'] ?? '');
     $d = DateTime::createFromFormat('Y-m-d', $fecha);
-    if (!$d || $d->format('Y-m-d') !== $fecha || !puede_autoregistrar_dia($fecha, $liga)) {
+    if (!$d || $d->format('Y-m-d') !== $fecha || !puede_autoregistrar_dia($fecha)) {
         flash('No puedes apuntarte ese día.', 'danger');
     } elseif ($action === 'apuntar') {
         // Solo crea o edita si no hay un registro ya verificado por el entrenador
@@ -106,12 +102,11 @@ render_header('Mi asistencia', 'socio-asistencia');
 
   <div class="card">
     <?php render_calendario_asistencia($dias_mes, $asistencia_data,
-        fn($dia, $reg) => autoregistro_editable($dia, $liga, $reg)); ?>
+        fn($dia, $reg) => autoregistro_editable($dia, $reg)); ?>
     <p class="text-muted text-sm" style="margin-top:10px;">
-      <?= $liga === 'master'
-          ? 'Haz clic en un día para apuntar que fuiste a entrenar.'
-          : 'Haz clic en un sábado, domingo o festivo para apuntar que fuiste a entrenar.' ?>
+      Haz clic en un día para apuntar que fuiste a entrenar.
       Queda <span style="color:#b45309;font-weight:600;">pendiente</span> hasta que el entrenador lo verifique.
+      Los días que ya ha registrado el entrenador no se pueden cambiar.
     </p>
   </div>
 </main>
