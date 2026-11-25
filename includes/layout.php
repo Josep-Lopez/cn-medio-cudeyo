@@ -1,5 +1,6 @@
 <?php
 require_once __DIR__ . '/entrenos.php';
+require_once __DIR__ . '/avisos.php';
 
 function render_header(string $title, string $activePage = '', string $extraHead = '', string $description = ''): void
 {
@@ -25,6 +26,9 @@ function render_header(string $title, string $activePage = '', string $extraHead
       // Migración 026 pendiente: sin aviso de entrenos
     }
   }
+  $avisos = $user && $pdo ? avisos_comentarios($pdo, (int)$user['id']) : [];
+  // Los de sus propias pruebas (un entrenador puede ser también nadador)
+  $avisos_mios = array_sum(array_column(array_filter($avisos, fn($a) => (int)$a['dueno'] === (int)$user['id']), 'n'));
   $metaDesc = $description ?: 'Club de Natación Medio Cudeyo — Cantabria. Marcas personales, ranking de liga, noticias y más.';
   $pageTitle = e($title) . ' — CN Medio Cudeyo';
 ?>
@@ -100,12 +104,7 @@ function render_header(string $title, string $activePage = '', string $extraHead
 
           <div class="navbar-auth">
             <?php if ($user): ?>
-              <?php if (!$isAdmin && $notif_count > 0): ?>
-                <a href="/socio/comunicaciones" class="navbar-notif" title="<?= $notif_count ?> sin leer">
-                  <i class="bi bi-bell-fill"></i>
-                  <span class="navbar-notif-badge"><?= $notif_count ?></span>
-                </a>
-              <?php endif; ?>
+              <?php render_campana($avisos, (int)$user['id'], $notif_count); ?>
               <?php if ($entrenos_nuevos > 0): ?>
                 <a href="/socio/entrenos" class="navbar-notif" title="<?= $entrenos_nuevos ?> entreno(s) nuevo(s)">
                   <i class="bi bi-clipboard2-pulse-fill"></i>
@@ -127,7 +126,7 @@ function render_header(string $title, string $activePage = '', string $extraHead
                   <?php if (!$isAdmin): ?>
                     <a href="/socio/comunicaciones"><i class="bi bi-bell"></i> Comunicaciones<?= $notif_count > 0 ? ' <span class="badge badge-blue" style="font-size:11px;padding:2px 6px;margin-left:4px;">' . $notif_count . '</span>' : '' ?></a>
                     <a href="/socio/incidencias" <?= $activePage === 'socio-incidencias' ? 'class="active"' : '' ?>><i class="bi bi-exclamation-triangle"></i> Incidencias</a>
-                    <a href="/socio/competiciones" <?= $activePage === 'socio-competiciones' ? 'class="active"' : '' ?>><i class="bi bi-list-ol"></i> Competiciones</a>
+                    <a href="/socio/competiciones" <?= $activePage === 'socio-competiciones' ? 'class="active"' : '' ?>><i class="bi bi-list-ol"></i> Competiciones<?= $avisos_mios > 0 ? ' <span class="badge badge-blue" style="font-size:11px;padding:2px 6px;margin-left:4px;">' . $avisos_mios . '</span>' : '' ?></a>
                     <a href="/socio/entrenos" <?= $activePage === 'socio-entrenos' ? 'class="active"' : '' ?>><i class="bi bi-clipboard2-pulse"></i> Entrenos<?= $entrenos_nuevos > 0 ? ' <span class="badge badge-blue" style="font-size:11px;padding:2px 6px;margin-left:4px;">' . $entrenos_nuevos . '</span>' : '' ?></a>
                     <?php if (is_nadador_activo()): ?>
                       <a href="/socio/asistencia" <?= $activePage === 'socio-asistencia' ? 'class="active"' : '' ?>><i class="bi bi-calendar-check"></i> Mi asistencia</a>
@@ -158,6 +157,7 @@ function render_header(string $title, string $activePage = '', string $extraHead
             <a href="/socio/panel">Mi panel</a>
             <a href="/socio/comunicaciones">Comunicaciones<?= $notif_count > 0 ? ' <span class="badge badge-blue" style="font-size:11px;padding:2px 6px;margin-left:4px;">' . $notif_count . '</span>' : '' ?></a>
             <a href="/socio/equipacion">Equipación</a>
+            <a href="/socio/competiciones">Competiciones<?= $avisos_mios > 0 ? ' <span class="badge badge-blue" style="font-size:11px;padding:2px 6px;margin-left:4px;">' . $avisos_mios . '</span>' : '' ?></a>
             <a href="/socio/entrenos">Entrenos<?= $entrenos_nuevos > 0 ? ' <span class="badge badge-blue" style="font-size:11px;padding:2px 6px;margin-left:4px;">' . $entrenos_nuevos . '</span>' : '' ?></a>
             <?php if (is_nadador_activo()): ?>
               <a href="/socio/ranking">Ranking mi liga</a>
@@ -318,6 +318,8 @@ function render_header(string $title, string $activePage = '', string $extraHead
         if (dropdown && !dropdown.contains(e.target)) {
           dropdown.classList.remove('open');
         }
+        const campana = document.querySelector('.navbar-campana');
+        if (campana && !campana.contains(e.target)) campana.classList.remove('open');
       });
     </script>
   </body>

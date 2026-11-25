@@ -25,6 +25,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['accion'] ?? '') === 'comen
 
 $tiempo = obtener_tiempo_entrenador($pdo, $id);
 $autorizado = $tiempo && puede_ver_tiempo_socio($tiempo, $user);
+$comentarios = $autorizado ? listar_comentarios_tiempo($pdo, $id) : [];
+marcar_hilo_visto($pdo, (int)$user['id'], 'tiempo', $id, $comentarios);
 
 render_header('Tiempo de competición', 'socio-competiciones');
 ?>
@@ -34,9 +36,7 @@ render_header('Tiempo de competición', 'socio-competiciones');
       <h2 style="margin-top:0;">No tienes acceso a este tiempo</h2>
       <a href="/socio/competiciones" class="btn btn-primary btn-sm">Volver a mis competiciones</a>
     </div>
-  <?php else:
-      $comentarios = listar_comentarios_tiempo($pdo, $id);
-  ?>
+  <?php else: ?>
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
       <h1 style="margin:0;"><?= e(format_prueba($tiempo['prueba'])) ?></h1>
       <a href="/socio/competiciones" class="btn btn-gray btn-sm">← Volver</a>

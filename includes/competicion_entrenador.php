@@ -1008,11 +1008,12 @@ function agregar_comentario_prueba(PDO $pdo, int $inscripcion_id, int $user_id, 
 }
 
 // Hilo de una prueba con su formulario ($campos: inputs ocultos, $action: URL destino).
-function render_ce_hilo(array $comentarios, string $action, array $campos): void
+// $vistoHasta: último comentario leído, para marcar los «Nuevo»; null = nada nuevo.
+function render_ce_hilo(array $comentarios, string $action, array $campos, ?int $vistoHasta = null): void
 {
     foreach ($comentarios as $c): ?>
   <div class="ce-comentario">
-    <div class="text-sm"><strong><?= e($c['autor_nombre']) ?></strong> <span class="text-muted">· <?= date('d/m/Y H:i', strtotime($c['created_at'])) ?></span></div>
+    <div class="text-sm"><strong><?= e($c['autor_nombre']) ?></strong> <span class="text-muted">· <?= date('d/m/Y H:i', strtotime($c['created_at'])) ?></span><?php if ($vistoHasta !== null && (int)$c['id'] > $vistoHasta && (int)$c['user_id'] !== (int)current_user()['id']): ?> <span class="badge badge-blue">Nuevo</span><?php endif; ?></div>
     <div class="ce-comentario__texto"><?= e($c['contenido']) ?></div>
   </div>
 <?php endforeach; ?>

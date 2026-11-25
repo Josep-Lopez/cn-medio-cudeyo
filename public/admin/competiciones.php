@@ -99,10 +99,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 desinscribir_prueba($pdo, $competicionId, $uid, $_POST['prueba'] ?? '');
                 ce_volver($competicionId, 'convocatoria', '#n' . $uid);
 
+            case 'visto_prueba':
             case 'guardar_objetivo':
             case 'comentar_prueba':
                 $insc = obtener_inscripcion($pdo, (int)($_POST['inscripcion_id'] ?? 0));
                 if (!$insc || (int)$insc['competicion_id'] !== $competicionId) throw new InvalidArgumentException('Inscripción no encontrada');
+                if ($accion === 'visto_prueba') {
+                    // Al desplegar un hilo con novedades (fetch); solo hasta lo que se mostraba
+                    $hasta = (int)($_POST['hasta'] ?? 0);
+                    $vistos = array_filter(listar_comentarios_pruebas($pdo, [(int)$insc['id']])[(int)$insc['id']] ?? [], fn($c) => (int)$c['id'] <= $hasta);
+                    marcar_hilo_visto($pdo, (int)current_user()['id'], 'prueba', (int)$insc['id'], $vistos);
+                    http_response_code(204);
+                    exit;
+                }
                 if ($accion === 'guardar_objetivo') {
                     guardar_objetivo_prueba($pdo, (int)$insc['id'], ce_datos_objetivo($_POST));
                     flash('Objetivo guardado.', 'success');
@@ -306,8 +315,17 @@ function ce_form_borrar(int $compId, string $accion, array $campos, string $mens
 <?php
 }
 
+$nuevos = avisos_por_hilo(avisos_comentarios($pdo, (int)current_user()['id']), 'prueba');
+// El hilo que se abre desde un aviso (o tras comentar) queda leído antes de pintar la campanita
+if ($verId && $tab === 'convocatoria' && ($abrirId = (int)($_GET['abrir'] ?? 0))) {
+    $insc = obtener_inscripcion($pdo, $abrirId);
+    if ($insc && (int)$insc['competicion_id'] === $verId) {
+        marcar_hilo_visto($pdo, (int)current_user()['id'], 'prueba', $abrirId, listar_comentarios_pruebas($pdo, [$abrirId])[$abrirId] ?? []);
+    }
+}
+
 render_header('Competiciones', 'admin-competiciones');
-render_admin_layout('competiciones', function() use ($accion, $verId, $tab, $competiciones, $pdo) {
+render_admin_layout('competiciones', function() use ($accion, $verId, $tab, $competiciones, $pdo, $nuevos) {
 
     if ($accion === 'nueva') {
 ?>
@@ -512,10 +530,11 @@ render_admin_layout('competiciones', function() use ($accion, $verId, $tab, $com
           </tr>
           <tr>
             <td colspan="5" class="ce-detalle">
-              <details <?= $abrir === $inscId ? 'open' : '' ?>>
+              <details <?= $abrir === $inscId ? 'open' : '' ?><?= isset($nuevos[$inscId]) ? ' class="js-hilo-nuevo" data-inscripcion="' . $inscId . '" data-hasta="' . max(array_column($hilo, 'id') ?: [0]) . '"' : '' ?>>
                 <summary>
                   <?= render_ce_objetivo($f, $estadoObj) ?: '<i class="bi bi-bullseye"></i> Añadir objetivo' ?>
                   <span class="text-muted">· <i class="bi bi-chat"></i> <?= $hilo ? count($hilo) . ' comentario' . (count($hilo) > 1 ? 's' : '') : 'Comentar' ?></span>
+                  <?php if (isset($nuevos[$inscId])): ?><span class="badge badge-blue">Nuevo</span><?php endif; ?>
                 </summary>
                 <form method="POST" action="/admin/competiciones" class="ce-objetivo-form">
                   <?= csrf_field() ?>
@@ -531,7 +550,7 @@ render_admin_layout('competiciones', function() use ($accion, $verId, $tab, $com
                   </select>
                   <button type="submit" class="btn btn-primary btn-sm">Guardar</button>
                 </form>
-                <?php render_ce_hilo($hilo, '/admin/competiciones', ['accion' => 'comentar_prueba', 'competicion_id' => $cid, 'inscripcion_id' => $inscId]); ?>
+                <?php render_ce_hilo($hilo, '/admin/competiciones', ['accion' => 'comentar_prueba', 'competicion_id' => $cid, 'inscripcion_id' => $inscId], $nuevos[$inscId] ?? null); ?>
               </details>
             </td>
           </tr>
@@ -976,6 +995,21 @@ render_admin_layout('competiciones', function() use ($accion, $verId, $tab, $com
   };
   modal.addEventListener('click', function (ev) { if (ev.target === modal) { modal.hidden = true; pendiente = null; } });
 })();
+
+// Al desplegar un hilo con comentarios nuevos se marca como leído
+document.querySelectorAll('.js-hilo-nuevo').forEach(function (d) {
+  d.addEventListener('toggle', function () {
+    if (!d.open || d.dataset.leido) return;
+    d.dataset.leido = '1';
+    var datos = new FormData();
+    datos.append('csrf_token', d.querySelector('input[name=csrf_token]').value);
+    datos.append('accion', 'visto_prueba');
+    datos.append('competicion_id', '<?= $cid ?>');
+    datos.append('inscripcion_id', d.dataset.inscripcion);
+    datos.append('hasta', d.dataset.hasta);
+    fetch('/admin/competiciones', { method: 'POST', body: datos });
+  });
+});
 
 // Buscadores: sin distinguir mayúsculas ni acentos; todas las palabras deben aparecer
 (function () {

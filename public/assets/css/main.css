@@ -136,6 +136,12 @@ h1, h2, h3, h4 { line-height: 1.3; }
   justify-content: center;
   line-height: 1;
 }
+.navbar-campana { position: relative; }
+.navbar-campana > button { background: none; border: none; cursor: pointer; padding: 0; }
+.navbar-campana.open .navbar-dropdown-menu { display: block; }
+.navbar-campana .navbar-dropdown-menu { width: 320px; max-height: 70vh; overflow-y: auto; }
+.navbar-campana .navbar-dropdown-menu a { align-items: flex-start; white-space: normal; overflow-wrap: anywhere; }
+.navbar-campana__mas { padding: 6px 14px; font-size: 13px; color: var(--gray); }
 .navbar-user-dropdown { position: relative; }
 .navbar-dropdown-menu {
   display: none;
@@ -905,7 +911,9 @@ table tbody tr:hover td { background: #fafcff; }
 /* === Responsive === */
 @media (max-width: 991px) {
   .navbar-links { display: none; }
-  .navbar-auth  { display: none; }
+  .navbar-auth  { margin-left: auto; }
+  .navbar-auth > :not(.navbar-campana) { display: none; }
+  .navbar-campana .navbar-dropdown-menu { position: fixed; top: 64px; left: 12px; right: 12px; width: auto; }
   .navbar-hamburger { display: flex; }
   .admin-layout { grid-template-columns: 1fr; grid-template-rows: auto 1fr; overflow: hidden; }
   .admin-sidebar {

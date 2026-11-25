@@ -34,6 +34,7 @@ cn-medio-cudeyo/
 │   ├── competicion_entrenador.php ← Helpers competiciones del entrenador: convocatoria, mejor marca auto, mínimas (RFEN/propias), relevos
 │   ├── records_relevos.php ← Récords de relevo manuales (vigente = mejor tiempo por relevo×piscina×M/F/X)
 │   ├── logros.php         ← marca_logros()/logros_resumen(): ¿la marca es récord del club, marca de edad o mejor personal? (flash al guardar)
+│   ├── avisos.php         ← Campanita: comentarios de competición sin leer (nadador ↔ staff), leídos por usuario e hilo
 │   ├── entrenos.php       ← Helpers entrenos por grupo (subida fotos/PDF, visibilidad, avisos de nuevos)
 │   └── encuestas.php      ← Helpers encuestas estilo Google Forms (ENC_TIPOS, validar, guardar, resultados, export)
 └── public/                ← DocumentRoot de Apache
@@ -172,6 +173,7 @@ render_directiva_layout($activePage, fn)   // Sidebar directiva + main
 | `competicion_entrenador_tiempos` | Tiempos por nadador×prueba×competición, con parciales en texto libre. Los manuales crean también una fila en `marcas` (`marca_id`; se borra con el tiempo o cuando llega la oficial de RFEN) |
 | `competicion_entrenador_convocados` / `competicion_entrenador_pruebas` | Nadadores convocados y sus pruebas; la mejor marca (ventana `marcas_desde/hasta`, sin tiempos de la propia competición) se guarda como foto y se recalcula al cambiar datos/mínimas |
 | `competicion_entrenador_prueba_comentarios` | Hilo entrenador↔nadador por prueba inscrita. El objetivo va en `competicion_entrenador_pruebas` (`objetivo`, `objetivo_tiempo/seg`, `objetivo_estado`: NULL = automático, lo manual manda; `ce_estado_objetivo()`) |
+| `competicion_entrenador_vistos` | Último comentario leído por usuario e hilo (`tipo` prueba/tiempo + `ref_id`); alimenta la campanita |
 | `competicion_entrenador_minimas` | Mínimas propias de una competición (`minimas_fuente='propias'`): prueba × piscina × sexo × rango año nacimiento (gana el rango más estrecho) |
 | `competicion_entrenador_relevos` / `competicion_entrenador_relevo_nadadores` | Relevos (4x50/100/200 L, 8x50 L, 4x50/100 X; M/F/X mixto mitad y mitad) con 4 u 8 postas (`relevo_num_postas()`, tiempo de posta opcional) y tiempo final opcional; estimado = suma mejores marcas |
 | `comunicaciones` | Mensajes y encuestas (destinatario todos/liga/individual/**convocados** = `competicion_entrenador.id`, resuelto en vivo; encuestas: `fecha_cierre`, `cerrada`) |

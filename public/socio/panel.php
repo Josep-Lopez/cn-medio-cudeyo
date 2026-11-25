@@ -170,6 +170,8 @@ $user_top10_total = $user_top10['25m'] + $user_top10['50m'];
 
 $entrenos_nuevos = contar_entrenos_nuevos($pdo, (int)$user['id']);
 
+$avisos_coment = array_values(array_filter(avisos_comentarios($pdo, (int)$user['id']), fn($a) => (int)$a['dueno'] === (int)$user['id']));
+
 // Próximas competiciones a las que el entrenador le ha convocado
 $stmt = $pdo->prepare('
     SELECT c.id, c.nombre, c.fecha
@@ -211,6 +213,15 @@ render_header('Mi panel', 'socio-panel');
     <a href="/socio/entrenos" class="alert alert-info" style="display:flex;align-items:center;gap:10px;text-decoration:none;">
       <i class="bi bi-clipboard2-pulse-fill" style="font-size:20px;flex-shrink:0;"></i>
       <span>Tu entrenador ha publicado <strong><?= $entrenos_nuevos ?> entreno<?= $entrenos_nuevos > 1 ? 's' : '' ?> nuevo<?= $entrenos_nuevos > 1 ? 's' : '' ?></strong>. Pulsa para verlo<?= $entrenos_nuevos > 1 ? 's' : '' ?>.</span>
+    </a>
+  <?php endif; ?>
+
+  <?php if ($avisos_coment): 
+      // Una prueba puede tener dos hilos: el de la inscripción y el del tiempo
+      $nAv = count(array_unique(array_map(fn($a) => $a['competicion_id'] . '|' . $a['prueba'], $avisos_coment))); ?>
+    <a href="<?= e(count($avisos_coment) === 1 ? aviso_url($avisos_coment[0], (int)$user['id']) : '/socio/competiciones') ?>" class="alert alert-info" style="display:flex;align-items:center;gap:10px;text-decoration:none;">
+      <i class="bi bi-chat-dots-fill" style="font-size:20px;flex-shrink:0;"></i>
+      <span>Tienes comentarios nuevos en <strong><?= $nAv === 1 ? e(format_prueba($avisos_coment[0]['prueba']) . ' · ' . $avisos_coment[0]['competicion']) : $nAv . ' pruebas' ?></strong>. Pulsa para verlos.</span>
     </a>
   <?php endif; ?>
 

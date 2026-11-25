@@ -21,14 +21,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['accion'] ?? '') === 'comen
 }
 
 $tiempo = obtener_tiempo_entrenador($pdo, $id);
+$comentarios = $tiempo ? listar_comentarios_tiempo($pdo, $id) : [];
+marcar_hilo_visto($pdo, (int)current_user()['id'], 'tiempo', $id, $comentarios);
 
 render_header('Tiempo de competición', 'admin-competiciones');
-render_admin_layout('competiciones', function() use ($tiempo, $id, $pdo) {
+render_admin_layout('competiciones', function() use ($tiempo, $id, $pdo, $comentarios) {
     if (!$tiempo) {
         echo '<div class="card" style="padding:24px;">Tiempo no encontrado. <a href="/admin/competiciones">Volver</a></div>';
         return;
     }
-    $comentarios = listar_comentarios_tiempo($pdo, $id);
 ?>
 <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
   <h1 style="margin:0;"><?= e($tiempo['nadador_nombre']) ?> — <?= e(format_prueba($tiempo['prueba'])) ?></h1>

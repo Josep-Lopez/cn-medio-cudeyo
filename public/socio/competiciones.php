@@ -32,6 +32,11 @@ $convocatorias = listar_convocatorias_socio($pdo, (int)$user['id']);
 $inscIds = [];
 foreach ($convocatorias as $c) foreach ($c['pruebas'] as $p) $inscIds[] = (int)$p['id'];
 $hilos = listar_comentarios_pruebas($pdo, $inscIds);
+$avisos = avisos_comentarios($pdo, (int)$user['id']);
+$nuevos = avisos_por_hilo($avisos, 'prueba');
+$nuevosT = avisos_por_hilo($avisos, 'tiempo'); // se leen al abrir el tiempo
+// Se marcan como leídos después de mirar cuáles son nuevos, para resaltarlos en esta visita
+foreach ($hilos as $inscId => $h) marcar_hilo_visto($pdo, (int)$user['id'], 'prueba', $inscId, $h);
 $tiemposPorComp = [];
 foreach ($tiempos as $t) $tiemposPorComp[(int)$t['competicion_id']][] = $t;
 $abrir = (int)($_GET['abrir'] ?? 0);
@@ -109,7 +114,7 @@ render_header('Mis competiciones', 'socio-competiciones');
                           <strong><?= e($res['tiempo']) ?></strong>
                           <?= $res['piscina'] !== $c['piscina'] ? '<span class="text-muted text-sm">' . e($res['piscina']) . '</span>' : '' ?>
                           <?= render_ce_diff($p, $res) ?>
-                          <a href="/socio/competicion_tiempo?id=<?= (int)$res['id'] ?>" class="text-sm">Ver →</a>
+                          <a href="/socio/competicion_tiempo?id=<?= (int)$res['id'] ?>" class="text-sm">Ver →</a><?= isset($nuevosT[(int)$res['id']]) ? ' <span class="badge badge-blue">Nuevo</span>' : '' ?>
                         <?php else: ?>
                           <span class="text-muted">—</span>
                         <?php endif; ?>
@@ -120,7 +125,7 @@ render_header('Mis competiciones', 'socio-competiciones');
                         <?php if ($estadoObj !== null): ?><div class="ce-objetivo"><?= render_ce_objetivo($p, $estadoObj) ?></div><?php endif; ?>
                         <details <?= $hilo || $abrir === (int)$p['id'] ? 'open' : '' ?>>
                           <summary><i class="bi bi-chat"></i> <?= $hilo ? 'Comentarios (' . count($hilo) . ')' : 'Comentar' ?></summary>
-                          <?php render_ce_hilo($hilo, '/socio/competiciones', ['accion' => 'comentar_prueba', 'inscripcion_id' => (int)$p['id']]); ?>
+                          <?php render_ce_hilo($hilo, '/socio/competiciones', ['accion' => 'comentar_prueba', 'inscripcion_id' => (int)$p['id']], $nuevos[(int)$p['id']] ?? null); ?>
                         </details>
                       </td>
                     </tr>
@@ -133,7 +138,7 @@ render_header('Mis competiciones', 'socio-competiciones');
                       <td>
                         <strong><?= e($res['tiempo']) ?></strong>
                         <?= $res['piscina'] !== $c['piscina'] ? '<span class="text-muted text-sm">' . e($res['piscina']) . '</span>' : '' ?>
-                        <a href="/socio/competicion_tiempo?id=<?= (int)$res['id'] ?>" class="text-sm">Ver →</a>
+                        <a href="/socio/competicion_tiempo?id=<?= (int)$res['id'] ?>" class="text-sm">Ver →</a><?= isset($nuevosT[(int)$res['id']]) ? ' <span class="badge badge-blue">Nuevo</span>' : '' ?>
                       </td>
                     </tr>
                   <?php endforeach; ?>
@@ -181,7 +186,7 @@ render_header('Mis competiciones', 'socio-competiciones');
                 <td><?= e($t['competicion_nombre']) ?></td>
                 <td><?= e(format_prueba($t['prueba'])) ?></td>
                 <td style="font-weight:600;"><?= e($t['tiempo']) ?></td>
-                <td><a href="/socio/competicion_tiempo?id=<?= (int)$t['id'] ?>" class="btn btn-gray btn-sm">Ver →</a></td>
+                <td><a href="/socio/competicion_tiempo?id=<?= (int)$t['id'] ?>" class="btn btn-gray btn-sm">Ver →</a><?= isset($nuevosT[(int)$t['id']]) ? ' <span class="badge badge-blue">Nuevo</span>' : '' ?></td>
               </tr>
             <?php endforeach; ?>
           </tbody>
